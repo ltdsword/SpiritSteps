@@ -47,3 +47,6 @@ sysinfo.txt
 .vscode
 docs/
 UI-examples/
+# Optional TextMesh Pro sample content; only TMP Essentials are versioned.
+Assets/TextMesh Pro/Examples & Extras/
+Assets/TextMesh Pro/Examples & Extras.meta
