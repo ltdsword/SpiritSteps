@@ -1,0 +1,7 @@
+{
+  "name": "ARWalking.EditModeTests",
+  "references": ["ARWalking.Runtime"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

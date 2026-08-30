@@ -1,0 +1,11 @@
+{
+  "name": "ARWalking.Editor",
+  "rootNamespace": "ARWalking.Editor",
+  "references": [
+    "ARWalking.Runtime",
+    "Unity.AppUI",
+    "Unity.AppUI.Navigation"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

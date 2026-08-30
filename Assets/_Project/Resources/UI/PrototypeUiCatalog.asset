@@ -1,0 +1,201 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95257aeb42291f24bb485a8f48045341, type: 3}
+  m_Name: PrototypeUiCatalog
+  m_EditorClassIdentifier: ARWalking.Runtime::ARWalking.UI.PrototypeUiCatalog
+  spirits:
+  - id: leaf
+    name: "Linh H\u1ED3n L\xE1"
+    culturalTitle: The Leaf Spirit
+    description: A curious companion shaped by shaded parks and the rustle of old
+      trees. It remembers the small pauses between busy streets.
+    imageKey: spirit-leaf
+    collected: 1
+    isSelected: 1
+  - id: lotus
+    name: "Linh H\u1ED3n Sen"
+    culturalTitle: The Lotus Spirit
+    description: A calm companion carrying stories of water, summer rain, and patient
+      growth in the heart of the city.
+    imageKey: spirit-lotus
+    collected: 1
+    isSelected: 0
+  - id: star
+    name: "Linh H\u1ED3n Sao"
+    culturalTitle: The Starlight Spirit
+    description: A bright companion still waiting to be discovered on an evening
+      journey.
+    imageKey: spirit-star
+    collected: 0
+    isSelected: 0
+  seedlings:
+  - id: tao-dan
+    name: "Tao \u0110\xE0n Leaf Seedling"
+    locationName: "C\xF4ng vi\xEAn Tao \u0110\xE0n"
+    imageKey: seed-red
+    currentSteps: 4268
+    requiredSteps: 5000
+    ready: 0
+  - id: turtle-lake
+    name: "H\u1ED3 Con R\xF9a Lotus Seedling"
+    locationName: "H\u1ED3 Con R\xF9a"
+    imageKey: seed-blue
+    currentSteps: 5000
+    requiredSteps: 5000
+    ready: 1
+  - id: book-street
+    name: "\u0110\u01B0\u1EDDng S\xE1ch Star Seedling"
+    locationName: "\u0110\u01B0\u1EDDng S\xE1ch Nguy\u1EC5n V\u0103n B\xECnh"
+    imageKey: seed-yellow
+    currentSteps: 1830
+    requiredSteps: 6000
+    ready: 0
+  walks:
+  - id: walk-aug-27
+    dateLabel: 27 Aug 2026
+    placeName: "Qu\u1EADn 1"
+    steps: 2146
+    durationMinutes: 31
+    distanceKilometres: 1.8
+    discoveries: 3
+  - id: walk-aug-23
+    dateLabel: 23 Aug 2026
+    placeName: "Tao \u0110\xE0n"
+    steps: 3890
+    durationMinutes: 48
+    distanceKilometres: 2.9
+    discoveries: 2
+  landmarks:
+  - id: independence-palace
+    name: "Dinh \u0110\u1ED9c L\u1EADp"
+    subtitle: Independence Palace
+    memoryText: "A modern landmark held within a deep green garden. Its open geometry
+      and shaded grounds remember many layers of S\xE0i G\xF2n history."
+    imageKey: independence-palace
+    discovered: 1
+  - id: post-office
+    name: "B\u01B0u \u0111i\u1EC7n Trung t\xE2m S\xE0i G\xF2n"
+    subtitle: Saigon Central Post Office
+    memoryText: Sunlit arches, patterned floors, and handwritten messages make this
+      a place where journeys have crossed for generations.
+    imageKey: post-office
+    discovered: 1
+  - id: notre-dame
+    name: "Nh\xE0 th\u1EDD \u0110\u1EE9c B\xE0 S\xE0i G\xF2n"
+    subtitle: Notre-Dame Cathedral Basilica
+    memoryText: Red brick and twin towers rise above a lively square, a familiar
+      meeting point remembered by many generations.
+    imageKey: notre-dame
+    discovered: 1
+  - id: temple-literature
+    name: "V\u0103n Mi\u1EBFu"
+    subtitle: Temple of Literature Memory
+    memoryText: A cultural memory celebrating learning, careful attention, and the
+      stories preserved through study.
+    imageKey: temple-literature
+    discovered: 0
+  journeys:
+  - id: green-thread
+    title: "The Green Thread of Qu\u1EADn 1"
+    dateLabel: "Thursday \xB7 27 August"
+    summary: A slow route from shaded gardens to the old post office.
+    imageKey: journal-1
+    landmarkId: post-office
+    steps: 2146
+    memories: 3
+  - id: summer-rain
+    title: After the Summer Rain
+    dateLabel: "Sunday \xB7 23 August"
+    summary: Wet leaves, quiet paths, and a lotus seedling ready to wake.
+    imageKey: journal-2
+    landmarkId: independence-palace
+    steps: 3890
+    memories: 2
+  photographs:
+  - id: photo-leaf-park
+    title: "Linh H\u1ED3n L\xE1 in the park"
+    dateLabel: 27 Aug 2026
+    imageKey: ar-park
+    saved: 1
+  - id: photo-lotus-rain
+    title: "Linh H\u1ED3n Sen after rain"
+    dateLabel: 23 Aug 2026
+    imageKey: journal-2
+    saved: 1
+  collectibles:
+  - id: stamp-post
+    name: "B\u01B0u \u0111i\u1EC7n Postmark"
+    category: City stamp
+    imageKey: memory-fragment
+    collected: 1
+  - id: lotus-fragment
+    name: "M\u1EA3nh K\xFD \u1EE8c Hoa Sen"
+    category: Memory fragment
+    imageKey: memory-fragment
+    collected: 1
+  - id: book-street-card
+    name: "\u0110\u01B0\u1EDDng S\xE1ch Card"
+    category: Place card
+    imageKey: post-office
+    collected: 0
+  - id: rain-note
+    name: "Ghi Ch\xFA M\u01B0a H\xE8"
+    category: Journal decoration
+    imageKey: journal-2
+    collected: 1
+  map:
+    textureKey: hcm-illustrated
+    regionName: "Qu\u1EADn 1 \xB7 Th\xE0nh ph\u1ED1 H\u1ED3 Ch\xED Minh"
+    minimumZoom: 1
+    maximumZoom: 2.8
+    initialFocus: {x: 0.5, y: 0.5}
+  markers:
+  - id: player
+    type: 0
+    label: "You and Linh H\u1ED3n L\xE1"
+    normalizedPosition: {x: 0.48, y: 0.58}
+    targetId: leaf
+  - id: palace
+    type: 1
+    label: "Dinh \u0110\u1ED9c L\u1EADp"
+    normalizedPosition: {x: 0.32, y: 0.45}
+    targetId: independence-palace
+  - id: post
+    type: 1
+    label: "B\u01B0u \u0111i\u1EC7n Trung t\xE2m S\xE0i G\xF2n"
+    normalizedPosition: {x: 0.62, y: 0.42}
+    targetId: post-office
+  - id: cathedral
+    type: 1
+    label: "Nh\xE0 th\u1EDD \u0110\u1EE9c B\xE0 S\xE0i G\xF2n"
+    normalizedPosition: {x: 0.55, y: 0.36}
+    targetId: notre-dame
+  - id: seed-tao-dan
+    type: 2
+    label: "Tao \u0110\xE0n seedling"
+    normalizedPosition: {x: 0.22, y: 0.62}
+    targetId: tao-dan
+  - id: seed-turtle
+    type: 2
+    label: "H\u1ED3 Con R\xF9a seedling"
+    normalizedPosition: {x: 0.68, y: 0.23}
+    targetId: turtle-lake
+  - id: collectible-postmark
+    type: 3
+    label: "B\u01B0u \u0111i\u1EC7n postmark"
+    normalizedPosition: {x: 0.7, y: 0.5}
+    targetId: stamp-post
+  - id: ar-park
+    type: 4
+    label: Companion moment
+    normalizedPosition: {x: 0.39, y: 0.72}
+    targetId: ar-park

@@ -1,0 +1,9 @@
+{
+  "name": "ARWalking.Runtime",
+  "rootNamespace": "ARWalking",
+  "references": [
+    "Unity.AppUI",
+    "Unity.InputSystem"
+  ],
+  "autoReferenced": true
+}
