@@ -50,6 +50,12 @@ docs/
 docs/*
 !docs/UI-strategy.md
 !docs/MAP-WALK-PROVIDER-INTEGRATION.md
+!docs/Features_3D_Game.md
+!docs/AR_Pet_Walking_Final_Presentation_UPDATED.md
+!docs/AR_Pet_Walking_Tech_Architecture_UPDATED.md
+!docs/images/
+# docs/vietnamese-memory-explorer-2/ stays ignored: it's an 89MB Next.js reference
+# mockup (code + assets), not a document - would permanently bloat repo/clone size.
 UI-examples/
 # Optional TextMesh Pro sample content; only TMP Essentials are versioned.
 Assets/TextMesh Pro/Examples & Extras/
