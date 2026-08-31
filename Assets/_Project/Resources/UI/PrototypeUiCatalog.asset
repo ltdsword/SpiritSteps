@@ -53,6 +53,7 @@ MonoBehaviour:
       1.
     imageKey: independence-palace
     imageTargetReady: 0
+    companionRewardId:
   - id: central-post-office
     name: Central Post Office
     localName: Buu dien Trung tam Sai Gon
@@ -63,6 +64,7 @@ MonoBehaviour:
     didYouKnow: The building still operates as a post office while welcoming visitors.
     imageKey: post-office
     imageTargetReady: 1
+    companionRewardId: rabbit
   - id: notre-dame-basilica
     name: Notre-Dame Basilica
     localName: Nha tho Duc Ba Sai Gon
@@ -73,6 +75,7 @@ MonoBehaviour:
     didYouKnow: Its central location makes it a common meeting point and city reference.
     imageKey: notre-dame
     imageTargetReady: 0
+    companionRewardId:
   map:
     textureKey: hcm-illustrated
     regionName: District 1, Ho Chi Minh City

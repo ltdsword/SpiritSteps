@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Linq;
 using ARWalking.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -104,7 +105,7 @@ namespace ARWalking.Tests.PlayMode
             var first = ar.CollectStamp();
             var second = ar.CollectStamp();
             Assert.That(first.newlyCompleted, Is.True);
-            Assert.That(first.rabbitUnlocked, Is.True);
+            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Rabbit));
             Assert.That(second.newlyCompleted, Is.False);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
@@ -125,6 +126,9 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.ArPhoto));
             ar.SavePhoto();
             Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Single().photoPath,
+                Is.EqualTo(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Single()),
+                "Saving an AR Photo while viewing a Landmark should link it to that Landmark's Journey entry.");
 
             UnityEngine.Object.Destroy(UiPrototypeRuntime.Instance.gameObject);
             yield return null;
@@ -132,7 +136,26 @@ namespace ARWalking.Tests.PlayMode
             yield return WaitForScene("Home");
             Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Single().photoPath, Is.Not.Null.And.Not.Empty);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator CompanionVisualStateReflectsUnlockAndGrowthStage()
+        {
+            CreateProfile();
+            var runtime = UiPrototypeRuntime.Instance;
+
+            var dog = runtime.GetCompanionVisualState(PrototypeIds.Dog);
+            Assert.That(dog.unlocked, Is.True);
+            Assert.That(dog.stage, Is.EqualTo(GrowthStage.Baby), "Dog starts at 450 EXP, still under the 500 Baby/Young boundary.");
+            Assert.That(dog.scale, Is.EqualTo(0.70f));
+
+            var cat = runtime.GetCompanionVisualState(PrototypeIds.Cat);
+            Assert.That(cat.unlocked, Is.False);
+            Assert.That(cat.scale, Is.Zero, "A locked companion has no meaningful display scale.");
+
+            yield return null;
         }
 
         [UnityTest]

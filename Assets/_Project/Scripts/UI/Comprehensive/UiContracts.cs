@@ -95,6 +95,8 @@ namespace ARWalking.UI
         [TextArea] public string didYouKnow;
         public string imageKey;
         public bool imageTargetReady;
+        /// <summary>Companion id unlocked by completing this Landmark's AR Memory, or empty for none.</summary>
+        public string companionRewardId;
     }
 
     [Serializable]
@@ -160,8 +162,23 @@ namespace ARWalking.UI
         public bool newlyCompleted;
         public string landmarkId;
         public string stampId;
-        public bool rabbitUnlocked;
+        /// <summary>Companion id unlocked by this completion, or empty when none was unlocked.</summary>
+        public string unlockedCompanionId = string.Empty;
         public string journeyId;
+    }
+
+    /// <summary>
+    /// AR/3D integration contract: the current visual state of one companion (species, growth stage, scale).
+    /// AR/3D code should read this instead of touching save data directly - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+    /// </summary>
+    [Serializable]
+    public sealed class CompanionVisualState
+    {
+        public string companionId;
+        public bool unlocked;
+        public GrowthStage stage;
+        /// <summary>Placeholder model scale for the current stage; 0 when the companion is locked.</summary>
+        public float scale;
     }
 
     [Serializable]

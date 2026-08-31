@@ -178,15 +178,33 @@ namespace ARWalking.Tests.EditMode
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var service = new CompanionProgressionService(save);
-            var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
-            var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, DateTime.UtcNow);
+            var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Rabbit, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
+            var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Rabbit, DateTime.UtcNow);
             Assert.That(first.newlyCompleted, Is.True);
-            Assert.That(first.rabbitUnlocked, Is.True);
+            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Rabbit));
             Assert.That(save.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
             Assert.That(save.stamps.Select(item => item.stampId), Is.EquivalentTo(new[] { PrototypeIds.CentralPostOfficeStamp }));
             Assert.That(save.journeys.Count, Is.EqualTo(1));
             Assert.That(second.newlyCompleted, Is.False);
-            Assert.That(second.rabbitUnlocked, Is.False);
+            Assert.That(second.unlockedCompanionId, Is.Empty);
+        }
+
+        [Test]
+        public void LandmarkRewardIsDataDrivenPerLandmarkNotHardcodedToOneId()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+
+            // A landmark with no configured reward (empty companionRewardId) grants a Stamp but unlocks nothing.
+            var noRewardResult = service.CompleteLandmarkMemory(PrototypeIds.IndependencePalace, string.Empty, DateTime.UtcNow);
+            Assert.That(noRewardResult.newlyCompleted, Is.True);
+            Assert.That(noRewardResult.stampId, Is.EqualTo(PrototypeIds.IndependencePalace + "-stamp"));
+            Assert.That(noRewardResult.unlockedCompanionId, Is.Empty);
+
+            // Any landmark id can carry any companion reward - it is no longer hardcoded to Central Post Office/Rabbit.
+            var rewardResult = service.CompleteLandmarkMemory(PrototypeIds.NotreDameBasilica, PrototypeIds.Cat, DateTime.UtcNow);
+            Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Cat));
+            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.True);
         }
 
         [Test]
@@ -208,6 +226,9 @@ namespace ARWalking.Tests.EditMode
             Assert.That(catalog.foods.Count, Is.EqualTo(2));
             Assert.That(catalog.landmarks.Count, Is.EqualTo(3));
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).imageTargetReady, Is.True);
+            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).companionRewardId, Is.EqualTo(PrototypeIds.Rabbit));
+            Assert.That(catalog.landmarks.Where(item => item.id != PrototypeIds.CentralPostOffice).Select(item => item.companionRewardId),
+                Is.All.Null.Or.Empty, "Only Central Post Office is configured with a companion reward today.");
             Assert.That(library, Is.Not.Null);
             Assert.That(library.companions.Length, Is.EqualTo(3));
             Assert.That(library.archivedPlantPlaceholders.Length, Is.EqualTo(3));

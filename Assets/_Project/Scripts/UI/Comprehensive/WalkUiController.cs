@@ -38,13 +38,19 @@ namespace ARWalking.UI
             _document.rootVisualElement.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
             ApplySafeArea();
             _runtime.Navigator.Changed += Render;
+            _runtime.CompanionTapped += OnCompanionTapped;
             if (_runtime.Navigator.CurrentRoute != UiRoute.LandmarkArMemory && _runtime.Navigator.CurrentRoute != UiRoute.ArPhoto)
                 _runtime.Navigator.Push(UiRoute.LandmarkArMemory);
             else Render();
             ShowToast("Camera permission is requested here when the real AR camera is connected.");
         }
 
-        void OnDisable() { if (_runtime != null) _runtime.Navigator.Changed -= Render; }
+        void OnDisable()
+        {
+            if (_runtime == null) return;
+            _runtime.Navigator.Changed -= Render;
+            _runtime.CompanionTapped -= OnCompanionTapped;
+        }
 
         void Update()
         {
@@ -54,18 +60,30 @@ namespace ARWalking.UI
         }
 
         public void SimulateImageTargetRecognition() { _memoryPage = 1; Render(); }
+
+        /// <summary>
+        /// AR/3D integration hook: call this from the real Vuforia target-found handler once an Image Target
+        /// is recognized, instead of the "Simulate recognition" debug button - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+        /// The debug button stays wired to the same logic as a demo fallback if live recognition is unreliable.
+        /// </summary>
+        public void OnImageTargetRecognized() => SimulateImageTargetRecognition();
+
         public void NextMemoryPage() { _memoryPage = Mathf.Min(3, _memoryPage + 1); Render(); }
         public LandmarkRewardDto CollectStamp()
         {
             var landmark = _runtime.Data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _runtime.Data.Landmarks.Count - 1)];
             var result = _runtime.CompleteLandmarkMemory(landmark.id);
             _stampCollected = true;
+            var unlockedName = string.IsNullOrEmpty(result.unlockedCompanionId) ? null : CompanionName(result.unlockedCompanionId);
             ShowToast(result.newlyCompleted
-                ? "Stamp collected" + (result.rabbitUnlocked ? " - Rabbit unlocked!" : string.Empty)
+                ? "Stamp collected" + (unlockedName != null ? " - " + unlockedName + " unlocked!" : string.Empty)
                 : "This Landmark reward was already collected.");
             Render();
             return result;
         }
+
+        void OnCompanionTapped(string companionId) => ShowToast(CompanionName(companionId) + " reacted!");
+        string CompanionName(string id) { foreach (var item in _runtime.Data.Companions) if (item.id == id) return item.name; return id; }
 
         public void OpenPhoto() => _runtime.Navigator.Push(UiRoute.ArPhoto);
         public void ExitToHome() => _runtime.ReturnFromArToHome();

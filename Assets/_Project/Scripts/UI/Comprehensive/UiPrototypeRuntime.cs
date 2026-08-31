@@ -113,20 +113,88 @@ namespace ARWalking.UI
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId)
         {
             RequireProfile();
-            LastLandmarkReward = _progression.CompleteLandmarkMemory(landmarkId, DateTime.UtcNow);
+            var companionRewardId = FindLandmark(landmarkId)?.companionRewardId;
+            LastLandmarkReward = _progression.CompleteLandmarkMemory(landmarkId, companionRewardId, DateTime.UtcNow);
             if (LastLandmarkReward.newlyCompleted) Persist();
             return LastLandmarkReward;
         }
 
-        public void SaveArPhoto(string path = null)
+        /// <summary>Mock/demo path: fabricates a file path without writing real image data.</summary>
+        public string SaveArPhoto(string path = null)
         {
             RequireProfile();
             var value = string.IsNullOrWhiteSpace(path)
                 ? Path.Combine(Application.persistentDataPath, "mock-ar-photo-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff") + ".jpg")
                 : path;
-            if (!SaveData.savedPhotoPaths.Contains(value)) SaveData.savedPhotoPaths.Add(value);
+            RecordPhoto(value);
+            return value;
+        }
+
+        /// <summary>
+        /// AR/3D integration hook: pass the real captured frame (encoded PNG bytes) here once a teammate's
+        /// AR Photo capture is implemented. Writes the file, records it, and links it to the current Landmark's
+        /// Journey entry if one exists - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+        /// </summary>
+        public string SaveArPhoto(byte[] pngBytes)
+        {
+            RequireProfile();
+            if (pngBytes == null || pngBytes.Length == 0) throw new ArgumentException("pngBytes must not be empty.", nameof(pngBytes));
+            var value = Path.Combine(Application.persistentDataPath, "ar-photo-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff") + ".png");
+            File.WriteAllBytes(value, pngBytes);
+            RecordPhoto(value);
+            return value;
+        }
+
+        void RecordPhoto(string path)
+        {
+            if (!SaveData.savedPhotoPaths.Contains(path)) SaveData.savedPhotoPaths.Add(path);
+            var landmarkId = SelectedLandmarkIndex >= 0 && SelectedLandmarkIndex < Data.Landmarks.Count
+                ? Data.Landmarks[SelectedLandmarkIndex].id
+                : null;
+            var journey = string.IsNullOrEmpty(landmarkId) ? null : FindLatestJourneyForLandmark(landmarkId);
+            if (journey != null) journey.photoPath = path;
             Persist();
         }
+
+        JourneyEntryData FindLatestJourneyForLandmark(string landmarkId)
+        {
+            JourneyEntryData match = null;
+            foreach (var journey in SaveData.journeys)
+                if (journey != null && journey.landmarkId == landmarkId) match = journey;
+            return match;
+        }
+
+        LandmarkUiData FindLandmark(string landmarkId)
+        {
+            foreach (var landmark in Data.Landmarks)
+                if (landmark.id == landmarkId) return landmark;
+            return null;
+        }
+
+        /// <summary>
+        /// AR/3D integration hook: the species/growth-stage/scale AR and 3D preview code should render for a
+        /// companion, without touching save data directly - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+        /// </summary>
+        public CompanionVisualState GetCompanionVisualState(string companionId)
+        {
+            var progress = Companion(companionId);
+            var unlocked = progress != null && progress.unlocked;
+            var stage = unlocked ? CompanionProgressionService.StageFor(progress.growthExperience) : GrowthStage.Baby;
+            return new CompanionVisualState
+            {
+                companionId = companionId,
+                unlocked = unlocked,
+                stage = stage,
+                scale = unlocked ? CompanionProgressionService.PlaceholderScaleFor(stage) : 0f
+            };
+        }
+
+        /// <summary>
+        /// AR/3D integration hook: call this when the player taps the AR companion, so UI code (e.g. a toast
+        /// reaction) can respond without the AR scene needing to know about the UI - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+        /// </summary>
+        public event Action<string> CompanionTapped;
+        public void NotifyCompanionTapped(string companionId) => CompanionTapped?.Invoke(companionId);
 
         public void ResetLocalProgress()
         {

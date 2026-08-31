@@ -24,6 +24,8 @@ namespace ARWalking.UI
         public bool hasSteps;
         public int steps;
         public float durationSeconds;
+        /// <summary>Path to an AR Photo taken during this visit, or null/empty when none was saved.</summary>
+        public string photoPath;
     }
 
     [Serializable]

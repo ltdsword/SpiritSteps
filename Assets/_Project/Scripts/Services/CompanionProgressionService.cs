@@ -112,26 +112,24 @@ namespace ARWalking.UI
             return result;
         }
 
-        public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId, DateTime utcNow)
+        public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId, string companionRewardId, DateTime utcNow)
         {
             var result = new LandmarkRewardDto { landmarkId = landmarkId };
             if (string.IsNullOrWhiteSpace(landmarkId) || _save.completedLandmarkIds.Contains(landmarkId)) return result;
 
             result.newlyCompleted = true;
             _save.completedLandmarkIds.Add(landmarkId);
-            result.stampId = landmarkId == PrototypeIds.CentralPostOffice
-                ? PrototypeIds.CentralPostOfficeStamp
-                : landmarkId + "-stamp";
+            result.stampId = landmarkId + "-stamp";
             if (!_save.stamps.Exists(item => item != null && item.stampId == result.stampId))
                 _save.stamps.Add(new StampData { stampId = result.stampId, landmarkId = landmarkId, collectedUtc = utcNow.ToUniversalTime().ToString("O") });
 
-            if (landmarkId == PrototypeIds.CentralPostOffice)
+            if (!string.IsNullOrWhiteSpace(companionRewardId))
             {
-                var rabbit = _save.FindCompanion(PrototypeIds.Rabbit);
-                if (!rabbit.unlocked)
+                var rewardCompanion = _save.FindCompanion(companionRewardId);
+                if (rewardCompanion != null && !rewardCompanion.unlocked)
                 {
-                    rabbit.unlocked = true;
-                    result.rabbitUnlocked = true;
+                    rewardCompanion.unlocked = true;
+                    result.unlockedCompanionId = companionRewardId;
                 }
             }
 

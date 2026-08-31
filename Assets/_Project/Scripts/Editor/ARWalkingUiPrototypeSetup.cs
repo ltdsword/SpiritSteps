@@ -89,7 +89,15 @@ namespace ARWalking.Editor
         {
             const string path = ResourceFolder + "/PrototypeUiCatalog.asset";
             var catalog = AssetDatabase.LoadAssetAtPath<PrototypeUiCatalog>(path);
-            if (catalog == null) { catalog = ScriptableObject.CreateInstance<PrototypeUiCatalog>(); AssetDatabase.CreateAsset(catalog, path); }
+            var isNew = catalog == null;
+            if (isNew) { catalog = ScriptableObject.CreateInstance<PrototypeUiCatalog>(); AssetDatabase.CreateAsset(catalog, path); }
+            if (!isNew && catalog.companions != null && catalog.companions.Count > 0)
+            {
+                // The catalog already has content (likely hand-edited with real copy). Re-running this tool must
+                // not silently overwrite it. Delete PrototypeUiCatalog.asset first to regenerate from code.
+                Debug.Log("PrototypeUiCatalog already has content; leaving companions/foods/landmarks/map/markers untouched.");
+                return;
+            }
             catalog.companions = new List<CompanionUiData>
             {
                 new CompanionUiData { id=PrototypeIds.Dog, name="Dog", description="A loyal starter who gains Growth EXP from completed kilometres and food.", imageKey="temporary-plant-dog", unlockHint="Starter companion" },
@@ -104,7 +112,7 @@ namespace ARWalking.Editor
             catalog.landmarks = new List<LandmarkUiData>
             {
                 new LandmarkUiData { id=PrototypeIds.IndependencePalace, name="Independence Palace", localName="Dinh Doc Lap", history="A major Ho Chi Minh City landmark associated with pivotal events in modern Vietnamese history.", architecture="The building is known for its modernist composition, shaded facades, and broad ceremonial spaces.", didYouKnow="Its grounds form a large green landmark in the centre of District 1.", imageKey="independence-palace" },
-                new LandmarkUiData { id=PrototypeIds.CentralPostOffice, name="Central Post Office", localName="Buu dien Trung tam Sai Gon", history="Built in the late nineteenth century, the post office has connected residents and travellers across generations.", architecture="Its long vaulted hall, patterned tile floor, and arched windows create a bright civic interior.", didYouKnow="The building still operates as a post office while welcoming visitors.", imageKey="post-office", imageTargetReady=true },
+                new LandmarkUiData { id=PrototypeIds.CentralPostOffice, name="Central Post Office", localName="Buu dien Trung tam Sai Gon", history="Built in the late nineteenth century, the post office has connected residents and travellers across generations.", architecture="Its long vaulted hall, patterned tile floor, and arched windows create a bright civic interior.", didYouKnow="The building still operates as a post office while welcoming visitors.", imageKey="post-office", imageTargetReady=true, companionRewardId=PrototypeIds.Rabbit },
                 new LandmarkUiData { id=PrototypeIds.NotreDameBasilica, name="Notre-Dame Basilica", localName="Nha tho Duc Ba Sai Gon", history="The basilica is a familiar historic landmark beside the Central Post Office in District 1.", architecture="Red brick walls and two bell towers define its prominent silhouette on the square.", didYouKnow="Its central location makes it a common meeting point and city reference.", imageKey="notre-dame" }
             };
             catalog.map = new IllustratedMapUiData { textureKey="hcm-illustrated", regionName="District 1, Ho Chi Minh City", minimumZoom=1f, maximumZoom=2.8f, initialFocus=new Vector2(0.5f, 0.5f) };

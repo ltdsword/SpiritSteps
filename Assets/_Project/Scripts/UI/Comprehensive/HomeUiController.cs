@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using Unity.AppUI.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -26,6 +28,7 @@ namespace ARWalking.UI
         Vector2Int _lastScreenSize;
         int _setupStep;
         string _pendingDisplayName = string.Empty;
+        readonly Dictionary<string, Texture2D> _journeyPhotoCache = new Dictionary<string, Texture2D>();
 
         public UiRoute CurrentRoute => _runtime != null ? _runtime.Navigator.CurrentRoute : UiRoute.HomeMap;
         public UiRootTab CurrentRoot => _runtime != null ? _runtime.Navigator.CurrentRoot : UiRootTab.Map;
@@ -342,7 +345,7 @@ namespace ARWalking.UI
                 var button = new UiButton(() => { _runtime.SelectedJourneyIndex = index; Navigate(UiRoute.JourneyDetail); });
                 button.name = "journey-" + journey.id;
                 button.AddToClassList("journey-card");
-                button.Add(Image(_assets != null ? _assets.journeyOne : null, "journey-image"));
+                button.Add(Image(JourneyImage(journey), "journey-image"));
                 var copy = Column(); copy.Add(Eyebrow(DateLabel(journey.createdUtc))); copy.Add(Subtitle(journey.title)); copy.Add(Body(journey.summary)); button.Add(copy);
                 scroll.Add(button);
             }
@@ -354,7 +357,7 @@ namespace ARWalking.UI
             var index = Mathf.Clamp(_runtime.SelectedJourneyIndex, 0, _runtime.SaveData.journeys.Count - 1);
             var journey = _runtime.SaveData.journeys[index];
             var scroll = ScreenWithHeader(journey.title, DateLabel(journey.createdUtc), true);
-            scroll.Add(Image(_assets != null ? _assets.journeyOne : null, "journey-detail-image"));
+            scroll.Add(Image(JourneyImage(journey), "journey-detail-image"));
             var note = Card("scrapbook-card");
             note.Add(Eyebrow("LOCAL JOURNEY RECORD"));
             note.Add(Title(journey.summary));
@@ -473,6 +476,17 @@ namespace ARWalking.UI
             if (icon != null) button.Add(IconImage(icon, "nav-icon"));
             else button.Add(new Label(fallback) { name = "nav-icon" });
             button.Add(new Label(label) { name = "nav-label" }); return button;
+        }
+
+        Texture2D JourneyImage(JourneyEntryData journey)
+        {
+            if (string.IsNullOrEmpty(journey.photoPath)) return _assets != null ? _assets.journeyOne : null;
+            if (_journeyPhotoCache.TryGetValue(journey.photoPath, out var cached) && cached != null) return cached;
+            if (!File.Exists(journey.photoPath)) return _assets != null ? _assets.journeyOne : null;
+            var texture = new Texture2D(2, 2);
+            if (!texture.LoadImage(File.ReadAllBytes(journey.photoPath))) return _assets != null ? _assets.journeyOne : null;
+            _journeyPhotoCache[journey.photoPath] = texture;
+            return texture;
         }
 
         LandmarkUiData SelectedLandmark() => _data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _data.Landmarks.Count - 1)];
