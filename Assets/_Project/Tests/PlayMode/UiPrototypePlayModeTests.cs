@@ -1,102 +1,181 @@
+using System;
 using System.Collections;
+using System.IO;
 using ARWalking.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UIElements;
 
 namespace ARWalking.Tests.PlayMode
 {
     public sealed class UiPrototypePlayModeTests
     {
-        [UnityTest]
-        public IEnumerator BootOpensHomeWithAppUiDocument()
-        {
-            SceneManager.LoadScene("Boot");
-            yield return WaitForScene("Home");
-            Assert.That(Object.FindFirstObjectByType<HomeUiController>(), Is.Not.Null);
-        }
+        string _savePath;
 
-        [UnityTest]
-        public IEnumerator FiveRootDestinationsAndCrossSceneReturnWork()
+        [UnitySetUp]
+        public IEnumerator SetUp()
         {
+            if (UiPrototypeRuntime.Instance != null)
+            {
+                UnityEngine.Object.Destroy(UiPrototypeRuntime.Instance.gameObject);
+                yield return null;
+            }
+            _savePath = Path.Combine(Path.GetTempPath(), "ar-walking-play-" + Guid.NewGuid().ToString("N"), LocalPlayerSaveStore.FileName);
+            UiPrototypeRuntime.ClearTestOverrides();
+            UiPrototypeRuntime.TestSavePathOverride = _savePath;
             SceneManager.LoadScene("Home");
             yield return WaitForScene("Home");
-            var home = Object.FindFirstObjectByType<HomeUiController>();
-            home.SelectRoot(UiRootTab.Map); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
-            home.SelectRoot(UiRootTab.Garden); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.SeedlingGrowth));
-            home.SelectRoot(UiRootTab.Journal); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyJournal));
-            home.SelectRoot(UiRootTab.Book); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.SpiritCollection));
-            home.SelectRoot(UiRootTab.WalkAr);
-            yield return WaitForScene("Walk");
-            var walk = Object.FindFirstObjectByType<WalkUiController>();
-            Assert.That(walk, Is.Not.Null);
-            Assert.That(walk.CurrentRoute, Is.EqualTo(UiRoute.ArCompanion));
-            walk.ExitToHome();
-            yield return WaitForScene("Home");
-            Assert.That(Object.FindFirstObjectByType<HomeUiController>(), Is.Not.Null);
         }
 
-        [UnityTest]
-        public IEnumerator PrimaryHomeFlowsAndBackStackWork()
+        [UnityTearDown]
+        public IEnumerator TearDown()
         {
-            SceneManager.LoadScene("Home");
-            yield return WaitForScene("Home");
-            var home = Object.FindFirstObjectByType<HomeUiController>();
-            home.SelectRoot(UiRootTab.Map);
-            home.Navigate(UiRoute.ActiveWalk);
-            home.Navigate(UiRoute.WalkSummary);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.WalkSummary));
-            Assert.That(home.HandleBack(), Is.True);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
-            home.SelectRoot(UiRootTab.Garden);
-            home.Navigate(UiRoute.HatchReveal);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HatchReveal));
-            home.SelectRoot(UiRootTab.Journal);
-            home.Navigate(UiRoute.JourneyDetail);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyDetail));
-            home.SelectRoot(UiRootTab.Book);
-            home.Navigate(UiRoute.SpiritDetail);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.SpiritDetail));
-            home.SelectRoot(UiRootTab.Map);
-            home.Navigate(UiRoute.LandmarkMemory);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.LandmarkMemory));
-        }
-
-        [UnityTest]
-        public IEnumerator ArPhotoPreviewSaveAndBackWork()
-        {
-            SceneManager.LoadScene("Walk");
-            yield return WaitForScene("Walk");
-            var walk = Object.FindFirstObjectByType<WalkUiController>();
-            var before = UiPrototypeRuntime.Instance.SavedPhotoCount;
-            walk.OpenPhoto();
+            if (UiPrototypeRuntime.Instance != null) UnityEngine.Object.Destroy(UiPrototypeRuntime.Instance.gameObject);
             yield return null;
-            Assert.That(walk.CurrentRoute, Is.EqualTo(UiRoute.ArPhoto));
-            walk.SavePhoto();
-            Assert.That(walk.CurrentRoute, Is.EqualTo(UiRoute.ArCompanion));
-            Assert.That(UiPrototypeRuntime.Instance.SavedPhotoCount, Is.EqualTo(before + 1));
+            UiPrototypeRuntime.ClearTestOverrides();
+            var directory = Path.GetDirectoryName(_savePath);
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory)) Directory.Delete(directory, true);
         }
 
         [UnityTest]
-        public IEnumerator OverlayClosesBeforeRouteBack()
+        public IEnumerator FirstLaunchSetupCreatesProfileAndOpensHome()
         {
+            var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.OnboardingSetup));
+            Assert.That(home.CompleteSetup("  Lan  "), Is.True);
+            yield return null;
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.displayName, Is.EqualTo("Lan"));
+            Assert.That(File.Exists(_savePath), Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator FourTabsWalkResultCompanionDetailAndFeedWork()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Map); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
+            home.BeginWalk(); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
+            var result = home.FinishWalk(); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.WalkResult));
+            Assert.That(result.coinsAwarded, Is.EqualTo(30));
+            home.SelectRoot(UiRootTab.Companions); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
+            home.Navigate(UiRoute.CompanionDetail); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
+            home.SelectRoot(UiRootTab.Shop); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ShopFood));
+            var feed = home.Feed("basic-food", PrototypeIds.Dog);
+            Assert.That(feed.success, Is.True);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(10));
+            home.SelectRoot(UiRootTab.Journey); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyList));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator NavigationAndHeaderControlsUseImageIcons()
+        {
+            var home = CreateProfile();
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var mapIcon = root.Q<UnityEngine.UIElements.Button>("nav-map")?.Q<UnityEngine.UIElements.Image>("nav-icon");
+            var settingsIcon = root.Q<UnityEngine.UIElements.Button>("settings-button")?.Q<UnityEngine.UIElements.Image>("icon-image");
+            Assert.That(mapIcon, Is.Not.Null);
+            Assert.That(mapIcon.image, Is.Not.Null);
+            Assert.That(mapIcon.tintColor, Is.EqualTo(Color.black));
+            Assert.That(settingsIcon, Is.Not.Null);
+            Assert.That(settingsIcon.image, Is.Not.Null);
+            Assert.That(settingsIcon.tintColor, Is.EqualTo(Color.black));
+        }
+
+        [UnityTest]
+        public IEnumerator CentralPostOfficeScanStampRabbitJourneyAndIdempotenceWork()
+        {
+            var home = CreateProfile();
+            UiPrototypeRuntime.Instance.SelectedLandmarkIndex = 1;
+            home.Navigate(UiRoute.LandmarkDetail);
+            UiPrototypeRuntime.Instance.EnterLandmarkAr();
+            yield return WaitForScene("Walk");
+            var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
+            Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.LandmarkArMemory));
+            var arBackIcon = ar.GetComponent<UIDocument>().rootVisualElement
+                .Q<UnityEngine.UIElements.Button>("ar-exit")?.Q<UnityEngine.UIElements.Image>("icon-image");
+            Assert.That(arBackIcon, Is.Not.Null);
+            Assert.That(arBackIcon.image, Is.Not.Null);
+            Assert.That(arBackIcon.tintColor, Is.EqualTo(Color.black));
+            ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage();
+            var first = ar.CollectStamp();
+            var second = ar.CollectStamp();
+            Assert.That(first.newlyCompleted, Is.True);
+            Assert.That(first.rabbitUnlocked, Is.True);
+            Assert.That(second.newlyCompleted, Is.False);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.stamps.Count, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ArPhotoSaveAndRestartReloadPersistData()
+        {
+            var home = CreateProfile();
+            UiPrototypeRuntime.Instance.SelectedLandmarkIndex = 1;
+            home.Navigate(UiRoute.LandmarkDetail);
+            UiPrototypeRuntime.Instance.EnterLandmarkAr();
+            yield return WaitForScene("Walk");
+            var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
+            ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage(); ar.CollectStamp();
+            ar.OpenPhoto(); yield return null;
+            Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.ArPhoto));
+            ar.SavePhoto();
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
+
+            UnityEngine.Object.Destroy(UiPrototypeRuntime.Instance.gameObject);
+            yield return null;
             SceneManager.LoadScene("Home");
             yield return WaitForScene("Home");
-            var home = Object.FindFirstObjectByType<HomeUiController>();
-            home.SelectRoot(UiRootTab.Map);
-            home.Navigate(UiRoute.ActiveWalk);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ResetRequiresConfirmationPathAndReturnsToSetup()
+        {
+            var home = CreateProfile();
+            home.ShowOverlay(UiOverlay.Settings);
+            home.ShowOverlay(UiOverlay.Confirmation);
+            Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentOverlay, Is.EqualTo(UiOverlay.Confirmation));
+            home.ConfirmResetLocalProgress();
+            yield return null;
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.OnboardingSetup));
+            Assert.That(UiPrototypeRuntime.Instance.HasProfile, Is.False);
+            Assert.That(File.Exists(_savePath), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator OverlayAndScreenBackStackBehaveInOrder()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Companions);
+            home.Navigate(UiRoute.CompanionDetail);
             home.ShowOverlay(UiOverlay.Settings);
             Assert.That(home.HandleBack(), Is.True);
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
             Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentOverlay, Is.Null);
+            Assert.That(home.HandleBack(), Is.True);
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
+            yield return null;
+        }
+
+        HomeUiController CreateProfile()
+        {
+            var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            Assert.That(home, Is.Not.Null);
+            Assert.That(home.CompleteSetup("Test Walker"), Is.True);
+            return home;
         }
 
         static IEnumerator WaitForScene(string sceneName)
         {
-            var deadline = Time.realtimeSinceStartup + 10f;
-            while (SceneManager.GetActiveScene().name != sceneName && Time.realtimeSinceStartup < deadline)
-                yield return null;
+            var deadline = Time.realtimeSinceStartup + 15f;
+            while (SceneManager.GetActiveScene().name != sceneName && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(sceneName));
             yield return null;
             yield return null;

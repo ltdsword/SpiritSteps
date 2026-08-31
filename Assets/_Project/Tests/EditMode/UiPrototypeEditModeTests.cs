@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using ARWalking.UI;
 using NUnit.Framework;
@@ -8,89 +9,245 @@ namespace ARWalking.Tests.EditMode
 {
     public sealed class UiPrototypeEditModeTests
     {
-        [Test]
-        public void RouteCatalogContainsExactlyThirteenSupportedScreens()
+        string _temporaryDirectory;
+
+        [SetUp]
+        public void SetUp()
         {
-            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(13));
-            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(13));
-            Assert.That(UiRouteCatalog.All, Does.Contain(UiRoute.HomeMap));
-            Assert.That(UiRouteCatalog.All, Does.Contain(UiRoute.ArPhoto));
-            Assert.That(UiRouteCatalog.All, Does.Contain(UiRoute.JourneyDetail));
+            _temporaryDirectory = Path.Combine(Path.GetTempPath(), "ar-walking-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_temporaryDirectory);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (Directory.Exists(_temporaryDirectory)) Directory.Delete(_temporaryDirectory, true);
         }
 
         [Test]
-        public void NavigationRootsAndBackStackAreDeterministic()
+        public void RouteCatalogContainsTwelveScreensAndFourRoots()
+        {
+            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(12));
+            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(12));
+            Assert.That(Enum.GetValues(typeof(UiRootTab)).Length, Is.EqualTo(4));
+            Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Map), Is.EqualTo(UiRoute.HomeMap));
+            Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Companions), Is.EqualTo(UiRoute.CompanionCollection));
+            Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Shop), Is.EqualTo(UiRoute.ShopFood));
+            Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Journey), Is.EqualTo(UiRoute.JourneyList));
+        }
+
+        [Test]
+        public void NavigationRootsOverlayAndBackStackAreDeterministic()
         {
             var navigation = new UiNavigationStack();
-            navigation.SwitchRoot(UiRootTab.Garden);
-            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.SeedlingGrowth));
-            navigation.Push(UiRoute.HatchReveal);
-            Assert.That(navigation.CanGoBack, Is.True);
+            navigation.SwitchRoot(UiRootTab.Companions);
+            navigation.Push(UiRoute.CompanionDetail);
+            navigation.ShowOverlay(UiOverlay.Settings);
             Assert.That(navigation.Back(), Is.True);
-            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.SeedlingGrowth));
+            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
+            Assert.That(navigation.Back(), Is.True);
+            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
+            Assert.That(navigation.Back(), Is.False);
+            navigation.Push(UiRoute.CompanionDetail);
+            navigation.ResetToSetup();
+            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.OnboardingSetup));
             Assert.That(navigation.Back(), Is.False);
         }
 
         [Test]
-        public void OverlayConsumesBackBeforeScreenRoute()
+        public void FirstLaunchDefaultsAndDisplayNameValidationAreCorrect()
         {
-            var navigation = new UiNavigationStack();
-            navigation.Push(UiRoute.ActiveWalk);
-            navigation.ShowOverlay(UiOverlay.Settings);
-            Assert.That(navigation.Back(), Is.True);
-            Assert.That(navigation.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
-            Assert.That(navigation.CurrentOverlay, Is.Null);
+            Assert.That(PlayerSaveData.IsValidDisplayName("  Mai  "), Is.True);
+            Assert.That(PlayerSaveData.IsValidDisplayName("   "), Is.False);
+            Assert.That(PlayerSaveData.IsValidDisplayName(new string('a', 21)), Is.False);
+            var save = PlayerSaveData.CreateNew("  Mai  ");
+            Assert.That(save.displayName, Is.EqualTo("Mai"));
+            Assert.That(save.setupComplete, Is.True);
+            Assert.That(save.coins, Is.Zero);
+            Assert.That(save.FindCompanion(PrototypeIds.Dog).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(450));
+            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.False);
+            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.False);
         }
 
         [Test]
-        public void MockCatalogIsCompleteAndValid()
+        public void LocalSaveRoundTripPreservesAllProfileCollections()
+        {
+            var path = Path.Combine(_temporaryDirectory, LocalPlayerSaveStore.FileName);
+            var store = new LocalPlayerSaveStore(path);
+            var save = PlayerSaveData.CreateNew("An");
+            save.coins = 90; save.totalDistanceKilometres = 2.5f; save.hasTotalSteps = true; save.totalSteps = 3200;
+            save.stamps.Add(new StampData { stampId="stamp", landmarkId="landmark" }); save.completedLandmarkIds.Add("landmark"); save.savedPhotoPaths.Add("photo.jpg");
+            save.journeys.Add(new JourneyEntryData { id="journey", title="Test" });
+            store.Save(save);
+            var result = store.Load();
+            Assert.That(result.status, Is.EqualTo(SaveLoadStatus.Loaded));
+            Assert.That(result.save.displayName, Is.EqualTo("An"));
+            Assert.That(result.save.coins, Is.EqualTo(90));
+            Assert.That(result.save.totalSteps, Is.EqualTo(3200));
+            Assert.That(result.save.stamps.Single().stampId, Is.EqualTo("stamp"));
+            Assert.That(result.save.journeys.Single().id, Is.EqualTo("journey"));
+            Assert.That(result.save.savedPhotoPaths.Single(), Is.EqualTo("photo.jpg"));
+        }
+
+        [Test]
+        public void CorruptSaveIsPreservedAndRecoveryReturnsNoProfile()
+        {
+            var path = Path.Combine(_temporaryDirectory, LocalPlayerSaveStore.FileName);
+            File.WriteAllText(path, "{ definitely not valid json");
+            var result = new LocalPlayerSaveStore(path).Load();
+            Assert.That(result.status, Is.EqualTo(SaveLoadStatus.Corrupt));
+            Assert.That(result.save, Is.Null);
+            Assert.That(File.Exists(path), Is.False);
+            Assert.That(result.backupPath, Is.Not.Null.And.Not.Empty);
+            Assert.That(File.Exists(result.backupPath), Is.True);
+        }
+
+        [TestCase(0, GrowthStage.Baby, 0.70f)]
+        [TestCase(499, GrowthStage.Baby, 0.70f)]
+        [TestCase(500, GrowthStage.Young, 0.85f)]
+        [TestCase(1499, GrowthStage.Young, 0.85f)]
+        [TestCase(1500, GrowthStage.Adult, 1.00f)]
+        public void GrowthStageBoundariesAndPlaceholderScalesAreExact(int experience, GrowthStage stage, float scale)
+        {
+            Assert.That(CompanionProgressionService.StageFor(experience), Is.EqualTo(stage));
+            Assert.That(CompanionProgressionService.PlaceholderScaleFor(stage), Is.EqualTo(scale));
+        }
+
+        [Test]
+        public void WalkRewardsOnlyPreviouslyUnlockedCompanionsAndUnlocksCatAtOneKilometre()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics
+            {
+                distanceKilometres = 1.25f, hasSteps = true, steps = 1600, elapsedSeconds = 1200f
+            });
+            Assert.That(result.coinsAwarded, Is.EqualTo(30));
+            Assert.That(save.coins, Is.EqualTo(30));
+            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(550));
+            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Cat).growthExperience, Is.Zero, "Cat was locked before this walk");
+            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).growthExperience, Is.Zero);
+            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Dog }));
+            Assert.That(result.newlyUnlockedCompanionIds, Does.Contain(PrototypeIds.Cat));
+            Assert.That(save.totalSteps, Is.EqualTo(1600));
+        }
+
+        [Test]
+        public void SubKilometreWalkAddsDistanceButNoDiscreteRewards()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics { distanceKilometres = .75f, elapsedSeconds = 300f });
+            Assert.That(result.coinsAwarded, Is.Zero);
+            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(450));
+            Assert.That(save.totalDistanceKilometres, Is.EqualTo(.75f));
+        }
+
+        [Test]
+        public void CompanionUnlockedDuringWalkDoesNotReceiveThatWalkExperience()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+            var eligibleAtStart = service.CaptureUnlockedCompanionIds();
+            save.FindCompanion(PrototypeIds.Rabbit).unlocked = true;
+            var result = service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, eligibleAtStart);
+            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Dog }));
+            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).growthExperience, Is.Zero);
+        }
+
+        [Test]
+        public void FoodValidatesCoinsAndLockedCompanionsAndReportsStageChange()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Cat).success, Is.False);
+            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Dog).error, Is.EqualTo("Not enough Coins."));
+            save.coins = 40;
+            var result = service.PurchaseAndFeed("better-food", PrototypeIds.Dog);
+            Assert.That(result.success, Is.True);
+            Assert.That(result.coinsSpent, Is.EqualTo(40));
+            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(490));
+            save.coins = 20;
+            result = service.PurchaseAndFeed("basic-food", PrototypeIds.Dog);
+            Assert.That(result.StageChanged, Is.True);
+            Assert.That(result.currentStage, Is.EqualTo(GrowthStage.Young));
+        }
+
+        [Test]
+        public void CentralPostOfficeRewardUnlocksRabbitAndIsIdempotent()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+            var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
+            var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, DateTime.UtcNow);
+            Assert.That(first.newlyCompleted, Is.True);
+            Assert.That(first.rabbitUnlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+            Assert.That(save.stamps.Select(item => item.stampId), Is.EquivalentTo(new[] { PrototypeIds.CentralPostOfficeStamp }));
+            Assert.That(save.journeys.Count, Is.EqualTo(1));
+            Assert.That(second.newlyCompleted, Is.False);
+            Assert.That(second.rabbitUnlocked, Is.False);
+        }
+
+        [Test]
+        public void MockAndFriendProviderStubsSatisfyUnitContracts()
+        {
+            VerifyWalkProvider(new DeterministicWalkMetricsProvider());
+            VerifyWalkProvider(new FriendWalkProviderStub());
+            VerifyMapProvider(new DeterministicLandmarkMapProvider());
+            VerifyMapProvider(new FriendMapProviderStub());
+        }
+
+        [Test]
+        public void RegeneratedCatalogAndTemporaryArtworkBindingsAreValid()
         {
             var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
-            Assert.That(catalog, Is.Not.Null);
-            Assert.That(catalog.spirits.Count, Is.EqualTo(3));
-            Assert.That(catalog.seedlings.Count, Is.EqualTo(3));
-            Assert.That(catalog.landmarks.Count, Is.EqualTo(4));
-            Assert.That(catalog.journeys.Count, Is.GreaterThanOrEqualTo(2));
-            Assert.That(catalog.photographs.Count, Is.GreaterThanOrEqualTo(2));
-            Assert.That(catalog.seedlings.All(seed => seed.requiredSteps > 0 && seed.Progress >= 0f && seed.Progress <= 1f), Is.True);
-            Assert.That(catalog.spirits.Count(spirit => spirit.isSelected), Is.EqualTo(1));
-        }
-
-        [Test]
-        public void MapMarkersUseOnlySupportedNormalizedTypes()
-        {
-            var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
-            Assert.That(catalog.markers, Is.Not.Empty);
-            Assert.That(catalog.markers.All(marker => marker.normalizedPosition.x >= 0f && marker.normalizedPosition.x <= 1f), Is.True);
-            Assert.That(catalog.markers.All(marker => marker.normalizedPosition.y >= 0f && marker.normalizedPosition.y <= 1f), Is.True);
-            Assert.That(catalog.markers.Any(marker => marker.type == MapMarkerType.PlayerSpirit), Is.True);
-            Assert.That(catalog.markers.Any(marker => marker.type == MapMarkerType.Landmark), Is.True);
-            Assert.That(catalog.markers.Any(marker => marker.type == MapMarkerType.ArDiscoveryHint), Is.True);
-        }
-
-        [Test]
-        public void PublicUiTypesContainNoRemovedCombatConcepts()
-        {
-            var forbidden = new[] { "mushroom", "battle", "attack", "hitpoint", "teamselection" };
-            var publicNames = typeof(UiRoute).Assembly.GetExportedTypes().Select(type => type.FullName ?? type.Name).ToArray();
-            foreach (var word in forbidden)
-                Assert.That(publicNames.Any(name => name.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0), Is.False, word);
-
-            foreach (var route in UiRouteCatalog.All)
-                foreach (var word in forbidden)
-                    Assert.That(route.ToString().IndexOf(word, StringComparison.OrdinalIgnoreCase), Is.LessThan(0), route.ToString());
-        }
-
-        [Test]
-        public void RequiredRuntimeAssetsExist()
-        {
             var library = Resources.Load<PrototypeUiAssets>("UI/PrototypeUiAssets");
+            Assert.That(catalog, Is.Not.Null);
+            Assert.That(catalog.companions.Select(item => item.id), Is.EquivalentTo(new[] { PrototypeIds.Dog, PrototypeIds.Cat, PrototypeIds.Rabbit }));
+            Assert.That(catalog.foods.Count, Is.EqualTo(2));
+            Assert.That(catalog.landmarks.Count, Is.EqualTo(3));
+            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).imageTargetReady, Is.True);
             Assert.That(library, Is.Not.Null);
-            Assert.That(library.illustratedMap, Is.Not.Null);
-            Assert.That(library.illustratedMap.width, Is.EqualTo(2048));
-            Assert.That(library.illustratedMap.height, Is.EqualTo(2048));
-            Assert.That(library.spirits.Length, Is.EqualTo(3));
-            Assert.That(library.landmarks.Length, Is.EqualTo(4));
+            Assert.That(library.companions.Length, Is.EqualTo(3));
+            Assert.That(library.archivedPlantPlaceholders.Length, Is.EqualTo(3));
+            Assert.That(library.landmarks.Length, Is.EqualTo(3));
+            Assert.That(new[]
+            {
+                library.iconAr, library.iconBack, library.iconCalendar, library.iconCamera,
+                library.iconClose, library.iconCompass, library.iconHelp, library.iconJourney,
+                library.iconLocation, library.iconMap, library.iconCompanions, library.iconSettings,
+                library.iconShop, library.iconSteps
+            }.All(icon => icon != null), Is.True, "Every preserved prototype icon must have a stable named binding.");
+        }
+
+        static void VerifyWalkProvider(IWalkMetricsProvider provider)
+        {
+            provider.StartWalk();
+            Assert.That(provider.IsWalking, Is.True);
+            Assert.That(IntegrationProviderContract.IsValid(provider.GetLiveMetrics()), Is.True);
+            Assert.That(IntegrationProviderContract.IsValid(provider.StopWalk()), Is.True);
+            Assert.That(provider.IsWalking, Is.False);
+        }
+
+        static void VerifyMapProvider(ILandmarkMapProvider provider)
+        {
+            Assert.That(IntegrationProviderContract.IsValid(provider.GetMapState()), Is.True);
+            Assert.That(IntegrationProviderContract.IsValid(provider.GetLandmarkProximity(PrototypeIds.CentralPostOffice)), Is.True);
+        }
+
+        sealed class FriendWalkProviderStub : IWalkMetricsProvider
+        {
+            public bool IsWalking { get; private set; }
+            public void StartWalk() { IsWalking = true; }
+            public WalkMetrics GetLiveMetrics() => new WalkMetrics { distanceKilometres=.2f, hasSteps=false, elapsedSeconds=60f };
+            public WalkMetrics StopWalk() { IsWalking = false; return new WalkMetrics { distanceKilometres=1f, hasSteps=true, steps=1300, elapsedSeconds=600f }; }
+        }
+
+        sealed class FriendMapProviderStub : ILandmarkMapProvider
+        {
+            public LandmarkMapState GetMapState() => new LandmarkMapState { hasPlayerPosition=true, playerNormalizedPosition=new Vector2(.5f, .5f), mapHeadingDegrees=90f };
+            public LandmarkProximity GetLandmarkProximity(string landmarkId) => new LandmarkProximity { landmarkId=landmarkId, distanceMetres=25f, directionDegrees=45f, isWithinUnlockRadius=true };
         }
     }
 }

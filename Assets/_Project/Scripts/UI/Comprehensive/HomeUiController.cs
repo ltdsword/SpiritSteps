@@ -6,6 +6,7 @@ using UnityEngine.UIElements;
 using AppPanel = Unity.AppUI.UI.Panel;
 using UiButton = UnityEngine.UIElements.Button;
 using UiImage = UnityEngine.UIElements.Image;
+using UiTextField = UnityEngine.UIElements.TextField;
 
 namespace ARWalking.UI
 {
@@ -23,6 +24,8 @@ namespace ARWalking.UI
         IMapDataProvider _mapData;
         Rect _lastSafeArea;
         Vector2Int _lastScreenSize;
+        int _setupStep;
+        string _pendingDisplayName = string.Empty;
 
         public UiRoute CurrentRoute => _runtime != null ? _runtime.Navigator.CurrentRoute : UiRoute.HomeMap;
         public UiRootTab CurrentRoot => _runtime != null ? _runtime.Navigator.CurrentRoot : UiRootTab.Map;
@@ -30,106 +33,76 @@ namespace ARWalking.UI
         void Start()
         {
             _runtime = UiPrototypeRuntime.EnsureExists();
-            if (_runtime == null || _runtime.Data == null)
-                return;
-
+            if (_runtime == null || _runtime.Data == null) return;
             _assets = _runtime.Assets;
             _data = _runtime.Data;
             _mapData = _runtime.MapData;
             _document = GetComponent<UIDocument>();
             if (_document.panelSettings == null)
                 _document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingPanelSettings");
-
             BuildRoot();
             _document.rootVisualElement.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
             ApplySafeArea();
             _runtime.Navigator.Changed += OnNavigationChanged;
-            if (!_runtime.HasCompletedOnboarding)
-                _runtime.Navigator.Push(UiRoute.OnboardingPermissions);
-            else if (_runtime.Navigator.CurrentRoot == UiRootTab.WalkAr)
-                _runtime.Navigator.SwitchRoot(UiRootTab.Map);
-            else
-                Render();
+            if (!_runtime.HasProfile) _runtime.Navigator.ResetToSetup();
+            else Render();
         }
 
         void OnDisable()
         {
-            if (_runtime != null && _runtime.Navigator != null)
-                _runtime.Navigator.Changed -= OnNavigationChanged;
+            if (_runtime != null && _runtime.Navigator != null) _runtime.Navigator.Changed -= OnNavigationChanged;
         }
 
         void Update()
         {
             var screenSize = new Vector2Int(Screen.width, Screen.height);
-            if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize)
-                ApplySafeArea();
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-                HandleBack();
+            if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize) ApplySafeArea();
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
         }
 
-        public void SelectRoot(UiRootTab root)
-        {
-            if (root == UiRootTab.WalkAr)
-                _runtime.EnterWalkScene();
-            else
-                _runtime.Navigator.SwitchRoot(root);
-        }
-
+        public void SelectRoot(UiRootTab root) => _runtime.Navigator.SwitchRoot(root);
         public void Navigate(UiRoute route) => _runtime.Navigator.Push(route);
         public bool HandleBack() => _runtime.Navigator.Back();
         public void ShowOverlay(UiOverlay overlay) => _runtime.Navigator.ShowOverlay(overlay);
+        public void BeginWalk() => _runtime.StartWalk();
+        public WalkResultDto FinishWalk() => _runtime.FinishWalk();
+        public FeedResultDto Feed(string foodId, string companionId) => _runtime.PurchaseAndFeed(foodId, companionId);
+        public bool CompleteSetup(string displayName) => _runtime.CompleteSetup(displayName);
+        public LandmarkRewardDto CollectSelectedLandmarkStamp() => _runtime.CompleteLandmarkMemory(SelectedLandmark().id);
+        public void ConfirmResetLocalProgress() => _runtime.ResetLocalProgress();
 
         void BuildRoot()
         {
             var root = _document.rootVisualElement;
             root.Clear();
             var styleSheet = Resources.Load<StyleSheet>("UI/ARWalking");
-            if (styleSheet != null)
-                root.styleSheets.Add(styleSheet);
-
-            _panel = new AppPanel
-            {
-                name = "ar-walking-app-panel",
-                theme = "light",
-                scale = "medium"
-            };
+            if (styleSheet != null) root.styleSheets.Add(styleSheet);
+            _panel = new AppPanel { name = "ar-walking-app-panel", theme = "light", scale = "medium" };
             _panel.AddToClassList("app-root");
             root.Add(_panel);
-
             _safeRoot = new VisualElement { name = "safe-area" };
             _safeRoot.AddToClassList("safe-area");
             _panel.Add(_safeRoot);
         }
 
-        void OnNavigationChanged()
-        {
-            Render();
-            RenderOverlay();
-        }
+        void OnNavigationChanged() { Render(); RenderOverlay(); }
 
         void Render()
         {
-            if (_safeRoot == null)
-                return;
-
+            if (_safeRoot == null) return;
             _safeRoot.Clear();
-            var route = _runtime.Navigator.CurrentRoute;
-            switch (route)
+            switch (_runtime.Navigator.CurrentRoute)
             {
-                case UiRoute.OnboardingPermissions: BuildOnboarding(); break;
+                case UiRoute.OnboardingSetup: BuildOnboarding(); break;
                 case UiRoute.HomeMap: BuildMap(); break;
                 case UiRoute.ActiveWalk: BuildActiveWalk(); break;
-                case UiRoute.WalkSummary: BuildWalkSummary(); break;
-                case UiRoute.SpiritCollection: BuildSpiritCollection(); break;
-                case UiRoute.SpiritDetail: BuildSpiritDetail(); break;
-                case UiRoute.SeedlingGrowth: BuildGarden(); break;
-                case UiRoute.HatchReveal: BuildHatchReveal(); break;
-                case UiRoute.LandmarkMemory: BuildLandmarkMemory(); break;
-                case UiRoute.JourneyJournal: BuildJournal(); break;
+                case UiRoute.WalkResult: BuildWalkResult(); break;
+                case UiRoute.CompanionCollection: BuildCompanions(); break;
+                case UiRoute.CompanionDetail: BuildCompanionDetail(); break;
+                case UiRoute.ShopFood: BuildShop(); break;
+                case UiRoute.LandmarkDetail: BuildLandmarkDetail(); break;
+                case UiRoute.JourneyList: BuildJourneyList(); break;
                 case UiRoute.JourneyDetail: BuildJourneyDetail(); break;
-                case UiRoute.ArCompanion:
-                case UiRoute.ArPhoto:
-                    return;
                 default: BuildMap(); break;
             }
         }
@@ -137,20 +110,47 @@ namespace ARWalking.UI
         void BuildOnboarding()
         {
             var page = Page("onboarding-page", false);
-            var art = Image(_assets != null ? _assets.arScene : null, "onboarding-art");
-            page.Add(art);
+            page.Add(Image(_assets != null ? _assets.arScene : null, "onboarding-art"));
             var sheet = Card("onboarding-sheet");
-            sheet.Add(Title("Walk gently. Remember deeply."));
-            sheet.Add(Body("Explore nearby places with a small Vietnamese spirit companion. Your discoveries become a private journey journal."));
-            sheet.Add(PermissionRow("◎", UiStrings.Get("permission.location"), "Used only for nearby discoveries"));
-            sheet.Add(PermissionRow("▣", UiStrings.Get("permission.camera"), "Used when you open the AR camera"));
-            sheet.Add(PermissionRow("⌁", UiStrings.Get("permission.activity"), "Used to grow seedlings with steps"));
-            sheet.Add(Action(UiStrings.Get("action.continue"), () =>
+            if (_runtime.InitialLoadResult.status == SaveLoadStatus.Corrupt)
             {
-                _runtime.HasCompletedOnboarding = true;
-                _runtime.Navigator.SwitchRoot(UiRootTab.Map);
-            }, "primary-action"));
-            sheet.Add(Body("You can change permissions later in Settings."));
+                sheet.Add(Eyebrow("LOCAL PROFILE RECOVERY"));
+                sheet.Add(Body("The previous local profile could not be read. It was preserved as a backup; create a new phone-only profile to continue."));
+            }
+            if (_setupStep == 0)
+            {
+                sheet.Add(Title("Meet your walking companion"));
+                sheet.Add(Body("Walk around Ho Chi Minh City, grow animal companions, and collect Landmark Stamps. Your profile stays only on this phone."));
+                sheet.Add(Action("Continue", () => { _setupStep = 1; Render(); }, "primary-action"));
+            }
+            else if (_setupStep == 1)
+            {
+                sheet.Add(Eyebrow("STEP 1 OF 2"));
+                sheet.Add(Title("What should we call you?"));
+                sheet.Add(Body("Enter a display name from 1 to 20 characters."));
+                var field = new UiTextField("Display name") { name = "display-name-field", value = _pendingDisplayName, maxLength = 20 };
+                field.AddToClassList("name-field");
+                field.RegisterValueChangedCallback(evt => _pendingDisplayName = evt.newValue);
+                sheet.Add(field);
+                sheet.Add(Action("Choose starter", () =>
+                {
+                    _pendingDisplayName = PlayerSaveData.NormalizeDisplayName(field.value);
+                    if (!PlayerSaveData.IsValidDisplayName(_pendingDisplayName)) { ShowToast("Enter 1 to 20 characters."); return; }
+                    _setupStep = 2;
+                    Render();
+                }, "primary-action"));
+            }
+            else
+            {
+                sheet.Add(Eyebrow("STEP 2 OF 2"));
+                sheet.Add(Title("Dog is ready to join"));
+                sheet.Add(Image(_assets != null ? _assets.Companion(0) : null, "reveal-companion"));
+                sheet.Add(Body("Dog starts unlocked with 450 Growth EXP. The image above is temporary plant artwork standing in for the final Dog model."));
+                sheet.Add(Action("Confirm Dog", () =>
+                {
+                    if (!_runtime.CompleteSetup(_pendingDisplayName)) ShowToast("Check your display name and try again.");
+                }, "primary-action"));
+            }
             page.Add(sheet);
         }
 
@@ -159,487 +159,354 @@ namespace ARWalking.UI
             var page = Page("map-page", true);
             var viewport = new VisualElement { name = "illustrated-map-viewport" };
             viewport.AddToClassList("map-viewport");
-            var mapCanvas = new VisualElement { name = "illustrated-map-canvas" };
-            mapCanvas.AddToClassList("map-canvas");
-            var mapImage = Image(_assets != null ? _assets.illustratedMap : null, "map-image");
-            mapCanvas.Add(mapImage);
-            viewport.Add(mapCanvas);
-            var manipulator = new IllustratedMapManipulator(mapCanvas, _mapData.Map.minimumZoom, _mapData.Map.maximumZoom);
+            var canvas = new VisualElement { name = "illustrated-map-canvas" };
+            canvas.AddToClassList("map-canvas");
+            canvas.Add(Image(_assets != null ? _assets.illustratedMap : null, "map-image"));
+            viewport.Add(canvas);
+            var manipulator = new IllustratedMapManipulator(canvas, _mapData.Map.minimumZoom, _mapData.Map.maximumZoom);
             viewport.AddManipulator(manipulator);
-
             foreach (var marker in _mapData.Markers)
             {
-                var markerButton = Action(MarkerGlyph(marker.type), () => OpenMarker(marker), "map-marker");
-                markerButton.name = "marker-" + marker.id;
-                markerButton.tooltip = marker.label;
-                markerButton.style.left = Length.Percent(marker.normalizedPosition.x * 100f);
-                markerButton.style.top = Length.Percent(marker.normalizedPosition.y * 100f);
-                markerButton.AddToClassList("marker-" + marker.type.ToString().ToLowerInvariant());
-                mapCanvas.Add(markerButton);
+                var captured = marker;
+                var markerIcon = marker.type == MapMarkerType.Player ? _assets.iconLocation : _assets.iconMap;
+                var button = IconAction(markerIcon, marker.type == MapMarkerType.Player ? "YOU" : "PIN", () => OpenMarker(captured), "marker-" + marker.id);
+                button.AddToClassList("map-marker");
+                button.AddToClassList(marker.type == MapMarkerType.Player ? "marker-player" : "marker-landmark");
+                button.name = "marker-" + marker.id;
+                button.tooltip = marker.label;
+                button.style.left = Length.Percent(marker.normalizedPosition.x * 100f);
+                button.style.top = Length.Percent(marker.normalizedPosition.y * 100f);
+                canvas.Add(button);
             }
-
             page.Insert(0, viewport);
             var top = new VisualElement { name = "map-top-overlay" };
             top.AddToClassList("map-top-overlay");
             var greeting = Card("compact-card", "glass-card");
-            greeting.Add(Eyebrow(UiStrings.Get("status.prototype")));
-            greeting.Add(Title(UiStrings.Get("screen.map")));
-            greeting.Add(Body("Quận 1 · Thành phố Hồ Chí Minh"));
+            greeting.Add(Eyebrow("LOCAL-ONLY PROFILE"));
+            greeting.Add(Title("Hello, " + _runtime.SaveData.displayName));
+            greeting.Add(Body("District 1, Ho Chi Minh City"));
             top.Add(greeting);
-            top.Add(IconAction("⚙", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
+            top.Add(IconAction(_assets.iconSettings, "SET", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
             page.Add(top);
-
             var stats = Card("map-stats", "glass-card");
-            stats.Add(Metric("4,268", "steps today"));
-            stats.Add(Metric("03", "memories"));
-            stats.Add(Action(UiStrings.Get("action.startWalk"), () => Navigate(UiRoute.ActiveWalk), "primary-action", "compact-action"));
+            stats.Add(Metric(_runtime.SaveData.coins.ToString(), "Coins"));
+            stats.Add(Metric(_runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " km", "total distance"));
+            stats.Add(ActionWithIcon(_assets.iconSteps, "Start a walk", BeginWalk, "primary-action", "compact-action"));
             page.Add(stats);
-
-            var controls = new VisualElement();
-            controls.AddToClassList("map-controls");
-            controls.Add(IconAction("⌖", manipulator.Recenter, "recenter-button"));
-            controls.Add(IconAction("?", () => ShowOverlay(UiOverlay.SyncStatus), "help-button"));
+            var controls = new VisualElement(); controls.AddToClassList("map-controls");
+            controls.Add(IconAction(_assets.iconLocation, "GPS", () => ShowToast("Location permission is requested here when the real map provider is connected."), "location-button"));
+            controls.Add(IconAction(_assets.iconCompass, "CTR", manipulator.Recenter, "recenter-button"));
+            controls.Add(IconAction(_assets.iconHelp, "?", () => ShowToast("Tap a Landmark pin to view its distance and AR availability."), "map-help-button"));
             page.Add(controls);
         }
 
         void BuildActiveWalk()
         {
-            var scroll = ScreenWithHeader("Active Walk", "A quiet route through Sài Gòn", true);
+            var metrics = _runtime.WalkProvider.GetLiveMetrics();
+            var scroll = ScreenWithHeader("Active Walk", "Live data from IWalkMetricsProvider", true);
             var hero = Card("walk-hero");
             hero.Add(Eyebrow("WALKING NOW"));
-            hero.Add(Title("Follow the green thread"));
-            hero.Add(Body("Keep your phone lowered. We will gently alert you when a memory is nearby."));
-            hero.Add(Progress(0.62f));
+            hero.Add(Title("Keep your phone lowered"));
+            hero.Add(Body("Distance drives companion rewards. Steps appear only when the provider supplies them."));
             scroll.Add(hero);
-            var metrics = Row();
-            metrics.Add(Metric(_runtime.ActiveWalkSteps.ToString("N0"), "steps"));
-            metrics.Add(Metric(_runtime.ActiveWalkMinutes + " min", "time"));
-            metrics.Add(Metric("1.3 km", "distance"));
-            scroll.Add(metrics);
+            var row = Row();
+            row.Add(Metric(metrics.distanceKilometres.ToString("0.00") + " km", "distance"));
+            row.Add(Metric(TimeLabel(metrics.elapsedSeconds), "time"));
+            row.Add(Metric(metrics.hasSteps ? metrics.steps.ToString("N0") : "--", "steps"));
+            scroll.Add(row);
             var near = Card("discovery-card");
-            near.Add(Eyebrow("NEARBY MEMORY"));
-            near.Add(Title("Bưu điện Trung tâm Sài Gòn"));
-            near.Add(Body("About 180 m away · a cultural memory is waiting"));
-            near.Add(Action("View landmark", () => { _runtime.SelectedLandmarkIndex = 1; Navigate(UiRoute.LandmarkMemory); }, "secondary-action"));
+            near.Add(Eyebrow("AR-READY DEMO"));
+            near.Add(Title("Central Post Office"));
+            near.Add(Body("The mock map provider reports this Landmark within its demonstration radius."));
+            near.Add(Action("View Landmark", () => { _runtime.SelectedLandmarkIndex = 1; Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
             scroll.Add(near);
-            scroll.Add(Action(UiStrings.Get("action.finishWalk"), () => Navigate(UiRoute.WalkSummary), "danger-action"));
+            scroll.Add(Action("Finish walk", () => FinishWalk(), "danger-action"));
         }
 
-        void BuildWalkSummary()
+        void BuildWalkResult()
         {
-            var scroll = ScreenWithHeader("Walk complete", "A small journey, carefully kept", true);
+            var result = _runtime.LastWalkResult ?? new WalkResultDto();
+            var scroll = ScreenWithHeader("Walk complete", "Rewards saved locally", true);
             var hero = Card("summary-hero");
-            hero.Add(Eyebrow("THURSDAY · QUẬN 1"));
-            hero.Add(Title("You carried three memories home"));
-            hero.Add(Body("Your steps helped a seedling grow and revealed a new landmark story."));
+            hero.Add(Eyebrow("DISTANCE-BASED PROGRESSION"));
+            hero.Add(Title("+" + result.coinsAwarded + " Coins"));
+            hero.Add(Body(result.completedKilometres + " completed km granted +" + result.experiencePerEligibleCompanion + " Growth EXP to companions unlocked before this walk."));
             scroll.Add(hero);
-            var metrics = Row();
-            metrics.Add(Metric("2,146", "steps"));
-            metrics.Add(Metric("31 min", "time"));
-            metrics.Add(Metric("3", "discoveries"));
-            scroll.Add(metrics);
-            scroll.Add(DiscoveryLine("✦", "Memory fragment", "Collected near Nhà thờ Đức Bà"));
-            scroll.Add(DiscoveryLine("♧", "Seedling progress", "+2,146 steps"));
-            scroll.Add(DiscoveryLine("▧", "AR photograph", "Saved privately"));
-            scroll.Add(Action(UiStrings.Get("action.saveJourney"), () =>
-            {
-                ShowToast("Journey saved");
-                _runtime.Navigator.SwitchRoot(UiRootTab.Journal);
-            }, "primary-action"));
+            var row = Row();
+            row.Add(Metric(result.distanceKilometres.ToString("0.00") + " km", "distance"));
+            row.Add(Metric(TimeLabel(result.durationSeconds), "time"));
+            row.Add(Metric(result.hasSteps ? result.steps.ToString("N0") : "--", "steps"));
+            scroll.Add(row);
+            foreach (var id in result.newlyUnlockedCompanionIds) scroll.Add(DiscoveryLine("NEW", CompanionName(id) + " unlocked", "Starts at 0 Growth EXP"));
+            scroll.Add(Action("View companions", () => SelectRoot(UiRootTab.Companions), "primary-action"));
         }
 
-        void BuildGarden()
+        void BuildCompanions()
         {
-            var scroll = ScreenWithHeader(UiStrings.Get("screen.garden"), "Your steps help each memory wake", false);
-            var banner = Card("garden-banner");
-            banner.Add(Title("4,268 steps today"));
-            banner.Add(Body("Every step is shared across the seedlings in your garden."));
-            banner.Add(Progress(0.71f));
-            scroll.Add(banner);
-            for (var i = 0; i < _data.Seedlings.Count; i++)
+            var scroll = ScreenWithHeader("Companions", "Dog, Cat, and Rabbit", false);
+            var grid = new VisualElement(); grid.AddToClassList("companion-grid");
+            for (var i = 0; i < _data.Companions.Count; i++)
             {
                 var index = i;
-                var seed = _data.Seedlings[i];
-                var card = Card("list-card", seed.ready ? "ready-card" : string.Empty);
-                card.Add(Image(_assets != null ? _assets.Seedling(i) : null, "list-thumb"));
-                var copy = Column();
-                copy.Add(Eyebrow(seed.locationName));
-                copy.Add(Subtitle(seed.name));
-                copy.Add(Body(seed.ready ? "Ready to welcome" : seed.currentSteps.ToString("N0") + " / " + seed.requiredSteps.ToString("N0") + " steps"));
-                copy.Add(Progress(seed.Progress));
-                card.Add(copy);
-                card.Add(Action(seed.ready ? "Hatch" : "View", () => { _runtime.SelectedSeedlingIndex = index; Navigate(UiRoute.HatchReveal); }, seed.ready ? "primary-action" : "secondary-action", "compact-action"));
-                scroll.Add(card);
-            }
-        }
-
-        void BuildHatchReveal()
-        {
-            var scroll = ScreenWithHeader("A new spirit", "A memory has taken root", true);
-            var stage = Card("reveal-stage");
-            stage.Add(Eyebrow("NEW COMPANION"));
-            stage.Add(Image(_assets != null ? _assets.Spirit(1) : null, "reveal-spirit"));
-            stage.Add(Title("Linh Hồn Sen"));
-            stage.Add(Body("Born from patient steps near Hồ Con Rùa. This gentle spirit carries stories of calm water and summer rain."));
-            stage.Add(Action(UiStrings.Get("action.hatch"), () =>
-            {
-                _runtime.SelectedSpiritIndex = 1;
-                ShowToast("Linh Hồn Sen joined you");
-                _runtime.Navigator.SwitchRoot(UiRootTab.Book);
-            }, "primary-action"));
-            scroll.Add(stage);
-        }
-
-        void BuildSpiritCollection()
-        {
-            var scroll = ScreenWithHeader(UiStrings.Get("screen.collection"), "Vietnamese stories, walking beside you", false);
-            var progress = Card("collection-progress");
-            progress.Add(Title("2 of 3 spirits remembered"));
-            progress.Add(Progress(0.67f));
-            progress.Add(Action("Cultural collectibles", () => ShowOverlay(UiOverlay.Collectibles), "secondary-action", "compact-action"));
-            scroll.Add(progress);
-            var grid = new VisualElement();
-            grid.AddToClassList("spirit-grid");
-            for (var i = 0; i < _data.Spirits.Count; i++)
-            {
-                var index = i;
-                var spirit = _data.Spirits[i];
-                var card = new UiButton(() => { _runtime.SelectedSpiritIndex = index; Navigate(UiRoute.SpiritDetail); });
-                card.name = "spirit-" + spirit.id;
-                card.AddToClassList("spirit-card");
-                if (!spirit.collected) card.AddToClassList("locked-card");
-                card.Add(Image(_assets != null ? _assets.Spirit(i) : null, "spirit-image"));
-                card.Add(Subtitle(spirit.collected ? spirit.name : "Undiscovered spirit"));
-                card.Add(Body(spirit.collected ? spirit.culturalTitle : "Keep exploring"));
-                grid.Add(card);
+                var definition = _data.Companions[i];
+                var progress = _runtime.Companion(definition.id);
+                var unlocked = progress != null && progress.unlocked;
+                var button = new UiButton(() => { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); });
+                button.name = "companion-" + definition.id;
+                button.AddToClassList("companion-card");
+                if (!unlocked) button.AddToClassList("locked-card");
+                button.Add(Image(_assets != null ? _assets.Companion(i) : null, "companion-image"));
+                button.Add(Subtitle(unlocked ? definition.name : "Locked companion"));
+                button.Add(Body(unlocked ? StageLine(progress) : definition.unlockHint));
+                grid.Add(button);
             }
             scroll.Add(grid);
+            scroll.Add(Body("Prototype note: the companion pictures are retained plant-art placeholders, not final animal models."));
         }
 
-        void BuildSpiritDetail()
+        void BuildCompanionDetail()
         {
-            var spirit = _data.Spirits[Mathf.Clamp(_runtime.SelectedSpiritIndex, 0, _data.Spirits.Count - 1)];
-            var scroll = ScreenWithHeader(spirit.name, spirit.culturalTitle, true);
-            var stage = Card("spirit-stage");
-            stage.Add(Image(_assets != null ? _assets.Spirit(_runtime.SelectedSpiritIndex) : null, "detail-spirit"));
-            stage.Add(Eyebrow("3D COMPANION PREVIEW"));
-            stage.Add(Body("Drag to imagine the companion turning · production 3D model placeholder"));
+            var index = Mathf.Clamp(_runtime.SelectedCompanionIndex, 0, _data.Companions.Count - 1);
+            var definition = _data.Companions[index];
+            var progress = _runtime.Companion(definition.id);
+            var unlocked = progress != null && progress.unlocked;
+            var scroll = ScreenWithHeader(definition.name, unlocked ? StageLine(progress) : definition.unlockHint, true);
+            var stage = Card("companion-stage");
+            var picture = Image(_assets != null ? _assets.Companion(index) : null, "detail-companion");
+            if (unlocked)
+            {
+                var scale = CompanionProgressionService.PlaceholderScaleFor(CompanionProgressionService.StageFor(progress.growthExperience));
+                picture.style.scale = new Scale(new Vector3(scale, scale, 1f));
+            }
+            stage.Add(picture);
+            stage.Add(Eyebrow("TEMPORARY PLANT-ART PLACEHOLDER"));
+            stage.Add(Body(unlocked ? definition.description : definition.unlockHint));
             scroll.Add(stage);
-            var story = Card("story-card");
-            story.Add(Title("The memory it carries"));
-            story.Add(Body(spirit.description));
-            story.Add(DiscoveryLine("◉", "First met", "Công viên Tao Đàn"));
-            story.Add(DiscoveryLine("✦", "Shared journeys", "4 walks"));
-            scroll.Add(story);
-            scroll.Add(Action("Explore together in AR", _runtime.EnterWalkScene, "primary-action"));
+            if (unlocked)
+            {
+                var details = Card("story-card");
+                details.Add(Title(progress.growthExperience + " Growth EXP"));
+                details.Add(Body("Baby <500 | Young 500-1499 | Adult 1500+"));
+                scroll.Add(details);
+                scroll.Add(Action("Buy food", () => SelectRoot(UiRootTab.Shop), "primary-action"));
+            }
         }
 
-        void BuildLandmarkMemory()
+        void BuildShop()
         {
-            var index = Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _data.Landmarks.Count - 1);
-            var landmark = _data.Landmarks[index];
-            var scroll = ScreenWithHeader("Landmark Memory", landmark.subtitle, true);
-            scroll.Add(Image(_assets != null ? _assets.Landmark(index) : null, "landmark-hero"));
-            var story = Card("memory-card");
-            story.Add(Eyebrow("DISCOVERED IN QUẬN 1"));
-            story.Add(Title(landmark.name));
-            story.Add(Body(landmark.memoryText));
-            story.Add(DiscoveryLine("⌖", "Place", landmark.subtitle));
-            story.Add(DiscoveryLine("◷", "Best remembered", "Slowly, from the shaded pavement"));
-            scroll.Add(story);
-            scroll.Add(Action("Add to this journey", () => ShowToast("Memory linked to your journey"), "primary-action"));
+            var scroll = ScreenWithHeader("Shop", _runtime.SaveData.coins + " Coins available", false);
+            foreach (var food in _data.Foods)
+            {
+                var captured = food;
+                var card = Card("list-card");
+                var copy = Column();
+                copy.Add(Eyebrow(food.coinCost + " COINS"));
+                copy.Add(Subtitle(food.name));
+                copy.Add(Body(food.description + "  +" + food.growthExperience + " Growth EXP"));
+                card.Add(copy);
+                card.Add(ActionWithIcon(_assets.iconShop, "Buy & feed", () => ShowFoodPicker(captured), "primary-action", "compact-action"));
+                scroll.Add(card);
+            }
         }
 
-        void BuildJournal()
+        void BuildLandmarkDetail()
         {
-            var scroll = ScreenWithHeader(UiStrings.Get("screen.journal"), "A scrapbook made from real walks", false);
-            var calendar = Card("journal-banner");
-            calendar.Add(Eyebrow("AUGUST 2026"));
-            calendar.Add(Title("7 days explored"));
-            calendar.Add(Body("8,942 steps · 6 memories · 2 photographs"));
-            scroll.Add(calendar);
-            for (var i = 0; i < _data.Journeys.Count; i++)
+            var landmark = SelectedLandmark();
+            var proximity = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id);
+            var scroll = ScreenWithHeader(landmark.name, landmark.localName, true);
+            scroll.Add(Image(_assets != null ? _assets.Landmark(_runtime.SelectedLandmarkIndex) : null, "landmark-hero"));
+            var card = Card("memory-card");
+            card.Add(Eyebrow(landmark.imageTargetReady ? "AR-READY DEMO" : "LANDMARK"));
+            card.Add(Title("History")); card.Add(Body(landmark.history));
+            card.Add(Title("Architecture")); card.Add(Body(landmark.architecture));
+            card.Add(Title("Did You Know?")); card.Add(Body(landmark.didYouKnow));
+            card.Add(DiscoveryLine("MAP", proximity.distanceMetres.ToString("0") + " m away", proximity.isWithinUnlockRadius ? "Inside AR unlock radius" : "Walk closer to unlock AR"));
+            scroll.Add(card);
+            if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
+                scroll.Add(ActionWithIcon(_assets.iconAr, "Open simulated Image Target", _runtime.EnterLandmarkAr, "primary-action"));
+        }
+
+        void BuildJourneyList()
+        {
+            var scroll = ScreenWithHeader("Journey", "Landmark memories saved on this phone", false);
+            var banner = Card("journey-banner");
+            banner.Add(IconImage(_assets.iconCalendar, "banner-icon"));
+            banner.Add(Title(_runtime.SaveData.journeys.Count + " Journey records"));
+            banner.Add(Body(_runtime.SaveData.stamps.Count + " Stamps | " + _runtime.SaveData.savedPhotoPaths.Count + " saved photo paths"));
+            scroll.Add(banner);
+            if (_runtime.SaveData.journeys.Count == 0) scroll.Add(Body("No journeys yet. Complete the Central Post Office AR Memory to create one."));
+            for (var i = 0; i < _runtime.SaveData.journeys.Count; i++)
             {
                 var index = i;
-                var journey = _data.Journeys[i];
-                var card = new UiButton(() => { _runtime.SelectedJourneyIndex = index; Navigate(UiRoute.JourneyDetail); });
-                card.name = "journey-" + journey.id;
-                card.AddToClassList("journey-card");
-                card.Add(Image(i == 0 ? _assets.journalOne : _assets.journalTwo, "journey-image"));
-                var copy = Column();
-                copy.Add(Eyebrow(journey.dateLabel));
-                copy.Add(Subtitle(journey.title));
-                copy.Add(Body(journey.summary));
-                copy.Add(Body(journey.steps.ToString("N0") + " steps · " + journey.memories + " memories"));
-                card.Add(copy);
-                scroll.Add(card);
+                var journey = _runtime.SaveData.journeys[i];
+                var button = new UiButton(() => { _runtime.SelectedJourneyIndex = index; Navigate(UiRoute.JourneyDetail); });
+                button.name = "journey-" + journey.id;
+                button.AddToClassList("journey-card");
+                button.Add(Image(_assets != null ? _assets.journeyOne : null, "journey-image"));
+                var copy = Column(); copy.Add(Eyebrow(DateLabel(journey.createdUtc))); copy.Add(Subtitle(journey.title)); copy.Add(Body(journey.summary)); button.Add(copy);
+                scroll.Add(button);
             }
         }
 
         void BuildJourneyDetail()
         {
-            var index = Mathf.Clamp(_runtime.SelectedJourneyIndex, 0, _data.Journeys.Count - 1);
-            var journey = _data.Journeys[index];
-            var scroll = ScreenWithHeader(journey.title, journey.dateLabel, true);
-            scroll.Add(Image(index == 0 ? _assets.journalOne : _assets.journalTwo, "journey-detail-image"));
+            if (_runtime.SaveData.journeys.Count == 0) { BuildJourneyList(); return; }
+            var index = Mathf.Clamp(_runtime.SelectedJourneyIndex, 0, _runtime.SaveData.journeys.Count - 1);
+            var journey = _runtime.SaveData.journeys[index];
+            var scroll = ScreenWithHeader(journey.title, DateLabel(journey.createdUtc), true);
+            scroll.Add(Image(_assets != null ? _assets.journeyOne : null, "journey-detail-image"));
             var note = Card("scrapbook-card");
-            note.Add(Eyebrow("FIELD NOTE"));
-            note.Add(Title("A warm afternoon in Sài Gòn"));
-            note.Add(Body(journey.summary + " We slowed down beneath the trees, listened to the city, and found a story worth carrying home."));
-            note.Add(DiscoveryLine("⌁", "Steps", journey.steps.ToString("N0")));
-            note.Add(DiscoveryLine("✦", "Memories", journey.memories.ToString()));
-            note.Add(DiscoveryLine("▧", "Photographs", "1 saved"));
+            note.Add(Eyebrow("LOCAL JOURNEY RECORD"));
+            note.Add(Title(journey.summary));
+            note.Add(DiscoveryLine("PIN", "Landmark", LandmarkName(journey.landmarkId)));
+            note.Add(DiscoveryLine("KM", "Distance", journey.distanceKilometres.ToString("0.00") + " km"));
+            note.Add(DiscoveryLine("PIC", "Photos", _runtime.SaveData.savedPhotoPaths.Count.ToString()));
             scroll.Add(note);
-            scroll.Add(Action("Open associated landmark", () => { _runtime.SelectedLandmarkIndex = index % _data.Landmarks.Count; Navigate(UiRoute.LandmarkMemory); }, "secondary-action"));
+            scroll.Add(Action("Open Landmark", () => { _runtime.SelectedLandmarkIndex = FindLandmarkIndex(journey.landmarkId); Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
+        }
+
+        void OpenMarker(MapMarkerUiData marker)
+        {
+            if (marker.type == MapMarkerType.Player) { ShowToast("This is the mock player position."); return; }
+            _runtime.SelectedLandmarkIndex = FindLandmarkIndex(marker.targetId);
+            Navigate(UiRoute.LandmarkDetail);
+        }
+
+        void ShowFoodPicker(FoodUiData food)
+        {
+            RemoveTransientOverlay();
+            _overlayScrim = new VisualElement(); _overlayScrim.AddToClassList("tray-scrim");
+            var tray = Card("discovery-tray");
+            tray.Add(Eyebrow("CHOOSE AN UNLOCKED COMPANION")); tray.Add(Title("Feed " + food.name));
+            foreach (var definition in _data.Companions)
+            {
+                var progress = _runtime.Companion(definition.id);
+                if (progress == null || !progress.unlocked) continue;
+                var captured = definition;
+                tray.Add(Action(captured.name, () =>
+                {
+                    var result = Feed(food.id, captured.id);
+                    RemoveTransientOverlay();
+                    ShowToast(result.success
+                        ? captured.name + " gained " + result.experienceGained + " EXP" + (result.StageChanged ? " and became " + result.currentStage : string.Empty)
+                        : result.error);
+                    Render();
+                }, "primary-action"));
+            }
+            tray.Add(Action("Cancel", RemoveTransientOverlay, "ghost-action"));
+            _overlayScrim.Add(tray); _panel.popupContainer.Add(_overlayScrim);
+        }
+
+        void RenderOverlay()
+        {
+            RemoveTransientOverlay();
+            if (!_runtime.Navigator.CurrentOverlay.HasValue) return;
+            var overlay = _runtime.Navigator.CurrentOverlay.Value;
+            _overlayScrim = new VisualElement { name = "overlay-scrim" }; _overlayScrim.AddToClassList("overlay-scrim");
+            var modal = Card("modal-card");
+            if (overlay == UiOverlay.Settings)
+            {
+                modal.Add(Title("Settings"));
+                modal.Add(Body("Profile: " + _runtime.SaveData.displayName + ". All progress is stored locally; there is no account or sync."));
+                modal.Add(Action("Permissions", () => ShowOverlay(UiOverlay.Permissions), "secondary-action"));
+                modal.Add(Action("Reset Local Progress", () => ShowOverlay(UiOverlay.Confirmation), "danger-action"));
+            }
+            else if (overlay == UiOverlay.Permissions)
+            {
+                modal.Add(Title("Contextual permissions"));
+                modal.Add(Body("Location is requested from Map and camera is requested when AR opens. Profile creation requests neither."));
+            }
+            else if (overlay == UiOverlay.Confirmation)
+            {
+                modal.Add(Title("Reset Local Progress?"));
+                modal.Add(Body("This permanently removes the local profile, Coins, companion growth, Stamps, Journeys, and saved photo paths."));
+                modal.Add(Action("Confirm reset", ConfirmResetLocalProgress, "danger-action"));
+            }
+            else
+            {
+                modal.Add(Title("Something went wrong")); modal.Add(Body("The requested prototype action could not be completed."));
+            }
+            modal.Add(ActionWithIcon(_assets.iconClose, "Close", _runtime.Navigator.CloseOverlay, "primary-action"));
+            _overlayScrim.Add(modal); _panel.popupContainer.Add(_overlayScrim);
+        }
+
+        void RemoveTransientOverlay()
+        {
+            if (_overlayScrim == null) return;
+            _overlayScrim.RemoveFromHierarchy();
+            _overlayScrim = null;
         }
 
         ScrollView ScreenWithHeader(string title, string subtitle, bool showBack)
         {
             var page = Page("content-page", true);
-            var header = new VisualElement();
-            header.AddToClassList("screen-header");
-            if (showBack)
-                header.Add(IconAction("‹", () => HandleBack(), "back-button"));
-            var copy = Column();
-            copy.Add(Title(title));
-            copy.Add(Body(subtitle));
-            header.Add(copy);
-            header.Add(IconAction("⚙", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
+            var header = new VisualElement(); header.AddToClassList("screen-header");
+            if (showBack) header.Add(IconAction(_assets.iconBack, "BACK", () => HandleBack(), "back-button"));
+            var copy = Column(); copy.Add(Title(title)); copy.Add(Body(subtitle)); header.Add(copy);
+            header.Add(IconAction(_assets.iconSettings, "SET", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
             page.Insert(0, header);
-            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "screen-scroll" };
-            scroll.AddToClassList("screen-scroll");
-            page.Insert(1, scroll);
-            return scroll;
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "screen-scroll" }; scroll.AddToClassList("screen-scroll");
+            page.Insert(1, scroll); return scroll;
         }
 
         VisualElement Page(string name, bool showNavigation)
         {
-            var page = new VisualElement { name = name };
-            page.AddToClassList("page");
-            _safeRoot.Add(page);
-            if (showNavigation)
-                _safeRoot.Add(BuildBottomNavigation());
+            var page = new VisualElement { name = name }; page.AddToClassList("page"); page.AddToClassList(name); _safeRoot.Add(page);
+            if (showNavigation) _safeRoot.Add(BuildBottomNavigation());
             return page;
         }
 
         VisualElement BuildBottomNavigation()
         {
-            var nav = new VisualElement { name = "bottom-navigation" };
-            nav.AddToClassList("bottom-nav");
-            nav.Add(NavButton(UiRootTab.Map, "⌖", UiStrings.Get("nav.map")));
-            nav.Add(NavButton(UiRootTab.Garden, "♧", UiStrings.Get("nav.garden")));
-            var walk = NavButton(UiRootTab.WalkAr, "◎", UiStrings.Get("nav.walk"));
-            walk.AddToClassList("raised-nav");
-            nav.Add(walk);
-            nav.Add(NavButton(UiRootTab.Journal, "▤", UiStrings.Get("nav.journal")));
-            nav.Add(NavButton(UiRootTab.Book, "▥", UiStrings.Get("nav.book")));
+            var nav = new VisualElement { name = "bottom-navigation" }; nav.AddToClassList("bottom-nav");
+            nav.Add(NavButton(UiRootTab.Map, _assets.iconMap, "MAP", "Map"));
+            nav.Add(NavButton(UiRootTab.Companions, _assets.iconCompanions, "PETS", "Companions"));
+            nav.Add(NavButton(UiRootTab.Shop, _assets.iconShop, "FOOD", "Shop"));
+            nav.Add(NavButton(UiRootTab.Journey, _assets.iconJourney, "LOG", "Journey"));
             return nav;
         }
 
-        UiButton NavButton(UiRootTab root, string glyph, string label)
+        UiButton NavButton(UiRootTab root, Texture2D icon, string fallback, string label)
         {
             var button = new UiButton(() => SelectRoot(root)) { name = "nav-" + root.ToString().ToLowerInvariant() };
-            button.AddToClassList("nav-button");
-            if (CurrentRoot == root) button.AddToClassList("selected-nav");
-            button.Add(new Label(glyph) { name = "nav-glyph" });
-            button.Add(new Label(label) { name = "nav-label" });
-            return button;
+            button.AddToClassList("nav-button"); if (CurrentRoot == root) button.AddToClassList("selected-nav");
+            if (icon != null) button.Add(IconImage(icon, "nav-icon"));
+            else button.Add(new Label(fallback) { name = "nav-icon" });
+            button.Add(new Label(label) { name = "nav-label" }); return button;
         }
 
-        void OpenMarker(MapMarkerUiData marker)
-        {
-            switch (marker.type)
-            {
-                case MapMarkerType.Landmark:
-                    _runtime.SelectedLandmarkIndex = FindLandmarkIndex(marker.targetId);
-                    Navigate(UiRoute.LandmarkMemory);
-                    break;
-                case MapMarkerType.Seedling:
-                    ShowDiscoveryTray("A seedling is nearby", "Walk a little closer to begin growing this memory.", "Open Garden", () => SelectRoot(UiRootTab.Garden));
-                    break;
-                case MapMarkerType.CulturalCollectible:
-                    ShowDiscoveryTray("Cultural collectible", marker.label + " can be added to your Memory Book.", "View collection", () => ShowOverlay(UiOverlay.Collectibles));
-                    break;
-                case MapMarkerType.ArDiscoveryHint:
-                    ShowDiscoveryTray("AR discovery hint", "A companion moment may appear here.", "Open AR", _runtime.EnterWalkScene);
-                    break;
-                default:
-                    ShowToast("You are here with your selected spirit");
-                    break;
-            }
-        }
-
-        int FindLandmarkIndex(string id)
-        {
-            for (var i = 0; i < _data.Landmarks.Count; i++)
-                if (_data.Landmarks[i].id == id) return i;
-            return 0;
-        }
-
-        void RenderOverlay()
-        {
-            if (_overlayScrim != null)
-            {
-                _overlayScrim.RemoveFromHierarchy();
-                _overlayScrim = null;
-            }
-
-            if (!_runtime.Navigator.CurrentOverlay.HasValue)
-                return;
-
-            var overlay = _runtime.Navigator.CurrentOverlay.Value;
-            _overlayScrim = new VisualElement { name = "overlay-scrim" };
-            _overlayScrim.AddToClassList("overlay-scrim");
-            var modal = Card("modal-card");
-            modal.Add(Title(OverlayTitle(overlay)));
-            modal.Add(Body(OverlayBody(overlay)));
-            if (overlay == UiOverlay.Settings)
-            {
-                modal.Add(DiscoveryLine("⌖", "Permissions", "Location, camera, and activity"));
-                modal.Add(DiscoveryLine("☁", "Sync", "Prototype data stays on this device"));
-                modal.Add(Action("Review permissions", () => ShowOverlay(UiOverlay.Permissions), "secondary-action"));
-            }
-            if (overlay == UiOverlay.Collectibles)
-            {
-                foreach (var item in _data.Collectibles)
-                    modal.Add(DiscoveryLine(item.collected ? "✦" : "◇", item.name, item.collected ? item.category : "Undiscovered"));
-            }
-            modal.Add(Action(UiStrings.Get("action.close"), _runtime.Navigator.CloseOverlay, "primary-action"));
-            _overlayScrim.Add(modal);
-            _panel.popupContainer.Add(_overlayScrim);
-        }
-
-        void ShowDiscoveryTray(string title, string body, string actionLabel, Action action)
-        {
-            _runtime.Navigator.CloseOverlay();
-            if (_overlayScrim != null) _overlayScrim.RemoveFromHierarchy();
-            _overlayScrim = new VisualElement();
-            _overlayScrim.AddToClassList("tray-scrim");
-            var tray = Card("discovery-tray");
-            tray.Add(Eyebrow("MAP DISCOVERY"));
-            tray.Add(Title(title));
-            tray.Add(Body(body));
-            tray.Add(Action(actionLabel, () => { _overlayScrim.RemoveFromHierarchy(); _overlayScrim = null; action(); }, "primary-action"));
-            tray.Add(Action("Not now", () => { _overlayScrim.RemoveFromHierarchy(); _overlayScrim = null; }, "ghost-action"));
-            _overlayScrim.Add(tray);
-            _panel.popupContainer.Add(_overlayScrim);
-        }
+        LandmarkUiData SelectedLandmark() => _data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _data.Landmarks.Count - 1)];
+        int FindLandmarkIndex(string id) { for (var i = 0; i < _data.Landmarks.Count; i++) if (_data.Landmarks[i].id == id) return i; return 0; }
+        string LandmarkName(string id) { var index = FindLandmarkIndex(id); return _data.Landmarks.Count > 0 ? _data.Landmarks[index].name : id; }
+        string CompanionName(string id) { foreach (var item in _data.Companions) if (item.id == id) return item.name; return id; }
+        static string StageLine(CompanionProgressData progress) => CompanionProgressionService.StageFor(progress.growthExperience) + " | " + progress.growthExperience + " EXP";
+        static string TimeLabel(float seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(@"mm\:ss");
+        static string DateLabel(string utc) { return DateTime.TryParse(utc, out var value) ? value.ToLocalTime().ToString("d MMM yyyy") : "Saved locally"; }
 
         void ShowToast(string message)
         {
-            var toast = new Label(message);
-            toast.AddToClassList("toast");
-            _panel.notificationContainer.Add(toast);
-            toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(1800);
+            var toast = new Label(message); toast.AddToClassList("toast"); _panel.notificationContainer.Add(toast);
+            toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(2200);
         }
 
-        static string OverlayTitle(UiOverlay overlay)
-        {
-            switch (overlay)
-            {
-                case UiOverlay.Settings: return "Settings";
-                case UiOverlay.Permissions: return "Permissions";
-                case UiOverlay.SyncStatus: return "Map guide";
-                case UiOverlay.Collectibles: return "Cultural Collectibles";
-                case UiOverlay.Confirmation: return "Are you sure?";
-                case UiOverlay.Error: return "Something went wrong";
-                default: return UiStrings.Get("empty.title");
-            }
-        }
-
-        static string OverlayBody(UiOverlay overlay)
-        {
-            switch (overlay)
-            {
-                case UiOverlay.Permissions: return "Location, camera, and activity permissions are requested only when the related prototype feature is opened.";
-                case UiOverlay.SyncStatus: return "Drag and pinch the illustrated map. It is a discovery surface, not turn-by-turn navigation.";
-                case UiOverlay.Collectibles: return "Small cultural fragments remembered during your walks.";
-                case UiOverlay.Error: return "The prototype could not complete that action. Your saved journey is unchanged.";
-                case UiOverlay.Settings: return UiStrings.Get("status.synced");
-                default: return UiStrings.Get("empty.body");
-            }
-        }
-
-        static VisualElement PermissionRow(string glyph, string title, string detail)
-        {
-            var row = Card("permission-row");
-            row.Add(new Label(glyph) { name = "permission-glyph" });
-            var copy = Column(); copy.Add(Subtitle(title)); copy.Add(Body(detail)); row.Add(copy);
-            row.Add(new Label("✓") { name = "permission-check" });
-            return row;
-        }
-
-        static VisualElement DiscoveryLine(string glyph, string title, string detail)
-        {
-            var row = new VisualElement(); row.AddToClassList("discovery-line");
-            var badge = new Label(glyph); badge.AddToClassList("discovery-badge"); row.Add(badge);
-            var copy = Column(); copy.Add(Subtitle(title)); copy.Add(Body(detail)); row.Add(copy);
-            return row;
-        }
-
-        static VisualElement Row() { var row = new VisualElement(); row.AddToClassList("metric-row"); return row; }
-        static VisualElement Column() { var column = new VisualElement(); column.AddToClassList("column"); return column; }
-        static VisualElement Card(params string[] classes) { var card = new VisualElement(); card.AddToClassList("card"); foreach (var c in classes) if (!string.IsNullOrEmpty(c)) card.AddToClassList(c); return card; }
-        static Label Title(string text) { var label = new Label(text); label.AddToClassList("title"); return label; }
-        static Label Subtitle(string text) { var label = new Label(text); label.AddToClassList("subtitle"); return label; }
-        static Label Body(string text) { var label = new Label(text); label.AddToClassList("body"); return label; }
-        static Label Eyebrow(string text) { var label = new Label(text); label.AddToClassList("eyebrow"); return label; }
-
-        static VisualElement Metric(string value, string label)
-        {
-            var metric = new VisualElement(); metric.AddToClassList("metric");
-            var valueLabel = new Label(value); valueLabel.AddToClassList("metric-value"); metric.Add(valueLabel);
-            var labelElement = new Label(label); labelElement.AddToClassList("metric-label"); metric.Add(labelElement);
-            return metric;
-        }
-
-        static VisualElement Progress(float value)
-        {
-            var track = new VisualElement(); track.AddToClassList("progress-track");
-            var fill = new VisualElement(); fill.AddToClassList("progress-fill"); fill.style.width = Length.Percent(Mathf.Clamp01(value) * 100f); track.Add(fill);
-            return track;
-        }
-
-        static UiImage Image(Texture2D texture, string className)
-        {
-            var image = new UiImage { image = texture, scaleMode = ScaleMode.ScaleAndCrop, pickingMode = PickingMode.Ignore };
-            image.AddToClassList(className);
-            return image;
-        }
-
-        static UiButton Action(string label, Action action, params string[] classes)
-        {
-            var button = new UiButton(action) { text = label };
-            button.AddToClassList("action-button");
-            foreach (var c in classes) if (!string.IsNullOrEmpty(c)) button.AddToClassList(c);
-            return button;
-        }
-
-        static UiButton IconAction(string glyph, Action action, string name)
-        {
-            var button = new UiButton(action) { text = glyph, name = name };
-            button.AddToClassList("icon-button");
-            return button;
-        }
-
-        static string MarkerGlyph(MapMarkerType type)
-        {
-            switch (type)
-            {
-                case MapMarkerType.PlayerSpirit: return "●";
-                case MapMarkerType.Landmark: return "⌂";
-                case MapMarkerType.Seedling: return "♧";
-                case MapMarkerType.CulturalCollectible: return "✦";
-                case MapMarkerType.ArDiscoveryHint: return "◎";
-                default: return "•";
-            }
-        }
+        static VisualElement Row() { var value = new VisualElement(); value.AddToClassList("metric-row"); return value; }
+        static VisualElement Column() { var value = new VisualElement(); value.AddToClassList("column"); return value; }
+        static VisualElement Card(params string[] classes) { var value = new VisualElement(); value.AddToClassList("card"); foreach (var item in classes) if (!string.IsNullOrEmpty(item)) value.AddToClassList(item); return value; }
+        static Label Title(string text) { var value = new Label(text); value.AddToClassList("title"); return value; }
+        static Label Subtitle(string text) { var value = new Label(text); value.AddToClassList("subtitle"); return value; }
+        static Label Body(string text) { var value = new Label(text); value.AddToClassList("body"); return value; }
+        static Label Eyebrow(string text) { var value = new Label(text); value.AddToClassList("eyebrow"); return value; }
+        static VisualElement DiscoveryLine(string glyph, string title, string detail) { var row = new VisualElement(); row.AddToClassList("discovery-line"); var badge = new Label(glyph); badge.AddToClassList("discovery-badge"); row.Add(badge); var copy = Column(); copy.Add(Subtitle(title)); copy.Add(Body(detail)); row.Add(copy); return row; }
+        static VisualElement Metric(string value, string label) { var metric = new VisualElement(); metric.AddToClassList("metric"); var a = new Label(value); a.AddToClassList("metric-value"); metric.Add(a); var b = new Label(label); b.AddToClassList("metric-label"); metric.Add(b); return metric; }
+        static UiImage Image(Texture2D texture, string className) { var image = new UiImage { image = texture, scaleMode = ScaleMode.ScaleAndCrop, pickingMode = PickingMode.Ignore }; image.AddToClassList(className); return image; }
+        static UiButton Action(string label, Action action, params string[] classes) { var button = new UiButton(action) { text = label }; button.AddToClassList("action-button"); foreach (var item in classes) if (!string.IsNullOrEmpty(item)) button.AddToClassList(item); return button; }
+        static UiButton ActionWithIcon(Texture2D icon, string label, Action action, params string[] classes) { if (icon == null) return Action(label, action, classes); var button = new UiButton(action) { name = label.ToLowerInvariant().Replace(' ', '-') }; button.AddToClassList("action-button"); button.AddToClassList("icon-action-button"); foreach (var item in classes) if (!string.IsNullOrEmpty(item)) button.AddToClassList(item); button.Add(IconImage(icon, "action-icon")); var copy = new Label(label); copy.AddToClassList("action-label"); button.Add(copy); return button; }
+        static UiButton IconAction(Texture2D icon, string fallback, Action action, string name) { var button = new UiButton(action) { name = name }; button.AddToClassList("icon-button"); if (icon != null) button.Add(IconImage(icon, "icon-image")); else button.text = fallback; return button; }
+        static UiImage IconImage(Texture2D texture, string name) { var image = new UiImage { image = texture, name = name, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore, tintColor = Color.black }; return image; }
 
         void ApplySafeArea()
         {
-            if (_safeRoot == null || Screen.width <= 0 || Screen.height <= 0)
-                return;
-
+            if (_safeRoot == null || Screen.width <= 0 || Screen.height <= 0) return;
             var safe = UiSafeAreaSimulation.Resolve(Screen.safeArea);
             var panelHeight = _document.rootVisualElement.resolvedStyle.height;
             var scale = float.IsNaN(panelHeight) || panelHeight <= 0f ? 1f : panelHeight / Screen.height;
@@ -647,8 +514,7 @@ namespace ARWalking.UI
             _safeRoot.style.paddingRight = (Screen.width - safe.xMax) * scale;
             _safeRoot.style.paddingTop = (Screen.height - safe.yMax) * scale;
             _safeRoot.style.paddingBottom = safe.yMin * scale;
-            _lastSafeArea = safe;
-            _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
+            _lastSafeArea = safe; _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
         }
     }
 }

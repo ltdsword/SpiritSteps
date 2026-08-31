@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARWalking.Runtime::ARWalking.UI.PrototypeUiAssets
   illustratedMap: {fileID: 2800000, guid: 897148f22e963c14788383482b4af670, type: 3}
   arScene: {fileID: 2800000, guid: afa34a4fde1aa2d4a85d3c47afe73a24, type: 3}
-  journalOne: {fileID: 2800000, guid: 02dbe11adc4bcc44eb8710ea65d5a167, type: 3}
-  journalTwo: {fileID: 2800000, guid: 762d382e444172c4fb75e075eb9ceb2f, type: 3}
-  spirits:
+  journeyOne: {fileID: 2800000, guid: 02dbe11adc4bcc44eb8710ea65d5a167, type: 3}
+  journeyTwo: {fileID: 2800000, guid: 762d382e444172c4fb75e075eb9ceb2f, type: 3}
+  companions:
   - {fileID: 2800000, guid: 7a2d6074377d6b04f9f8c2ccd4bafb9d, type: 3}
   - {fileID: 2800000, guid: 160647671713b2e449d67fb78c5c048f, type: 3}
   - {fileID: 2800000, guid: dfaaf1004432637448ae7f805e7cfe8c, type: 3}
-  seedlings:
+  archivedPlantPlaceholders:
   - {fileID: 2800000, guid: 97c5668898921d84e9138b5498576959, type: 3}
   - {fileID: 2800000, guid: b1eeb57285ef9344da3a90bb70b0f26e, type: 3}
   - {fileID: 2800000, guid: 6e61bf2ccc62d7d48aa9766263278451, type: 3}
@@ -28,7 +28,6 @@ MonoBehaviour:
   - {fileID: 2800000, guid: c4c2acc7601e7784da458bb8547d19e8, type: 3}
   - {fileID: 2800000, guid: 9a96832fe8dec204f8c1564877f19c7f, type: 3}
   - {fileID: 2800000, guid: dda3605b6fa265c408db545cc38de33b, type: 3}
-  - {fileID: 2800000, guid: e1b849f4f552a4a489b8fe5513ac2ad3, type: 3}
   icons:
   - {fileID: 2800000, guid: c7580c7d857c059469423b2afb82682d, type: 3}
   - {fileID: 2800000, guid: cbaada55418b582429639a75ffdbb022, type: 3}
@@ -44,3 +43,17 @@ MonoBehaviour:
   - {fileID: 2800000, guid: e4e4f38675ea6f647973fba6ba19434b, type: 3}
   - {fileID: 2800000, guid: adfa3cf13285aaf4badac82dcfd9361a, type: 3}
   - {fileID: 2800000, guid: 1b41bd2709c0abe4b9efed823b9ecfbd, type: 3}
+  iconAr: {fileID: 2800000, guid: c7580c7d857c059469423b2afb82682d, type: 3}
+  iconBack: {fileID: 2800000, guid: cbaada55418b582429639a75ffdbb022, type: 3}
+  iconCalendar: {fileID: 2800000, guid: 357ea66cccc7a3741a93b5c8275df7a9, type: 3}
+  iconCamera: {fileID: 2800000, guid: 0e085e47dc2815f4c95f783faaf6adf8, type: 3}
+  iconClose: {fileID: 2800000, guid: b4191631c15ddb142bebcaecd3d72501, type: 3}
+  iconCompass: {fileID: 2800000, guid: d21af913247033c42b36e5a6a069fcda, type: 3}
+  iconHelp: {fileID: 2800000, guid: 478c177b1c4125d4e9c77a3723bf5768, type: 3}
+  iconJourney: {fileID: 2800000, guid: 7064c792b24a775468c341fcee0a47ed, type: 3}
+  iconLocation: {fileID: 2800000, guid: 32eb38ee711b55b42a5b85c662eecdf2, type: 3}
+  iconMap: {fileID: 2800000, guid: 1963bf6a2adef354ab5f2fe7f61ceb71, type: 3}
+  iconCompanions: {fileID: 2800000, guid: c6868fd1782463146afbdc6bc468799f, type: 3}
+  iconSettings: {fileID: 2800000, guid: e4e4f38675ea6f647973fba6ba19434b, type: 3}
+  iconShop: {fileID: 2800000, guid: adfa3cf13285aaf4badac82dcfd9361a, type: 3}
+  iconSteps: {fileID: 2800000, guid: 1b41bd2709c0abe4b9efed823b9ecfbd, type: 3}

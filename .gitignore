@@ -46,7 +46,25 @@ sysinfo.txt
 
 .vscode
 docs/
+!docs/
+docs/*
+!docs/UI-strategy.md
+!docs/MAP-WALK-PROVIDER-INTEGRATION.md
 UI-examples/
 # Optional TextMesh Pro sample content; only TMP Essentials are versioned.
 Assets/TextMesh Pro/Examples & Extras/
 Assets/TextMesh Pro/Examples & Extras.meta
+
+# Unity MCP / editor tooling cache (local build artifacts, not project source)
+.utmp/
+
+# Generated test output (screenshots, EditMode/PlayMode reports) - reproducible, not needed to run the app
+TestArtifacts/
+
+# Unity crash-recovery scenes - local-only leftovers, not part of the project
+Assets/_Recovery/
+Assets/_Recovery.meta
+
+# Default UI Toolkit boilerplate created once by the editor; unused (project renders UI via Unity App UI)
+Assets/UI Toolkit/
+Assets/UI Toolkit.meta

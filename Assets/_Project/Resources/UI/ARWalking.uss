@@ -46,7 +46,7 @@
 }
 
 .title {
-    font-size: 32px;
+    font-size: 38px;
     color: rgb(42, 63, 49);
     white-space: normal;
     -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-VariableFont_wght.ttf");
@@ -54,21 +54,21 @@
 }
 
 .subtitle {
-    font-size: 21px;
+    font-size: 25px;
     color: rgb(48, 67, 55);
     white-space: normal;
     -unity-font-style: bold;
 }
 
 .body {
-    font-size: 17px;
+    font-size: 20px;
     color: rgb(93, 105, 96);
     white-space: normal;
     margin-top: 3px;
 }
 
 .eyebrow {
-    font-size: 13px;
+    font-size: 16px;
     letter-spacing: 1.4px;
     color: rgb(76, 134, 91);
     -unity-font-style: bold;
@@ -103,11 +103,31 @@
     min-height: 54px;
     border-radius: 27px;
     border-width: 0;
-    font-size: 18px;
+    font-size: 21px;
     -unity-font-style: bold;
     margin-top: 14px;
     padding-left: 24px;
     padding-right: 24px;
+}
+
+.icon-action-button {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-action-button #action-icon {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    flex-shrink: 0;
+    align-self: center;
+    margin-right: 10px;
+}
+
+.icon-action-button .action-label {
+    -unity-font-style: bold;
 }
 
 .primary-action {
@@ -135,7 +155,7 @@
 .compact-action {
     min-height: 48px;
     margin-top: 6px;
-    font-size: 15px;
+    font-size: 18px;
 }
 
 .icon-button {
@@ -148,9 +168,21 @@
     border-color: rgba(80, 106, 84, 0.14);
     background-color: rgba(255, 253, 247, 0.96);
     color: rgb(56, 83, 62);
-    font-size: 27px;
+    font-size: 32px;
     -unity-font-style: bold;
     padding: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-button #icon-image {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    flex-shrink: 0;
+    align-self: center;
+    -unity-background-image-tint-color: rgb(0, 0, 0);
 }
 
 .bottom-nav {
@@ -182,19 +214,36 @@
     padding: 0;
 }
 
-.nav-button #nav-glyph {
-    font-size: 27px;
-    -unity-font-style: bold;
+.nav-button #nav-icon {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    flex-shrink: 0;
+    align-self: center;
+    -unity-background-image-tint-color: rgb(0, 0, 0);
 }
 
 .nav-button #nav-label {
-    font-size: 13px;
+    font-size: 16px;
     margin-top: 3px;
 }
 
 .selected-nav {
     color: rgb(71, 132, 83);
     background-color: rgb(232, 244, 229);
+}
+
+.selected-nav #nav-icon {
+    -unity-background-image-tint-color: rgb(71, 132, 83);
+}
+
+.map-marker #icon-image {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    -unity-background-image-tint-color: rgb(0, 0, 0);
 }
 
 .raised-nav {
@@ -288,14 +337,11 @@
     color: white;
     background-color: rgb(90, 157, 103);
     padding: 0;
-    font-size: 27px;
+    font-size: 32px;
 }
 
 .marker-landmark { background-color: rgb(85, 158, 200); }
-.marker-seedling { background-color: rgb(96, 164, 92); }
-.marker-culturalcollectible { background-color: rgb(239, 174, 66); }
-.marker-ardiscoveryhint { background-color: rgb(220, 113, 139); }
-.marker-playerspirit { background-color: rgb(78, 127, 78); width: 70px; height: 70px; }
+.marker-player { background-color: rgb(78, 127, 78); width: 70px; height: 70px; }
 
 .metric-row {
     flex-direction: row;
@@ -311,14 +357,14 @@
 }
 
 .metric-value {
-    font-size: 25px;
+    font-size: 29px;
     color: rgb(49, 78, 56);
     -unity-font-style: bold;
     -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-VariableFont_wght.ttf");
 }
 
 .metric-label {
-    font-size: 13px;
+    font-size: 16px;
     color: rgb(107, 119, 110);
 }
 
@@ -337,7 +383,7 @@
     background-color: rgb(97, 168, 109);
 }
 
-.walk-hero, .garden-banner, .collection-progress {
+.walk-hero, .companion-banner, .collection-progress {
     background-color: rgb(234, 245, 226);
 }
 
@@ -349,8 +395,17 @@
     background-color: rgb(228, 244, 250);
 }
 
-.journal-banner {
+.journey-banner {
     background-color: rgb(255, 232, 236);
+}
+
+.journey-banner #banner-icon {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    flex-shrink: 0;
+    margin-bottom: 8px;
 }
 
 .discovery-line {
@@ -370,7 +425,7 @@
     border-radius: 24px;
     background-color: rgb(239, 246, 229);
     color: rgb(80, 138, 91);
-    font-size: 23px;
+    font-size: 28px;
     -unity-text-align: middle-center;
 }
 
@@ -384,12 +439,12 @@
 
 .permission-row #permission-glyph {
     width: 48px;
-    font-size: 27px;
+    font-size: 32px;
     color: rgb(83, 144, 95);
 }
 
 .permission-row #permission-check {
-    font-size: 22px;
+    font-size: 26px;
     color: rgb(83, 144, 95);
 }
 
@@ -434,20 +489,20 @@
     background-color: rgb(255, 236, 240);
 }
 
-.reveal-spirit {
+.reveal-companion {
     width: 310px;
     height: 360px;
     margin-top: 12px;
     margin-bottom: 18px;
 }
 
-.spirit-grid {
+.companion-grid {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: space-between;
 }
 
-.spirit-card {
+.companion-card {
     width: 48%;
     min-height: 290px;
     margin-bottom: 18px;
@@ -460,7 +515,7 @@
     align-items: stretch;
 }
 
-.spirit-image {
+.companion-image {
     height: 190px;
     border-radius: 18px;
     background-color: rgb(236, 246, 229);
@@ -472,12 +527,12 @@
     background-color: rgb(231, 229, 222);
 }
 
-.spirit-stage {
+.companion-stage {
     align-items: center;
     background-color: rgb(232, 245, 229);
 }
 
-.detail-spirit {
+.detail-companion {
     width: 360px;
     height: 410px;
 }
@@ -550,7 +605,7 @@
     border-radius: 28px;
     background-color: rgb(45, 65, 51);
     color: white;
-    font-size: 17px;
+    font-size: 20px;
     -unity-text-align: middle-center;
     white-space: normal;
 }
@@ -590,7 +645,7 @@
 }
 
 .ar-alert {
-    font-size: 14px;
+    font-size: 17px;
     background-color: rgba(37, 51, 40, 0.64);
     border-radius: 15px;
     padding: 6px 10px;
@@ -610,7 +665,7 @@
     padding: 10px 20px;
 }
 
-.ar-spirit {
+.ar-companion {
     position: absolute;
     left: 22%;
     right: 22%;
@@ -636,10 +691,10 @@
     border-color: white;
     color: white;
     background-color: rgba(255, 255, 255, 0.25);
-    font-size: 38px;
+    font-size: 44px;
 }
 
-.photo-spirit {
+.photo-companion {
     position: absolute;
     width: 42%;
     height: 48%;
@@ -672,10 +727,10 @@
 }
 
 @media (max-width: 760px) {
-    .title { font-size: 27px; }
-    .body { font-size: 15px; }
+    .title { font-size: 33px; }
+    .body { font-size: 18px; }
     .content-page { padding-left: 22px; padding-right: 22px; }
     .bottom-nav { height: 104px; min-height: 104px; }
-    .spirit-card { width: 49%; }
+    .companion-card { width: 49%; }
     .landmark-hero, .journey-detail-image { height: 300px; }
 }

@@ -4,7 +4,9 @@
   "references": [
     "ARWalking.Runtime",
     "Unity.AppUI",
-    "Unity.AppUI.Navigation"
+    "Unity.AppUI.Navigation",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
   ],
   "includePlatforms": ["Editor"],
   "autoReferenced": true
