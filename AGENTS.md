@@ -85,6 +85,15 @@ The team is split three ways: Map/Walk (real GPS + step tracking, contract in `d
 
 Verification: `Tools/AR Walking/Tests/Run Edit Mode` (18/18) and `Run Play Mode` (8/8) pass, including new tests for per-landmark data-driven rewards (`LandmarkRewardIsDataDrivenPerLandmarkNotHardcodedToOneId`), photo→Journey linking, and `GetCompanionVisualState`.
 
+## Dog placeholder replaced with a real rendered icon (2026-09-02)
+
+The user imported `Assets/Bublisher/3D Stylized Animated Dogs Kit/` (5 dog breeds: FBX + prefab + animator controller each, ~104 MB, committed in full since it's real content the AR/3D teammates need, not a build byproduct). Two things came out of wiring it in:
+
+- **The kit's shared material (`.../Materials/3D Stylized Animated Dogs Kit.mat`) used the Built-in `Standard` shader, which renders solid magenta under this project's URP pipeline.** Converted it in place to `Universal Render Pipeline/Lit` (remapping `_MainTex`→`_BaseMap`, `_BumpMap`, `_MetallicGlossMap`) so all five prefabs render correctly. This was a real bug the AR/3D teammates would have hit the first time they dragged any of these prefabs into a scene — worth telling them it's already fixed.
+- **`PrototypeUiAssets.companions[0]` (the flat 2D Dog placeholder used by the UI Toolkit screens) now points at `Assets/_Project/Art/UI/ReferenceTemp/Spirits/dog-corgi.png`**, a 1024×1024 transparent-background icon rendered from the Corgi prefab via a one-off Editor script (temp additive scene + orthographic camera + directional/fill lights + `RenderTexture` readback, cleaned up immediately after). This is a 2D icon, not a 3D scene — there's still no 3D rendering pipeline in this repo's scope; Cat and Rabbit still use the archived plant artwork per `docs/UI-strategy.md`'s Artwork policy until similar source art exists for them.
+
+Regenerate the icon (different breed, different framing) by re-running the render script pattern in the session that made this change, or by hand in the Editor: instantiate the prefab, frame it in an orthographic camera at roughly `orthographicSize = boundsExtentsMagnitude * 0.5` for a fill ratio matching the other Spirits/ art, render to a transparent `RenderTexture`, `EncodeToPNG`.
+
 ## Still-open item (not a code defect)
 
 **Untracked stray folders in the working tree**, worth a deliberate keep/delete decision rather than leaving them: `Assets/_Recovery/0.unity` (Unity crash-recovery scene) and `Assets/UI Toolkit/UnityThemes` (default boilerplate from creating a UI Toolkit asset once, unused by the App UI-based runtime UI). Both showed up as untracked in `git status` at the start of the 2026-09-01 session and haven't been addressed.

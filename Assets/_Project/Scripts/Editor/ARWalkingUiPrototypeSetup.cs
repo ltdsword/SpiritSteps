@@ -100,7 +100,7 @@ namespace ARWalking.Editor
             }
             catalog.companions = new List<CompanionUiData>
             {
-                new CompanionUiData { id=PrototypeIds.Dog, name="Dog", description="A loyal starter who gains Growth EXP from completed kilometres and food.", imageKey="temporary-plant-dog", unlockHint="Starter companion" },
+                new CompanionUiData { id=PrototypeIds.Dog, name="Dog", description="A loyal starter who gains Growth EXP from completed kilometres and food.", imageKey="dog-corgi", unlockHint="Starter companion" },
                 new CompanionUiData { id=PrototypeIds.Cat, name="Cat", description="A curious companion unlocked after 1 km of total walking distance.", imageKey="temporary-plant-cat", unlockHint="Walk 1 km total to unlock" },
                 new CompanionUiData { id=PrototypeIds.Rabbit, name="Rabbit", description="A bright companion unlocked by collecting the Central Post Office Stamp.", imageKey="temporary-plant-rabbit", unlockHint="Complete the Central Post Office AR Memory" }
             };
@@ -138,8 +138,8 @@ namespace ARWalking.Editor
             library.arScene = Texture("Assets/_Project/Art/UI/ReferenceTemp/Scenes/ar-park.png");
             library.journeyOne = Texture("Assets/_Project/Art/UI/ReferenceTemp/Scenes/journal-1.png");
             library.journeyTwo = Texture("Assets/_Project/Art/UI/ReferenceTemp/Scenes/journal-2.png");
-            // Archived plant artwork is intentionally retained as temporary Dog/Cat/Rabbit placeholder art.
-            library.companions = Textures("Spirits/spirit-leaf.png", "Spirits/spirit-lotus.png", "Spirits/spirit-star.png");
+            // Dog uses a real rendered icon (see docs/UI-strategy.md Artwork policy); Cat/Rabbit remain archived plant artwork until real art is available.
+            library.companions = Textures("Spirits/dog-corgi.png", "Spirits/spirit-lotus.png", "Spirits/spirit-star.png");
             library.archivedPlantPlaceholders = Textures("Seedlings/commonPelletRedSprout.png", "Seedlings/commonPelletBlueReady.png", "Seedlings/commonPelletYellowSprout.png");
             library.landmarks = Textures("Landmarks/independence-palace.png", "Landmarks/post-office.png", "Landmarks/notre-dame.png");
             library.icons = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Project/Art/UI/ReferenceTemp/Icons" })

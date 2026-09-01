@@ -17,7 +17,7 @@ MonoBehaviour:
   journeyOne: {fileID: 2800000, guid: 02dbe11adc4bcc44eb8710ea65d5a167, type: 3}
   journeyTwo: {fileID: 2800000, guid: 762d382e444172c4fb75e075eb9ceb2f, type: 3}
   companions:
-  - {fileID: 2800000, guid: 7a2d6074377d6b04f9f8c2ccd4bafb9d, type: 3}
+  - {fileID: 2800000, guid: 4315eabbf801c0d4a87278c6fba919bc, type: 3}
   - {fileID: 2800000, guid: 160647671713b2e449d67fb78c5c048f, type: 3}
   - {fileID: 2800000, guid: dfaaf1004432637448ae7f805e7cfe8c, type: 3}
   archivedPlantPlaceholders:

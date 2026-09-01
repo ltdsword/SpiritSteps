@@ -1,356 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-9133463954715863261
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: walk_result
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 1290, y: 120}
-  m_Guid: 68854a13-7b7c-48ae-9218-99add4311153
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions: []
-  m_Label: WalkResult
-  m_TemplateSettings:
-    rid: 9014217057346257030
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257030
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 0
-        m_ShowAppBar: 1
-        m_ShowBackButton: 1
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-9082450005152730413
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: onboarding_setup
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 300, y: 120}
-  m_Guid: 1bb01ecc-55c8-4b87-9673-24082a51d215
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions: []
-  m_Label: OnboardingSetup
-  m_TemplateSettings:
-    rid: 9014217057346257027
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257027
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 0
-        m_ShowAppBar: 0
-        m_ShowBackButton: 1
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-8881493992062795043
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: companion_collection
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 300, y: 340}
-  m_Guid: da018bcc-9be9-4aad-b962-e10eec3954ba
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions:
-  - {fileID: -1670939623084041793}
-  m_Label: CompanionCollection
-  m_TemplateSettings:
-    rid: 9014217057346257031
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257031
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 1
-        m_ShowAppBar: 1
-        m_ShowBackButton: 0
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-7154215266650537026
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: shop_food
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 960, y: 340}
-  m_Guid: 68969eab-d26d-4fca-b5e1-cb83d3ec3806
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions: []
-  m_Label: ShopFood
-  m_TemplateSettings:
-    rid: 9014217057346257033
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257033
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 1
-        m_ShowAppBar: 1
-        m_ShowBackButton: 0
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-6960085190655209237
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: root_shop
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 90d3d265-6367-47e2-b4a2-6f8f53b5de57
-  m_Destination: {fileID: -7154215266650537026}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-6779931674794029254
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: take_photo
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: b160e321-358d-4862-a890-c187db1570d9
-  m_Destination: {fileID: -674413027598359326}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-6451274095838348998
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: root_map
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 9f5a9856-4273-49d4-b705-964ae8be28a7
-  m_Destination: {fileID: 2994194978093682572}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-4291343531162755682
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: journey_detail
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 1290, y: 560}
-  m_Guid: 14713594-0356-4fc8-9b73-aafc69078f0b
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions: []
-  m_Label: JourneyDetail
-  m_TemplateSettings:
-    rid: 9014217057346257038
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257038
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 0
-        m_ShowAppBar: 1
-        m_ShowBackButton: 1
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-3524852282357001912
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: open_journey
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 0979f918-c714-4267-8fa5-12d79013bb5a
-  m_Destination: {fileID: -4291343531162755682}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-2804673663445292056
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3ac212c624cd4a46acc6d3430ae62e14, type: 3}
-  m_Name: animal_companion_graph
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavGraph
-  m_Position: {x: 0, y: 0}
-  m_Guid: 3f6e609c-92ca-4ce3-8358-c14a511e0067
-  m_Parent: {fileID: 0}
-  m_Actions:
-  - {fileID: -6451274095838348998}
-  - {fileID: 7063001431697064876}
-  - {fileID: -6960085190655209237}
-  - {fileID: 9164213491432230264}
-  m_Label: AR Walking
-  m_StartDestination: {fileID: 2994194978093682572}
---- !u!114 &-1670939623084041793
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: open_companion
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 44c2845c-3709-44a3-855d-c3eae8244367
-  m_Destination: {fileID: 8465750477364956382}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-1229024402582837761
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: finish_walk
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 6594c7ab-ae01-49ec-bf6e-e22e3989d126
-  m_Destination: {fileID: -9133463954715863261}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &-1051337743435229417
+--- !u!114 &-9124233874798301522
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -363,8 +13,8 @@ MonoBehaviour:
   m_Name: open_landmark
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
   m_Position: {x: 0, y: 0}
-  m_Guid: cc923a91-6a7f-4d73-9bb1-c71f60fbdb5d
-  m_Destination: {fileID: 7435147776287096492}
+  m_Guid: f6db0ddf-c427-41c2-9397-dc9d8af7fcc3
+  m_Destination: {fileID: 8637975114897407472}
   m_Options:
     m_PopUpToStrategy: 0
     m_PopUpToRoute: {fileID: 0}
@@ -377,7 +27,305 @@ MonoBehaviour:
     m_RestoreState: 0
     m_LaunchSingleTop: 0
   m_DefaultArguments: []
---- !u!114 &-674413027598359326
+--- !u!114 &-7917401439612087767
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: companion_detail
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 630, y: 340}
+  m_Guid: e39ea1b5-c019-42bb-8c43-35f9dc0b2510
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions: []
+  m_Label: CompanionDetail
+  m_TemplateSettings:
+    rid: 7561125999383937259
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937259
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 1
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &-6546620573265649124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: journey_detail
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 1290, y: 560}
+  m_Guid: e2f3fcd6-39c5-4ef9-9dc5-fb626b82e4bd
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions: []
+  m_Label: JourneyDetail
+  m_TemplateSettings:
+    rid: 7561125999383937265
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937265
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 1
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &-5560769075884411468
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: root_shop
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 444b4f60-97d0-4ecf-8666-1fe1e5c67c1f
+  m_Destination: {fileID: 8462322824571962691}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &-4689511389984844699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: walk_result
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 1290, y: 120}
+  m_Guid: 2be65f7a-a57c-41e9-a629-07a328feeadd
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions: []
+  m_Label: WalkResult
+  m_TemplateSettings:
+    rid: 7561125999383937257
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937257
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 1
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &-3900306584412549154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: home_map
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 630, y: 120}
+  m_Guid: a3d27d48-b2d3-48a3-8cd9-ad44f011fc8d
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions:
+  - {fileID: 6726520875926973110}
+  - {fileID: -9124233874798301522}
+  m_Label: HomeMap
+  m_TemplateSettings:
+    rid: 7561125999383937255
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937255
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 1
+        m_ShowAppBar: 1
+        m_ShowBackButton: 0
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &-3874580139592910232
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: root_journey
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 88d2fb93-e8b9-4266-835a-abf9f6ec14aa
+  m_Destination: {fileID: 7799549562614021162}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &-3217325901680694581
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: companion_collection
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 300, y: 340}
+  m_Guid: 1eb62343-8446-48d6-a709-f366d5afce54
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions:
+  - {fileID: 6245413598460794519}
+  m_Label: CompanionCollection
+  m_TemplateSettings:
+    rid: 7561125999383937258
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937258
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 1
+        m_ShowAppBar: 1
+        m_ShowBackButton: 0
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &-2313519890286025837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ac212c624cd4a46acc6d3430ae62e14, type: 3}
+  m_Name: animal_companion_graph
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavGraph
+  m_Position: {x: 0, y: 0}
+  m_Guid: 0d9513b9-bd2b-46b2-b2fe-0d0edf61a9a6
+  m_Parent: {fileID: 0}
+  m_Actions:
+  - {fileID: -2303338653909078616}
+  - {fileID: -1757394472867206976}
+  - {fileID: -5560769075884411468}
+  - {fileID: -3874580139592910232}
+  m_Label: AR Walking
+  m_StartDestination: {fileID: -3900306584412549154}
+--- !u!114 &-2303338653909078616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: root_map
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 5c261cf2-1e71-474c-9a39-76c289c4905b
+  m_Destination: {fileID: -3900306584412549154}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &-1757394472867206976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: root_companions
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 64fc1a38-ff15-4619-8873-f65754b0e4d3
+  m_Destination: {fileID: -3217325901680694581}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &-1569892507135198341
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -390,57 +338,23 @@ MonoBehaviour:
   m_Name: ar_photo
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
   m_Position: {x: 630, y: 560}
-  m_Guid: f6f82d1b-b70d-490c-a929-f1ec5048dd17
-  m_Parent: {fileID: -2804673663445292056}
+  m_Guid: 7e437d8f-264d-47e6-8f77-95a8748f7ef2
+  m_Parent: {fileID: -2313519890286025837}
   m_Actions: []
   m_Label: ArPhoto
   m_TemplateSettings:
-    rid: 9014217057346257036
+    rid: 7561125999383937263
   m_Arguments: []
   references:
     version: 2
     RefIds:
-    - rid: 9014217057346257036
+    - rid: 7561125999383937263
       type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
       data:
         m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
           Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
         m_ShowBottomNavBar: 0
         m_ShowAppBar: 0
-        m_ShowBackButton: 1
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &-316396796348370760
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: active_walk
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 960, y: 120}
-  m_Guid: 449abfa9-cd9c-4292-ae65-b222c2b3d8d6
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions:
-  - {fileID: -1229024402582837761}
-  m_Label: ActiveWalk
-  m_TemplateSettings:
-    rid: 9014217057346257029
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257029
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 0
-        m_ShowAppBar: 1
         m_ShowBackButton: 1
         m_ShowDrawer: 0
         m_ShowNavigationRail: 0
@@ -457,32 +371,32 @@ MonoBehaviour:
   m_Name: ARWalkingNavigation
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavGraphViewAsset
   m_Nodes:
-  - {fileID: -2804673663445292056}
-  - {fileID: -9082450005152730413}
-  - {fileID: 2994194978093682572}
-  - {fileID: -316396796348370760}
-  - {fileID: -9133463954715863261}
-  - {fileID: -8881493992062795043}
-  - {fileID: 8465750477364956382}
-  - {fileID: -7154215266650537026}
-  - {fileID: 7435147776287096492}
-  - {fileID: 2195288421676395495}
-  - {fileID: -674413027598359326}
-  - {fileID: 434116395667728477}
-  - {fileID: -4291343531162755682}
-  - {fileID: -6451274095838348998}
-  - {fileID: 7063001431697064876}
-  - {fileID: -6960085190655209237}
-  - {fileID: 9164213491432230264}
-  - {fileID: 2330414492772839046}
-  - {fileID: -1229024402582837761}
-  - {fileID: -1051337743435229417}
-  - {fileID: 5961660280793058586}
-  - {fileID: -6779931674794029254}
-  - {fileID: -1670939623084041793}
-  - {fileID: -3524852282357001912}
-  - {fileID: 2888222854275800957}
---- !u!114 &434116395667728477
+  - {fileID: -2313519890286025837}
+  - {fileID: 4047533184892310231}
+  - {fileID: -3900306584412549154}
+  - {fileID: 8349577791512774184}
+  - {fileID: -4689511389984844699}
+  - {fileID: -3217325901680694581}
+  - {fileID: -7917401439612087767}
+  - {fileID: 8462322824571962691}
+  - {fileID: 8637975114897407472}
+  - {fileID: 8037847192135294107}
+  - {fileID: -1569892507135198341}
+  - {fileID: 7799549562614021162}
+  - {fileID: -6546620573265649124}
+  - {fileID: -2303338653909078616}
+  - {fileID: -1757394472867206976}
+  - {fileID: -5560769075884411468}
+  - {fileID: -3874580139592910232}
+  - {fileID: 6726520875926973110}
+  - {fileID: 7341104552370353380}
+  - {fileID: -9124233874798301522}
+  - {fileID: 7916803135874977053}
+  - {fileID: 7455342381993494979}
+  - {fileID: 6245413598460794519}
+  - {fileID: 6702980950999378600}
+  - {fileID: 4764821061283036897}
+--- !u!114 &4047533184892310231
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -492,55 +406,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: journey_list
+  m_Name: onboarding_setup
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 960, y: 560}
-  m_Guid: c292dc47-5aaa-4264-96f4-ccbb8609efcd
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions:
-  - {fileID: -3524852282357001912}
-  m_Label: JourneyList
+  m_Position: {x: 300, y: 120}
+  m_Guid: ea150348-c25f-46c8-9aa1-e478d8a298f4
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions: []
+  m_Label: OnboardingSetup
   m_TemplateSettings:
-    rid: 9014217057346257037
+    rid: 7561125999383937254
   m_Arguments: []
   references:
     version: 2
     RefIds:
-    - rid: 9014217057346257037
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 1
-        m_ShowAppBar: 1
-        m_ShowBackButton: 0
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &2195288421676395495
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: landmark_ar_memory
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 300, y: 560}
-  m_Guid: e0351a36-17f0-4129-9f19-2164bbf6b13d
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions:
-  - {fileID: -6779931674794029254}
-  m_Label: LandmarkArMemory
-  m_TemplateSettings:
-    rid: 9014217057346257035
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257035
+    - rid: 7561125999383937254
       type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
       data:
         m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
@@ -550,34 +429,7 @@ MonoBehaviour:
         m_ShowBackButton: 1
         m_ShowDrawer: 0
         m_ShowNavigationRail: 0
---- !u!114 &2330414492772839046
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: start_walk
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 60917818-9f77-4a08-a9d2-002c3eafddf5
-  m_Destination: {fileID: -316396796348370760}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &2888222854275800957
+--- !u!114 &4764821061283036897
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -590,12 +442,147 @@ MonoBehaviour:
   m_Name: nav_graph
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavGraph
   m_Position: {x: 0, y: 0}
-  m_Guid: 4247dda9-02bb-4ce3-9366-98f7cca0e8e1
+  m_Guid: 36a86555-4abd-4b83-9403-e9b253c1dd5d
   m_Parent: {fileID: 0}
   m_Actions: []
   m_Label: 
   m_StartDestination: {fileID: 0}
---- !u!114 &2994194978093682572
+--- !u!114 &6245413598460794519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: open_companion
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 71d055a2-6671-4291-8d99-3467cb51048e
+  m_Destination: {fileID: -7917401439612087767}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &6702980950999378600
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: open_journey
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: 2caf414d-6c35-425e-853c-4d886eb878d2
+  m_Destination: {fileID: -6546620573265649124}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &6726520875926973110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: start_walk
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: dcc08636-98d2-4c9c-9244-6d3825b5ae8d
+  m_Destination: {fileID: 8349577791512774184}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &7341104552370353380
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: finish_walk
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: e051318f-2b68-456b-9bfc-93b64e9bcf71
+  m_Destination: {fileID: -4689511389984844699}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &7455342381993494979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: take_photo
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: bb172212-23cf-4c24-9848-c23dbf0d554d
+  m_Destination: {fileID: -1569892507135198341}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
+--- !u!114 &7799549562614021162
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -605,22 +592,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: home_map
+  m_Name: journey_list
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 630, y: 120}
-  m_Guid: a5275c37-6e6d-4fb2-8f3e-5aa4e041feca
-  m_Parent: {fileID: -2804673663445292056}
+  m_Position: {x: 960, y: 560}
+  m_Guid: cec1ce0a-2060-4d34-acc8-6b7a71a4b783
+  m_Parent: {fileID: -2313519890286025837}
   m_Actions:
-  - {fileID: 2330414492772839046}
-  - {fileID: -1051337743435229417}
-  m_Label: HomeMap
+  - {fileID: 6702980950999378600}
+  m_Label: JourneyList
   m_TemplateSettings:
-    rid: 9014217057346257028
+    rid: 7561125999383937264
   m_Arguments: []
   references:
     version: 2
     RefIds:
-    - rid: 9014217057346257028
+    - rid: 7561125999383937264
       type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
       data:
         m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
@@ -630,7 +616,7 @@ MonoBehaviour:
         m_ShowBackButton: 0
         m_ShowDrawer: 0
         m_ShowNavigationRail: 0
---- !u!114 &5961660280793058586
+--- !u!114 &7916803135874977053
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -643,8 +629,8 @@ MonoBehaviour:
   m_Name: open_ar_memory
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
   m_Position: {x: 0, y: 0}
-  m_Guid: 43c4e010-3654-42db-9986-e7f188d1013b
-  m_Destination: {fileID: 2195288421676395495}
+  m_Guid: 5a7f7ee7-8a90-4aff-a592-e8f822eb7eae
+  m_Destination: {fileID: 8037847192135294107}
   m_Options:
     m_PopUpToStrategy: 0
     m_PopUpToRoute: {fileID: 0}
@@ -657,7 +643,7 @@ MonoBehaviour:
     m_RestoreState: 0
     m_LaunchSingleTop: 0
   m_DefaultArguments: []
---- !u!114 &7063001431697064876
+--- !u!114 &8037847192135294107
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -666,25 +652,99 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: root_companions
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 291544a4-0bcd-4076-b44c-93fabfd41c8a
-  m_Destination: {fileID: -8881493992062795043}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []
---- !u!114 &7435147776287096492
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: landmark_ar_memory
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 300, y: 560}
+  m_Guid: 72bb6d05-e24e-42da-bd52-d0757e47f947
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions:
+  - {fileID: 7455342381993494979}
+  m_Label: LandmarkArMemory
+  m_TemplateSettings:
+    rid: 7561125999383937262
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937262
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 0
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &8349577791512774184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: active_walk
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 960, y: 120}
+  m_Guid: 7467714a-6c3c-4961-9cfe-1eff726cac10
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions:
+  - {fileID: 7341104552370353380}
+  m_Label: ActiveWalk
+  m_TemplateSettings:
+    rid: 7561125999383937256
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937256
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 1
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &8462322824571962691
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: shop_food
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 960, y: 340}
+  m_Guid: 902fa203-e7d0-470b-ace6-d709b8ae6ab9
+  m_Parent: {fileID: -2313519890286025837}
+  m_Actions: []
+  m_Label: ShopFood
+  m_TemplateSettings:
+    rid: 7561125999383937260
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 7561125999383937260
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 1
+        m_ShowAppBar: 1
+        m_ShowBackButton: 0
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &8637975114897407472
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -697,18 +757,18 @@ MonoBehaviour:
   m_Name: landmark_detail
   m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
   m_Position: {x: 1290, y: 340}
-  m_Guid: 558cdc02-9a59-479b-8602-5048c7c7d957
-  m_Parent: {fileID: -2804673663445292056}
+  m_Guid: 9c63cbf5-3b28-4e3e-8a4f-e24ca81125a2
+  m_Parent: {fileID: -2313519890286025837}
   m_Actions:
-  - {fileID: 5961660280793058586}
+  - {fileID: 7916803135874977053}
   m_Label: LandmarkDetail
   m_TemplateSettings:
-    rid: 9014217057346257034
+    rid: 7561125999383937261
   m_Arguments: []
   references:
     version: 2
     RefIds:
-    - rid: 9014217057346257034
+    - rid: 7561125999383937261
       type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
       data:
         m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
@@ -718,63 +778,3 @@ MonoBehaviour:
         m_ShowBackButton: 1
         m_ShowDrawer: 0
         m_ShowNavigationRail: 0
---- !u!114 &8465750477364956382
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
-  m_Name: companion_detail
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
-  m_Position: {x: 630, y: 340}
-  m_Guid: c310ecf1-bb80-4347-be9e-95da9529867d
-  m_Parent: {fileID: -2804673663445292056}
-  m_Actions: []
-  m_Label: CompanionDetail
-  m_TemplateSettings:
-    rid: 9014217057346257032
-  m_Arguments: []
-  references:
-    version: 2
-    RefIds:
-    - rid: 9014217057346257032
-      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
-      data:
-        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
-          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-        m_ShowBottomNavBar: 0
-        m_ShowAppBar: 1
-        m_ShowBackButton: 1
-        m_ShowDrawer: 0
-        m_ShowNavigationRail: 0
---- !u!114 &9164213491432230264
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
-  m_Name: root_journey
-  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
-  m_Position: {x: 0, y: 0}
-  m_Guid: 5c67992c-526f-4981-bceb-08570f225c47
-  m_Destination: {fileID: 434116395667728477}
-  m_Options:
-    m_PopUpToStrategy: 0
-    m_PopUpToRoute: {fileID: 0}
-    m_PopUpToInclusive: 0
-    m_EnterAnim: 0
-    m_ExitAnim: 0
-    m_PopEnterAnim: 0
-    m_PopExitAnim: 0
-    m_PopUpToSaveState: 0
-    m_RestoreState: 0
-    m_LaunchSingleTop: 0
-  m_DefaultArguments: []

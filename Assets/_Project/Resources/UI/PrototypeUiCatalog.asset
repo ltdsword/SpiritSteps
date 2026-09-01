@@ -17,7 +17,7 @@ MonoBehaviour:
     name: Dog
     description: A loyal starter who gains Growth EXP from completed kilometres and
       food.
-    imageKey: temporary-plant-dog
+    imageKey: dog-corgi
     unlockHint: Starter companion
   - id: cat
     name: Cat
