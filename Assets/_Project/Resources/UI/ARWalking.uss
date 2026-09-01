@@ -726,6 +726,85 @@
     margin-right: 5px;
 }
 
+.activity-dashboard-button {
+    margin-right: 10px;
+}
+
+.activity-hero, .weekly-chart-card {
+    background-color: rgb(234, 245, 226);
+}
+
+.activity-progress-label-row {
+    margin-top: 6px;
+}
+
+.weekly-chart {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 16px;
+    margin-bottom: 4px;
+}
+
+.weekly-chart-column {
+    align-items: center;
+    flex-grow: 1;
+}
+
+.weekly-chart-bar-track {
+    width: 26px;
+    height: 120px;
+    border-radius: 13px;
+    background-color: rgba(91, 121, 98, 0.10);
+    overflow: hidden;
+    justify-content: flex-end;
+}
+
+.weekly-chart-bar-fill {
+    width: 100%;
+    border-radius: 13px;
+    background-color: rgb(180, 214, 174);
+}
+
+.weekly-chart-bar-fill-today {
+    background-color: rgb(71, 132, 83);
+}
+
+.weekly-chart-bar-fill-future {
+    background-color: transparent;
+}
+
+.weekly-chart-day-label {
+    font-size: 15px;
+    color: rgb(107, 119, 110);
+    margin-top: 8px;
+}
+
+.weekly-chart-date-label {
+    font-size: 17px;
+    color: rgb(49, 78, 56);
+    -unity-font-style: bold;
+}
+
+.weekly-chart-today-label {
+    color: rgb(71, 132, 83);
+}
+
+.average-pill {
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 20px;
+    background-color: rgba(255, 253, 247, 0.85);
+}
+
+.average-pill-text {
+    font-size: 19px;
+    color: rgb(53, 103, 64);
+    -unity-font-style: bold;
+}
+
 @media (max-width: 760px) {
     .title { font-size: 33px; }
     .body { font-size: 18px; }

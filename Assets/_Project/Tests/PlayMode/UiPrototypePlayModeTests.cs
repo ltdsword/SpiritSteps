@@ -87,6 +87,26 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ActivityDashboardOpensFromHomeMapHeaderAndBackReturnsToMap()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var dashboardButton = root.Q<UnityEngine.UIElements.Button>("activity-dashboard-button");
+            Assert.That(dashboardButton, Is.Not.Null, "Home Map should expose an entry point into the Activity Dashboard.");
+
+            home.Navigate(UiRoute.ActivityDashboard);
+            yield return null;
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActivityDashboard));
+            var scroll = home.GetComponent<UIDocument>().rootVisualElement.Q<ScrollView>("screen-scroll");
+            Assert.That(scroll, Is.Not.Null);
+
+            Assert.That(home.HandleBack(), Is.True);
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
+        }
+
+        [UnityTest]
         public IEnumerator CentralPostOfficeScanStampRabbitJourneyAndIdempotenceWork()
         {
             var home = CreateProfile();

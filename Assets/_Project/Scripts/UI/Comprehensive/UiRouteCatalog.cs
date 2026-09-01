@@ -10,7 +10,7 @@ namespace ARWalking.UI
             UiRoute.OnboardingSetup, UiRoute.HomeMap, UiRoute.ActiveWalk, UiRoute.WalkResult,
             UiRoute.CompanionCollection, UiRoute.CompanionDetail, UiRoute.ShopFood,
             UiRoute.LandmarkDetail, UiRoute.LandmarkArMemory, UiRoute.ArPhoto,
-            UiRoute.JourneyList, UiRoute.JourneyDetail
+            UiRoute.JourneyList, UiRoute.JourneyDetail, UiRoute.ActivityDashboard
         });
 
         public static UiRoute RootRoute(UiRootTab root)

@@ -36,6 +36,16 @@ namespace ARWalking.UI
         public string collectedUtc;
     }
 
+    /// <summary>One calendar day's walked distance/steps, keyed by UTC date ("yyyy-MM-dd"). Feeds the Activity Dashboard's weekly chart.</summary>
+    [Serializable]
+    public sealed class DailyActivityData
+    {
+        public string dateIso;
+        [Min(0f)] public float distanceKilometres;
+        public bool hasSteps;
+        [Min(0)] public int steps;
+    }
+
     [Serializable]
     public sealed class PlayerSaveData
     {
@@ -53,6 +63,7 @@ namespace ARWalking.UI
         public List<string> completedLandmarkIds = new List<string>();
         public List<JourneyEntryData> journeys = new List<JourneyEntryData>();
         public List<string> savedPhotoPaths = new List<string>();
+        public List<DailyActivityData> dailyActivity = new List<DailyActivityData>();
 
         public static PlayerSaveData CreateNew(string displayName)
         {
@@ -93,6 +104,7 @@ namespace ARWalking.UI
             completedLandmarkIds = completedLandmarkIds ?? new List<string>();
             journeys = journeys ?? new List<JourneyEntryData>();
             savedPhotoPaths = savedPhotoPaths ?? new List<string>();
+            dailyActivity = dailyActivity ?? new List<DailyActivityData>();
             EnsureCompanion(PrototypeIds.Dog, true, 450);
             EnsureCompanion(PrototypeIds.Cat, false, 0);
             EnsureCompanion(PrototypeIds.Rabbit, false, 0);

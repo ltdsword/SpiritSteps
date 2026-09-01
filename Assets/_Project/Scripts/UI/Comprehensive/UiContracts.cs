@@ -30,7 +30,8 @@ namespace ARWalking.UI
         LandmarkArMemory,
         ArPhoto,
         JourneyList,
-        JourneyDetail
+        JourneyDetail,
+        ActivityDashboard
     }
 
     public enum UiOverlay { Settings, Permissions, Confirmation, Error }
@@ -196,6 +197,28 @@ namespace ARWalking.UI
         public float distanceMetres;
         public float directionDegrees;
         public bool isWithinUnlockRadius;
+    }
+
+    /// <summary>One day's slice of the Activity Dashboard's weekly chart (Monday..Sunday of the week containing "today").</summary>
+    [Serializable]
+    public struct DayActivity
+    {
+        public DateTime date;
+        public float distanceKilometres;
+        public bool isToday;
+        public bool isFuture;
+    }
+
+    /// <summary>Data for the Activity Dashboard screen: today's progress toward the daily goal, plus the current Mon-Sun week.</summary>
+    [Serializable]
+    public sealed class WeeklyActivityDto
+    {
+        public DayActivity[] days = new DayActivity[7];
+        public float todayDistanceKilometres;
+        public bool todayHasSteps;
+        public int todaySteps;
+        public float weeklyAverageKilometres;
+        public float dailyGoalKilometres;
     }
 
     public interface IWalkMetricsProvider

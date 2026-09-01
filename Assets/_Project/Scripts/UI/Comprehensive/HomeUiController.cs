@@ -106,6 +106,7 @@ namespace ARWalking.UI
                 case UiRoute.LandmarkDetail: BuildLandmarkDetail(); break;
                 case UiRoute.JourneyList: BuildJourneyList(); break;
                 case UiRoute.JourneyDetail: BuildJourneyDetail(); break;
+                case UiRoute.ActivityDashboard: BuildActivityDashboard(); break;
                 default: BuildMap(); break;
             }
         }
@@ -189,6 +190,7 @@ namespace ARWalking.UI
             greeting.Add(Title("Hello, " + _runtime.SaveData.displayName));
             greeting.Add(Body("District 1, Ho Chi Minh City"));
             top.Add(greeting);
+            top.Add(IconAction(_assets.iconSteps, "ACT", () => Navigate(UiRoute.ActivityDashboard), "activity-dashboard-button"));
             top.Add(IconAction(_assets.iconSettings, "SET", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
             page.Add(top);
             var stats = Card("map-stats", "glass-card");
@@ -367,6 +369,59 @@ namespace ARWalking.UI
             scroll.Add(note);
             scroll.Add(Action("Open Landmark", () => { _runtime.SelectedLandmarkIndex = FindLandmarkIndex(journey.landmarkId); Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
         }
+
+        void BuildActivityDashboard()
+        {
+            var weekly = _runtime.GetWeeklyActivity();
+            var scroll = ScreenWithHeader("Activity Records", "Walking Record", true);
+
+            var hero = Card("activity-hero");
+            hero.Add(Eyebrow("TODAY'S WALK"));
+            var progressRow = new VisualElement(); progressRow.AddToClassList("activity-progress-label-row");
+            progressRow.Add(Title(weekly.todayDistanceKilometres.ToString("0.0") + " / " + weekly.dailyGoalKilometres.ToString("0") + " km"));
+            hero.Add(progressRow);
+            var track = new VisualElement(); track.AddToClassList("progress-track");
+            var fill = new VisualElement(); fill.AddToClassList("progress-fill");
+            fill.style.width = Length.Percent(DailyGoalRatio(weekly.todayDistanceKilometres, weekly.dailyGoalKilometres) * 100f);
+            track.Add(fill);
+            hero.Add(track);
+            hero.Add(Body(weekly.todayHasSteps ? weekly.todaySteps.ToString("N0") + " steps today" : "Distance drives progress; this provider has no step data today."));
+            scroll.Add(hero);
+
+            var chartCard = Card("weekly-chart-card");
+            chartCard.Add(Eyebrow("THIS WEEK"));
+            var chart = new VisualElement(); chart.AddToClassList("weekly-chart");
+            foreach (var day in weekly.days)
+            {
+                var column = new VisualElement(); column.AddToClassList("weekly-chart-column");
+                var barTrack = new VisualElement(); barTrack.AddToClassList("weekly-chart-bar-track");
+                var barFill = new VisualElement(); barFill.AddToClassList("weekly-chart-bar-fill");
+                if (day.isFuture) barFill.AddToClassList("weekly-chart-bar-fill-future");
+                else if (day.isToday) barFill.AddToClassList("weekly-chart-bar-fill-today");
+                var ratio = DailyGoalRatio(day.distanceKilometres, weekly.dailyGoalKilometres);
+                barFill.style.height = Length.Percent(day.isFuture ? 0f : Mathf.Max(ratio * 100f, 4f));
+                barTrack.Add(barFill);
+                column.Add(barTrack);
+                var dayLabel = new Label(day.date.ToString("ddd")); dayLabel.AddToClassList("weekly-chart-day-label");
+                var dateLabel = new Label(day.date.Day.ToString()); dateLabel.AddToClassList("weekly-chart-date-label");
+                if (day.isToday) { dayLabel.AddToClassList("weekly-chart-today-label"); dateLabel.AddToClassList("weekly-chart-today-label"); }
+                column.Add(dayLabel);
+                column.Add(dateLabel);
+                chart.Add(column);
+            }
+            chartCard.Add(chart);
+            var averagePill = new VisualElement(); averagePill.AddToClassList("average-pill");
+            var averageLabel = new Label("Weekly average " + weekly.weeklyAverageKilometres.ToString("0.0") + " km");
+            averageLabel.AddToClassList("average-pill-text");
+            averagePill.Add(averageLabel);
+            chartCard.Add(averagePill);
+            scroll.Add(chartCard);
+
+            scroll.Add(Body("Distance and steps come from IWalkMetricsProvider (mocked in the Editor); the real GPS/step provider will fill this chart in unchanged."));
+        }
+
+        static float DailyGoalRatio(float distanceKilometres, float goalKilometres) =>
+            goalKilometres > 0f ? Mathf.Clamp01(distanceKilometres / goalKilometres) : 0f;
 
         void OpenMarker(MapMarkerUiData marker)
         {

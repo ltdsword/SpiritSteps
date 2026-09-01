@@ -228,6 +228,9 @@ namespace ARWalking.UI
 
         public CompanionProgressData Companion(string id) => SaveData?.FindCompanion(id);
 
+        /// <summary>Today's progress plus the current Monday-Sunday week, for the Activity Dashboard screen.</summary>
+        public WeeklyActivityDto GetWeeklyActivity() => _progression != null ? _progression.GetWeeklyActivity(DateTime.UtcNow) : new WeeklyActivityDto();
+
         public void Persist()
         {
             if (SaveData != null) _saveStore.Save(SaveData);
