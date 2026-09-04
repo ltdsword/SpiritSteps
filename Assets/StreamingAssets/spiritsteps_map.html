@@ -26,7 +26,19 @@
   // Bundled into the app via Assets/StreamingAssets, loaded into a native WebView by WebViewMapView.cs
   // (net.gree.unity-webview). Bridge contract:
   //   JS  -> native: Unity.call("marker," + landmarkId)     (a landmark pin was tapped)
+  //   JS  -> native: Unity.call("debug," + message)         (page-side error - see below)
   //   native -> JS : window.mapBridge.update(jsonString)    (WebViewMapView.Render, via EvaluateJS)
+
+  // The native bridge's err/httpErr callbacks only cover the WebView's own page-load failures, not errors
+  // happening inside this page's JS (a failed CDN script, a blocked fetch, a MapLibre runtime error) - so a
+  // broken map here would otherwise report IsAvailable=true on the C# side with zero visibility into why
+  // nothing rendered. Reports uncaught errors and MapLibre's own error event back through the existing bridge.
+  function reportDebug(message) {
+    if (window.Unity) Unity.call('debug,' + message);
+  }
+  window.onerror = function (message, source, lineno) {
+    reportDebug('window.onerror: ' + message + ' at ' + source + ':' + lineno);
+  };
 
   const map = new maplibregl.Map({
     container: 'map',
@@ -41,6 +53,8 @@
   let lastState = null;
   let playerMarker = null;
   const landmarkMarkers = {};
+
+  map.on('error', (e) => reportDebug('map error: ' + (e && e.error ? e.error.message : JSON.stringify(e))));
 
   map.on('load', () => {
     mapLoaded = true;

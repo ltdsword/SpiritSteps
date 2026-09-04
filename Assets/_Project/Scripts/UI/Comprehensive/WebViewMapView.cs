@@ -85,7 +85,10 @@ namespace ARWalking.UI
             }
 
             File.WriteAllBytes(dst, bytes);
-            onStaged("file://" + dst.Replace(" ", "%20"));
+            // Path.Combine uses '\' on Windows, but a file:// URI needs forward slashes throughout - a mixed
+            // path (confirmed via on-device/Editor diagnostic logging: ".../AR%20Walking\spiritsteps_map.html")
+            // silently fails to load in both WebView2 and Android WebView, with no error callback at all.
+            onStaged("file://" + dst.Replace("\\", "/").Replace(" ", "%20"));
         }
 
         void OnPageLoaded()
@@ -104,8 +107,10 @@ namespace ARWalking.UI
 
         void OnMessageFromBridge(string message)
         {
-            var parts = message.Split(',');
-            if (parts.Length != 2 || parts[0] != "marker") return;
+            var parts = message.Split(new[] { ',' }, 2);
+            if (parts.Length != 2) return;
+            if (parts[0] == "debug") { Debug.LogWarning($"[WebViewMapView][page] {parts[1]}"); return; }
+            if (parts[0] != "marker") return;
             OnMarkerTapped?.Invoke(parts[1]);
         }
 
