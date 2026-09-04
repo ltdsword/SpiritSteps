@@ -183,7 +183,7 @@ namespace ARWalking.UI
                 sheet.Add(Eyebrow("STEP 2 OF 2"));
                 sheet.Add(Title("Meet " + _data.Companions[0].name));
                 var reveal = Element("starter-reveal", "starter-reveal");
-                reveal.Add(Image(_assets != null ? _assets.Companion(0) : null, "reveal-companion", ScaleMode.ScaleToFit));
+                reveal.Add(Image(_assets != null ? _assets.Companion(0) : null, "reveal-companion", ScaleMode.ScaleAndCrop));
                 sheet.Add(reveal);
                 sheet.Add(Body("Your first companion starts with 450 Growth EXP and grows as you walk."));
                 sheet.Add(ActionWithIcon("sparkles", null, "Walk with " + _data.Companions[0].name, () =>
@@ -281,7 +281,9 @@ namespace ARWalking.UI
                     player.style.top = Length.Percent(marker.normalizedPosition.y * 100f);
                     var pulse = Element(null, "player-pulse");
                     player.Add(pulse);
-                    player.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(_runtime.PrimaryCompanionId())) : null, "player-companion", ScaleMode.ScaleToFit));
+                    var avatarWell = Element(null, "player-avatar-well");
+                    avatarWell.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(_runtime.PrimaryCompanionId())) : null, "player-companion", ScaleMode.ScaleAndCrop));
+                    player.Add(avatarWell);
                     canvas.Add(player);
                     continue;
                 }
@@ -418,7 +420,7 @@ namespace ARWalking.UI
                 button.AddToClassList("owned-companion-card");
                 if (_featuredCompanionIndex == i) button.AddToClassList("selected-companion-card");
                 var well = Element(null, "companion-thumb-well", "accent-surface-" + (i % 4));
-                well.Add(Image(_assets != null ? _assets.Companion(i) : null, "companion-thumb", ScaleMode.ScaleToFit));
+                well.Add(Image(_assets != null ? _assets.Companion(i) : null, "companion-thumb", ScaleMode.ScaleAndCrop));
                 button.Add(well);
                 button.Add(Label(definition.name, "companion-thumb-name"));
                 button.Add(Label(CompanionProgressionService.StageFor(progress.growthExperience).ToString(), "companion-thumb-stage"));
@@ -451,7 +453,7 @@ namespace ARWalking.UI
             var card = Card("featured-companion", "elevated-card");
             var hero = Row("featured-companion-hero", "accent-surface-" + (index % 4));
             var portrait = Element(null, "featured-portrait-well");
-            portrait.Add(Image(_assets != null ? _assets.Companion(index) : null, "featured-companion-image", ScaleMode.ScaleToFit));
+            portrait.Add(Image(_assets != null ? _assets.Companion(index) : null, "featured-companion-image", ScaleMode.ScaleAndCrop));
             hero.Add(portrait);
             var copy = Column("featured-copy");
             var nameRow = Row("featured-name-row");
@@ -518,7 +520,7 @@ namespace ARWalking.UI
                 var food = _data.Foods[i];
                 var card = Card("shop-food-card", "elevated-card");
                 var well = Element(null, "food-art-well", "accent-surface-" + (i % 2 == 0 ? 2 : 3));
-                well.Add(Image(_assets != null ? _assets.Food(i) : null, "food-art", ScaleMode.ScaleToFit));
+                well.Add(Image(_assets != null ? _assets.Food(i) : null, "food-art", ScaleMode.ScaleAndCrop));
                 card.Add(well);
                 var copy = Column("food-copy");
                 copy.Add(Subtitle(food.name));
@@ -727,7 +729,9 @@ namespace ARWalking.UI
                     Render();
                 }) { name = "feed-" + captured.id };
                 choice.AddToClassList("food-companion-choice");
-                choice.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(captured.id)) : null, "food-choice-image", ScaleMode.ScaleToFit));
+                var choiceWell = Element(null, "food-choice-well", "accent-surface-" + (i % 4));
+                choiceWell.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(captured.id)) : null, "food-choice-image", ScaleMode.ScaleAndCrop));
+                choice.Add(choiceWell);
                 choice.Add(Label(captured.name, "food-choice-label"));
                 choices.Add(choice);
             }
@@ -856,14 +860,16 @@ namespace ARWalking.UI
             return nav;
         }
 
-        UiButton NavButton(UiRootTab root, string iconName, Texture2D fallback, string label)
+        UnityEngine.UIElements.Button NavButton(UiRootTab root, string iconName, Texture2D fallback, string label)
         {
             var selected = CurrentRoot == root;
-            var button = new UiButton(() => SelectRoot(root)) { name = "nav-" + root.ToString().ToLowerInvariant() };
+            var button = new UnityEngine.UIElements.Button(() => SelectRoot(root)) { name = "nav-" + root.ToString().ToLowerInvariant() };
             button.AddToClassList("nav-button");
             if (selected) button.AddToClassList("selected-nav");
             button.Add(IconView(iconName, "nav-icon", selected ? Primary : Rgb(141, 151, 143), fallback));
-            button.Add(Label(label, "nav-label"));
+            var navLabel = Label(label, "nav-label");
+            navLabel.AddToClassList("small-label");
+            button.Add(navLabel);
             return button;
         }
 
