@@ -298,6 +298,19 @@
 .map-photo-button { background-color: rgb(250, 218, 224); }
 
 .walk-control-card { position: absolute; left: 30px; right: 30px; bottom: 20px; margin-bottom: 0; padding: 28px; border-radius: 50px; }
+/* Docked (real WebView map) variant: the base rule's left/right are sizing constraints for its usual
+   position: absolute, but for a relative/in-flow element they become offsets instead - since the card is
+   already stretched to the container's width by the flex layout, "left: 30px" alone would shift the whole
+   card 30px right without shrinking it, pushing its right edge off-screen. Higher-specificity combined
+   selector resets position/left/right/bottom and re-expresses the same 30px inset as margins instead. */
+.walk-control-card.map-bottom-bar {
+    position: relative;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin-left: 30px;
+    margin-right: 30px;
+}
 .walk-summary-row { align-items: center; justify-content: space-between; }
 .walk-main-metric { flex-grow: 1; }
 .walk-distance-line { flex-direction: row; align-items: baseline; }

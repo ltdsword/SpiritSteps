@@ -207,15 +207,15 @@ namespace ARWalking.UI
             top.AddToClassList("map-top-bar");
             page.Add(top);
 
+            // BuildWalkControlCard's own "walk-control-card" USS class floats it (position: absolute) for the
+            // illustrated-map path; the "map-bottom-bar" modifier (see ARWalking.uss) puts it back in normal
+            // document flow so .map-page's justify-content: space-between can push it to the actual bottom
+            // edge instead - the reset has to happen in USS, not via inline style overrides here: setting
+            // style.left/right to StyleKeyword.Null does not clear the stylesheet's own left/right values, so
+            // an inline-only "position: relative" left the card offset by its old absolute-positioning
+            // left:30px without shrinking its width, pushing it off the right edge of the screen.
             var bottom = BuildWalkControlCard();
             bottom.AddToClassList("map-bottom-bar");
-            // BuildWalkControlCard's own "walk-control-card" USS class floats it (position: absolute) for the
-            // illustrated-map path; docking needs it back in normal document flow so .map-page's
-            // justify-content: space-between can push it to the actual bottom edge instead.
-            bottom.style.position = Position.Relative;
-            bottom.style.left = StyleKeyword.Null;
-            bottom.style.right = StyleKeyword.Null;
-            bottom.style.bottom = StyleKeyword.Null;
             page.Add(bottom);
 
             _runtime.LocationService.Activate();
