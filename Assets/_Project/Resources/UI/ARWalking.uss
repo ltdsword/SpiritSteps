@@ -330,6 +330,38 @@
     margin-bottom: 10px;
 }
 
+.map-top-bar {
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 20px 22px 12px 22px;
+    background-color: rgb(217, 234, 210);
+}
+
+.map-top-bar .compact-card {
+    flex-grow: 1;
+    margin-right: 12px;
+}
+
+.map-bottom-bar {
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 22px 18px 22px;
+    background-color: rgb(217, 234, 210);
+}
+
+.map-bottom-bar .metric {
+    margin-right: 10px;
+}
+
+.map-bottom-bar .action-button {
+    flex-grow: 1;
+    margin-top: 0;
+}
+
+.map-bottom-bar .icon-button {
+    margin-left: 10px;
+}
+
 .map-marker {
     position: absolute;
     width: 60px;
