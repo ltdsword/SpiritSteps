@@ -4,9 +4,9 @@ Orientation doc for future Claude Code / agent sessions in this repo. Read this 
 
 ## What this project is
 
-A **local-only, walking-based animal companion prototype** for a school "3D location-based companion game" project (final project, ~12-day scope), inspired by Pikmin Bloom. Core loop: walk → distance grants Growth EXP to unlocked companions (Dog/Cat/Rabbit) + Coins → spend Coins on Food to boost one companion → walk toward Landmarks (Independence Palace, Central Post Office, Notre-Dame Basilica in Ho Chi Minh City District 1) → scan a (currently simulated) Vuforia Image Target → view a short cultural memory → collect a Stamp → optionally unlock a companion → record a Journey entry.
+A **local-only, walking-based animal companion prototype** for a school "3D location-based companion game" project (final project, ~12-day scope), inspired by Pikmin Bloom. Core loop: walk → distance grants Growth EXP to unlocked companions (a 17-pet roster ported from the CorgiAR feature — see `Assets/_Project/Scripts/Services/CompanionRoster.cs`) + Coins → spend Coins on Food to boost one companion → walk toward Landmarks (Independence Palace, Central Post Office, Notre-Dame Basilica in Ho Chi Minh City District 1) → open the shared AR scene (`PetAr.unity`, real AR Foundation) → scan an Image Target → view a short cultural memory → collect a Stamp → optionally unlock a companion → record a Journey entry. All AR features (Photo, Feed, Companion "View in AR", Walk's pet tap, Landmark AR Memory) route through that one scene — see `docs/AR-3D-INTEGRATION-CONTRACT.md`.
 
-There is **no backend, multiplayer, or account system**. All progress lives in `player-save.json` under `Application.persistentDataPath` (see `LocalPlayerSaveStore`). GPS, walk metrics, and AR/Vuforia are still integration boundaries — the checked-in code uses deterministic mock providers so the whole loop is demoable without a phone.
+There is **no backend, multiplayer, or account system**. All progress lives in `player-save.json` under `Application.persistentDataPath` (see `LocalPlayerSaveStore`). GPS and walk metrics are still integration boundaries — the checked-in code uses deterministic mock providers so that part of the loop is demoable without a phone. AR itself is real (AR Foundation + the ported CorgiAR feature), not mocked.
 
 Read `docs/UI-strategy.md` first for the product/UI contract (12 screens, 4 tabs, progression rules). `docs/Features_3D_Game.md` (Vietnamese) is the fuller game-design brief. `docs/AR_Pet_Walking_Tech_Architecture_UPDATED.md` and `docs/AR_Pet_Walking_Final_Presentation_UPDATED.md` are presentation-deck source content, not code specs — treat them as background, not ground truth for implementation details (the UI-strategy doc and the code itself are ground truth). `docs/MAP-WALK-PROVIDER-INTEGRATION.md` documents the exact contract a real GPS/AR integration must satisfy to replace the mocks; `docs/AR-3D-INTEGRATION-CONTRACT.md` is the equivalent contract for the AR & 3D teammates. `docs/FEATURE-PLAN-SYSTEMS.md` is the standing feature-gap plan for the systems/UI/data layer (excludes Map, Walk-tracking, AR, and 3D — those are two teammates' + the provider-integration doc's territory) — check it before proposing new work in that area, since it already tracks what's done vs. still open.
 
@@ -84,6 +84,39 @@ The team is split three ways: Map/Walk (real GPS + step tracking, contract in `d
 - **`UiPrototypeRuntime.SaveArPhoto(byte[] pngBytes)`** (new overload alongside the existing mock `SaveArPhoto(string path = null)`) — writes real AR Photo bytes to `Application.persistentDataPath` and links the resulting path to whichever Landmark's Journey entry is currently selected, via a new `JourneyEntryData.photoPath` field. `HomeUiController.JourneyImage(journey)` loads and caches that file for the Journey list/detail screens, falling back to the bundled placeholder when no photo was saved.
 
 Verification: `Tools/AR Walking/Tests/Run Edit Mode` (18/18) and `Run Play Mode` (8/8) pass, including new tests for per-landmark data-driven rewards (`LandmarkRewardIsDataDrivenPerLandmarkNotHardcodedToOneId`), photo→Journey linking, and `GetCompanionVisualState`.
+
+## AR migration 2026-09-03 (supersedes the Vuforia/mock-AR plan above)
+
+The AR & 3D track above described a *planned* Vuforia integration with no AR scene yet. That
+plan changed: instead, the **CorgiAR** feature (AR Foundation + ARCore/ARKit, plane placement,
+manual/automatic locomotion, touch + hand petting, feeding, pet swapping, photo capture — built
+independently in a separate Unity project, `first3Dproject`) was ported into this repo as
+`Assets/CorgiAR/` (plus the `Assets/ShibaFeeding/Scripts` feeding pieces it depends on,
+`Assets/Bublisher/3D Stylized Animated Dogs Kit/` models, and `Assets/XR/` loader settings) and
+wired up as the single shared AR scene, `PetAr.unity`, per the redesigned
+`docs/AR-3D-INTEGRATION-CONTRACT.md`. Consequences worth knowing before touching AR or companion
+code:
+
+- **The companion roster changed.** Dog/Cat/Rabbit is gone. `PrototypeIds` now lists the 17
+  CorgiAR `PetCatalog` ids directly (`corgi`, `uaa_fox`, ...) — that string is the only join
+  between the ARWalking and CorgiAR assemblies, since CorgiAR cannot reference ARWalking types
+  back. Unlock thresholds live in `CompanionRoster.cs`, not scattered hardcoded ids.
+- **`UiRoute.LandmarkArMemory` and `UiRoute.ArPhoto` are gone**, replaced by a single
+  `UiRoute.PetAr`; `Walk.unity` is gone, replaced by `PetAr.unity`. `WalkUiController` still
+  exists but now only draws a screen-space overlay (Back button always; the
+  History/Architecture/Did-You-Know memory panel only when entered via a Landmark) layered over
+  the real AR camera and CorgiAR's uGUI HUD in that one scene.
+- **`UiPrototypeRuntime.EnterLandmarkAr()`/`ReturnFromArToHome()` are gone**, replaced by
+  `EnterPetAr(petId, isPhotoMode, interaction, landmarkId)` / `ReturnFromPetAr()` — one entry
+  point for every AR feature, context-parameterized. See `PetArSceneContext.cs`.
+- Player saves bump `schemaVersion` to 2; `PlayerSaveData.RepairCollections()` drops any
+  pre-migration dog/cat/rabbit companion ids it finds on load, so old local saves don't crash,
+  they just lose that companion progress.
+
+Building/rewiring the actual `PetAr.unity` scene hierarchy (AR Foundation bootstrap +
+`CorgiARCompanion.prefab` + HUD) in the Editor is tracked separately — check `git log` / ask
+before assuming it's finished, since that part requires hands-on Editor work this doc can't
+fully capture.
 
 ## Still-open item (not a code defect)
 

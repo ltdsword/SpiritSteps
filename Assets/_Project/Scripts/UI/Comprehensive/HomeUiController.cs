@@ -28,6 +28,7 @@ namespace ARWalking.UI
         Vector2Int _lastScreenSize;
         int _setupStep;
         string _pendingDisplayName = string.Empty;
+        bool _pickingPetForPhoto;
         readonly Dictionary<string, Texture2D> _journeyPhotoCache = new Dictionary<string, Texture2D>();
 
         public UiRoute CurrentRoute => _runtime != null ? _runtime.Navigator.CurrentRoute : UiRoute.HomeMap;
@@ -146,10 +147,10 @@ namespace ARWalking.UI
             else
             {
                 sheet.Add(Eyebrow("STEP 2 OF 2"));
-                sheet.Add(Title("Dog is ready to join"));
+                sheet.Add(Title(_data.Companions[0].name + " is ready to join"));
                 sheet.Add(Image(_assets != null ? _assets.Companion(0) : null, "reveal-companion"));
-                sheet.Add(Body("Dog starts unlocked with 450 Growth EXP. The image above is temporary plant artwork standing in for the final Dog model."));
-                sheet.Add(Action("Confirm Dog", () =>
+                sheet.Add(Body(_data.Companions[0].name + " starts unlocked with 450 Growth EXP."));
+                sheet.Add(Action("Confirm " + _data.Companions[0].name, () =>
                 {
                     if (!_runtime.CompleteSetup(_pendingDisplayName)) ShowToast("Check your display name and try again.");
                 }, "primary-action"));
@@ -195,6 +196,11 @@ namespace ARWalking.UI
             stats.Add(Metric(_runtime.SaveData.coins.ToString(), "Coins"));
             stats.Add(Metric(_runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " km", "total distance"));
             stats.Add(ActionWithIcon(_assets.iconSteps, "Start a walk", BeginWalk, "primary-action", "compact-action"));
+            stats.Add(ActionWithIcon(_assets.iconAr, "AR Photo", () =>
+            {
+                _pickingPetForPhoto = true;
+                SelectRoot(UiRootTab.Companions);
+            }, "secondary-action", "compact-action"));
             page.Add(stats);
             var controls = new VisualElement(); controls.AddToClassList("map-controls");
             controls.Add(IconAction(_assets.iconLocation, "GPS", () => ShowToast("Location permission is requested here when the real map provider is connected."), "location-button"));
@@ -217,6 +223,13 @@ namespace ARWalking.UI
             row.Add(Metric(TimeLabel(metrics.elapsedSeconds), "time"));
             row.Add(Metric(metrics.hasSteps ? metrics.steps.ToString("N0") : "--", "steps"));
             scroll.Add(row);
+            var petId = _runtime.PrimaryCompanionId();
+            var pet = Card("discovery-card");
+            pet.Add(Eyebrow("FOLLOWING YOU"));
+            pet.Add(Title(CompanionName(petId)));
+            pet.Add(Body("Tap to view and interact with your pet in AR while you walk."));
+            pet.Add(ActionWithIcon(_assets.iconAr, "View in AR", () => _runtime.EnterPetAr(petId, false), "secondary-action"));
+            scroll.Add(pet);
             var near = Card("discovery-card");
             near.Add(Eyebrow("AR-READY DEMO"));
             near.Add(Title("Central Post Office"));
@@ -246,7 +259,11 @@ namespace ARWalking.UI
 
         void BuildCompanions()
         {
-            var scroll = ScreenWithHeader("Companions", "Dog, Cat, and Rabbit", false);
+            var pickingForPhoto = _pickingPetForPhoto;
+            _pickingPetForPhoto = false; // one-shot: consumed by this render whether or not a pick happens
+
+            var scroll = ScreenWithHeader("Companions",
+                pickingForPhoto ? "Choose a pet to photograph in AR" : "17 companions to walk, feed, and grow", false);
             var grid = new VisualElement(); grid.AddToClassList("companion-grid");
             for (var i = 0; i < _data.Companions.Count; i++)
             {
@@ -254,7 +271,12 @@ namespace ARWalking.UI
                 var definition = _data.Companions[i];
                 var progress = _runtime.Companion(definition.id);
                 var unlocked = progress != null && progress.unlocked;
-                var button = new UiButton(() => { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); });
+                var button = new UiButton(() =>
+                {
+                    if (!unlocked) return;
+                    if (pickingForPhoto) _runtime.EnterPetAr(definition.id, true);
+                    else { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); }
+                });
                 button.name = "companion-" + definition.id;
                 button.AddToClassList("companion-card");
                 if (!unlocked) button.AddToClassList("locked-card");
@@ -264,7 +286,6 @@ namespace ARWalking.UI
                 grid.Add(button);
             }
             scroll.Add(grid);
-            scroll.Add(Body("Prototype note: the companion pictures are retained plant-art placeholders, not final animal models."));
         }
 
         void BuildCompanionDetail()
@@ -282,7 +303,6 @@ namespace ARWalking.UI
                 picture.style.scale = new Scale(new Vector3(scale, scale, 1f));
             }
             stage.Add(picture);
-            stage.Add(Eyebrow("TEMPORARY PLANT-ART PLACEHOLDER"));
             stage.Add(Body(unlocked ? definition.description : definition.unlockHint));
             scroll.Add(stage);
             if (unlocked)
@@ -291,7 +311,8 @@ namespace ARWalking.UI
                 details.Add(Title(progress.growthExperience + " Growth EXP"));
                 details.Add(Body("Baby <500 | Young 500-1499 | Adult 1500+"));
                 scroll.Add(details);
-                scroll.Add(Action("Buy food", () => SelectRoot(UiRootTab.Shop), "primary-action"));
+                scroll.Add(ActionWithIcon(_assets.iconAr, "View in AR", () => _runtime.EnterPetAr(definition.id, false), "primary-action"));
+                scroll.Add(Action("Buy food", () => SelectRoot(UiRootTab.Shop), "secondary-action"));
             }
         }
 
@@ -326,18 +347,20 @@ namespace ARWalking.UI
             card.Add(DiscoveryLine("MAP", proximity.distanceMetres.ToString("0") + " m away", proximity.isWithinUnlockRadius ? "Inside AR unlock radius" : "Walk closer to unlock AR"));
             scroll.Add(card);
             if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
-                scroll.Add(ActionWithIcon(_assets.iconAr, "Open simulated Image Target", _runtime.EnterLandmarkAr, "primary-action"));
+                scroll.Add(ActionWithIcon(_assets.iconAr, "Open AR Memory",
+                    () => _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id),
+                    "primary-action"));
         }
 
         void BuildJourneyList()
         {
-            var scroll = ScreenWithHeader("Journey", "Landmark memories saved on this phone", false);
+            var scroll = ScreenWithHeader("Journey", "Landmark memories and AR pet photos saved on this phone", false);
             var banner = Card("journey-banner");
             banner.Add(IconImage(_assets.iconCalendar, "banner-icon"));
             banner.Add(Title(_runtime.SaveData.journeys.Count + " Journey records"));
             banner.Add(Body(_runtime.SaveData.stamps.Count + " Stamps | " + _runtime.SaveData.savedPhotoPaths.Count + " saved photo paths"));
             scroll.Add(banner);
-            if (_runtime.SaveData.journeys.Count == 0) scroll.Add(Body("No journeys yet. Complete the Central Post Office AR Memory to create one."));
+            if (_runtime.SaveData.journeys.Count == 0) scroll.Add(Body("No journeys yet. Complete a Landmark AR Memory or take an AR photo with a pet to create one."));
             for (var i = 0; i < _runtime.SaveData.journeys.Count; i++)
             {
                 var index = i;
@@ -361,11 +384,21 @@ namespace ARWalking.UI
             var note = Card("scrapbook-card");
             note.Add(Eyebrow("LOCAL JOURNEY RECORD"));
             note.Add(Title(journey.summary));
-            note.Add(DiscoveryLine("PIN", "Landmark", LandmarkName(journey.landmarkId)));
-            note.Add(DiscoveryLine("KM", "Distance", journey.distanceKilometres.ToString("0.00") + " km"));
+            if (!string.IsNullOrEmpty(journey.landmarkId))
+            {
+                note.Add(DiscoveryLine("PIN", "Landmark", LandmarkName(journey.landmarkId)));
+                note.Add(DiscoveryLine("KM", "Distance", journey.distanceKilometres.ToString("0.00") + " km"));
+            }
+            else if (!string.IsNullOrEmpty(journey.companionId))
+            {
+                note.Add(DiscoveryLine("PET", "Companion", CompanionName(journey.companionId)));
+            }
             note.Add(DiscoveryLine("PIC", "Photos", _runtime.SaveData.savedPhotoPaths.Count.ToString()));
             scroll.Add(note);
-            scroll.Add(Action("Open Landmark", () => { _runtime.SelectedLandmarkIndex = FindLandmarkIndex(journey.landmarkId); Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
+            if (!string.IsNullOrEmpty(journey.landmarkId))
+                scroll.Add(Action("Open Landmark", () => { _runtime.SelectedLandmarkIndex = FindLandmarkIndex(journey.landmarkId); Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
+            else if (!string.IsNullOrEmpty(journey.companionId))
+                scroll.Add(ActionWithIcon(_assets.iconAr, "View in AR", () => _runtime.EnterPetAr(journey.companionId, false), "secondary-action"));
         }
 
         void OpenMarker(MapMarkerUiData marker)
@@ -390,9 +423,8 @@ namespace ARWalking.UI
                 {
                     var result = Feed(food.id, captured.id);
                     RemoveTransientOverlay();
-                    ShowToast(result.success
-                        ? captured.name + " gained " + result.experienceGained + " EXP" + (result.StageChanged ? " and became " + result.currentStage : string.Empty)
-                        : result.error);
+                    if (result.success) _runtime.EnterPetAr(captured.id, false, PendingPetInteraction.Feed);
+                    else ShowToast(result.error);
                     Render();
                 }, "primary-action"));
             }

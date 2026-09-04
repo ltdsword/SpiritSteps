@@ -5,6 +5,13 @@
     -unity-font-definition: url("../../Art/UI/Fonts/Nunito-VariableFont_wght.ttf");
 }
 
+/* PetAr's overlay panel (WalkUiController) reuses .app-root for its font/color/layout but must
+   stay transparent so the real AR camera feed and the CorgiAR uGUI HUD show through underneath.
+   Declared after .app-root so it wins the background-color property on equal specificity. */
+.ar-panel-root {
+    background-color: rgba(0, 0, 0, 0);
+}
+
 .safe-area {
     position: absolute;
     left: 0;
@@ -614,7 +621,7 @@
     position: relative;
     flex-grow: 1;
     overflow: hidden;
-    background-color: rgb(35, 54, 41);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .ar-backdrop, .photo-preview {

@@ -12,9 +12,10 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/Home.unity
     guid: 410c17664b1dd1543ac685fdec5e5bb7
   - enabled: 1
-    path: Assets/_Project/Scenes/Walk.unity
-    guid: 38d286622ba792e40b86753ec2eefe57
+    path: Assets/_Project/Scenes/PetAr.unity
+    guid: 8cb7a30ad7180854f9e1b76ebdfda121
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: f6c44c44728daec44b122a61a5cbc06b, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: bfb18b6dbb7812d4185b52b4f413776d, type: 2}
   m_UseUCBPForAssetBundles: 0
