@@ -13,6 +13,19 @@ namespace ARWalking.Tests.PlayMode
 {
     public sealed class UiPrototypePlayModeTests
     {
+        // Real providers (walk/map/webview bridge) are now UiPrototypeRuntime's default unless overridden -
+        // these tests assume the deterministic mock behavior (e.g. FourTabsWalkResultCompanionDetailAndFeedWork's
+        // fixed coinsAwarded), so every test in this suite pins all three explicitly.
+        sealed class DeterministicFailingWebViewBridge : IWebViewBridge
+        {
+            public bool IsInitialized => true;
+            public void Init(Action<string> onMessage, Action<string> onError, Action<string> onLoaded) { }
+            public void SetMargins(int left, int top, int right, int bottom) { }
+            public void SetVisibility(bool visible) { }
+            public void LoadURL(string url) { }
+            public void EvaluateJS(string js) { }
+        }
+
         string _savePath;
 
         [UnitySetUp]
@@ -26,6 +39,9 @@ namespace ARWalking.Tests.PlayMode
             _savePath = Path.Combine(Path.GetTempPath(), "ar-walking-play-" + Guid.NewGuid().ToString("N"), LocalPlayerSaveStore.FileName);
             UiPrototypeRuntime.ClearTestOverrides();
             UiPrototypeRuntime.TestSavePathOverride = _savePath;
+            UiPrototypeRuntime.TestWalkProviderOverride = new DeterministicWalkMetricsProvider();
+            UiPrototypeRuntime.TestMapProviderOverride = new DeterministicLandmarkMapProvider();
+            UiPrototypeRuntime.TestWebViewBridgeOverride = new DeterministicFailingWebViewBridge();
             SceneManager.LoadScene("Home");
             yield return WaitForScene("Home");
         }

@@ -13,6 +13,7 @@ namespace ARWalking.UI
         public static string TestSavePathOverride { get; set; }
         public static IWalkMetricsProvider TestWalkProviderOverride { get; set; }
         public static ILandmarkMapProvider TestMapProviderOverride { get; set; }
+        public static IWebViewBridge TestWebViewBridgeOverride { get; set; }
 
         public UiNavigationStack Navigator { get; private set; }
         public IUiDataProvider Data { get; private set; }
@@ -22,6 +23,9 @@ namespace ARWalking.UI
         public SaveLoadResult InitialLoadResult { get; private set; }
         public IWalkMetricsProvider WalkProvider { get; private set; }
         public ILandmarkMapProvider LandmarkMapProvider { get; private set; }
+        public WebViewMapView MapView { get; private set; }
+        public LandmarkGeoCatalog GeoCatalog { get; private set; }
+        public DeviceLocationService LocationService => SharedLocationService;
         public WalkResultDto LastWalkResult { get; private set; }
         public LandmarkRewardDto LastLandmarkReward { get; private set; }
         public int SelectedCompanionIndex { get; set; }
@@ -60,8 +64,10 @@ namespace ARWalking.UI
             }
             Data = new StaticUiDataProvider(catalog);
             MapData = new StaticMapDataProvider(catalog);
-            WalkProvider = TestWalkProviderOverride ?? new DeterministicWalkMetricsProvider();
-            LandmarkMapProvider = TestMapProviderOverride ?? new DeterministicLandmarkMapProvider();
+            WalkProvider = TestWalkProviderOverride ?? BuildRealWalkProvider();
+            LandmarkMapProvider = TestMapProviderOverride ?? BuildRealMapProvider(catalog);
+            GeoCatalog = Resources.Load<LandmarkGeoCatalog>("UI/LandmarkGeoCatalog");
+            InitializeMapView();
             _saveStore = new LocalPlayerSaveStore(TestSavePathOverride);
             InitialLoadResult = _saveStore.Load();
             SaveData = InitialLoadResult.save;
@@ -71,6 +77,60 @@ namespace ARWalking.UI
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+        }
+
+        DeviceLocationService _sharedLocationService;
+        DeviceLocationService SharedLocationService => _sharedLocationService ??= gameObject.AddComponent<DeviceLocationService>();
+
+        IWalkMetricsProvider BuildRealWalkProvider() =>
+            new RealWalkMetricsProvider(SharedLocationService, gameObject.AddComponent<DeviceStepCounterService>());
+
+        ILandmarkMapProvider BuildRealMapProvider(PrototypeUiCatalog catalog)
+        {
+            var geoCatalog = Resources.Load<LandmarkGeoCatalog>("UI/LandmarkGeoCatalog");
+            var projection = BuildCalibratedProjection(geoCatalog, catalog);
+            if (geoCatalog == null || projection == null)
+            {
+                Debug.LogWarning("LandmarkGeoCatalog is missing or under-calibrated (needs 3 non-collinear " +
+                    "isMapCalibrationAnchor landmarks whose id matches a PrototypeUiCatalog marker's targetId). " +
+                    "Falling back to the deterministic map provider.");
+                return new DeterministicLandmarkMapProvider();
+            }
+            return new RealLandmarkMapProvider(SharedLocationService, geoCatalog, projection);
+        }
+
+        static GeoToMapProjection BuildCalibratedProjection(LandmarkGeoCatalog geoCatalog, PrototypeUiCatalog uiCatalog)
+        {
+            if (geoCatalog == null) return null;
+            var anchors = new List<(GeoPoint geo, Vector2 map)>();
+            foreach (var landmark in geoCatalog.landmarks)
+            {
+                if (!landmark.isMapCalibrationAnchor) continue;
+                MapMarkerUiData marker = null;
+                foreach (var candidate in uiCatalog.markers)
+                    if (candidate.targetId == landmark.id) { marker = candidate; break; }
+                if (marker == null) continue;
+                anchors.Add((landmark.Location, marker.normalizedPosition));
+            }
+            if (anchors.Count != 3) return null;
+            try { return new GeoToMapProjection(anchors[0].geo, anchors[0].map, anchors[1].geo, anchors[1].map, anchors[2].geo, anchors[2].map); }
+            catch (ArgumentException) { return null; }
+        }
+
+        void InitializeMapView()
+        {
+            MapView = gameObject.AddComponent<WebViewMapView>();
+            try
+            {
+                var bridge = TestWebViewBridgeOverride ?? new GreeWebViewBridge(gameObject);
+                MapView.Initialize(bridge);
+            }
+            catch (Exception e)
+            {
+                // A failure here must never abort the rest of Awake() - SaveData/InitialLoadResult below this
+                // call are unrelated to the map and the whole app must not break because the map couldn't start.
+                Debug.LogWarning($"WebView map failed to initialize ({e.Message}); falling back to the static illustrated map.");
+            }
         }
 
         public bool CompleteSetup(string displayName)
@@ -316,6 +376,7 @@ namespace ARWalking.UI
             TestSavePathOverride = null;
             TestWalkProviderOverride = null;
             TestMapProviderOverride = null;
+            TestWebViewBridgeOverride = null;
         }
     }
 }
