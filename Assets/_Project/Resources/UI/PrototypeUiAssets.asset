@@ -38,6 +38,9 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 97c5668898921d84e9138b5498576959, type: 3}
   - {fileID: 2800000, guid: b1eeb57285ef9344da3a90bb70b0f26e, type: 3}
   - {fileID: 2800000, guid: 6e61bf2ccc62d7d48aa9766263278451, type: 3}
+  foods:
+  - {fileID: 2800000, guid: bb20322b5d5eafb44bbc760789f1d249, type: 3}
+  - {fileID: 2800000, guid: 4418227b458d3314e83725534bcf3b0a, type: 3}
   landmarks:
   - {fileID: 2800000, guid: c4c2acc7601e7784da458bb8547d19e8, type: 3}
   - {fileID: 2800000, guid: 9a96832fe8dec204f8c1564877f19c7f, type: 3}

@@ -55,6 +55,7 @@ docs/*
 !docs/AR_Pet_Walking_Tech_Architecture_UPDATED.md
 !docs/FEATURE-PLAN-SYSTEMS.md
 !docs/AR-3D-INTEGRATION-CONTRACT.md
+!docs/UI-V0-TO-UNITY-DESIGN-SYSTEM.md
 !docs/images/
 # docs/vietnamese-memory-explorer-2/ stays ignored: it's an 89MB Next.js reference
 # mockup (code + assets), not a document - would permanently bloat repo/clone size.

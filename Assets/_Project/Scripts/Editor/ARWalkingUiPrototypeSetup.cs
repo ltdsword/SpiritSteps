@@ -51,7 +51,9 @@ namespace ARWalking.Editor
             var settings = AssetDatabase.LoadAssetAtPath<AppUISettings>(path);
             if (settings == null) { settings = ScriptableObject.CreateInstance<AppUISettings>(); AssetDatabase.CreateAsset(settings, path); }
             settings.editorOnly = false;
-            settings.autoCorrectUiScale = true;
+            // Keep the explicitly authored ScaleWithScreenSize contract stable across Editor and
+            // device runs; physical/DPI-based correction makes mobile proportions unpredictable.
+            settings.autoCorrectUiScale = false;
             settings.includeShadersInPlayerBuild = true;
             settings.autoOverrideAndroidManifest = true;
             EditorUtility.SetDirty(settings);
@@ -74,7 +76,8 @@ namespace ARWalking.Editor
             var settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(path);
             if (settings == null) { settings = ScriptableObject.CreateInstance<PanelSettings>(); AssetDatabase.CreateAsset(settings, path); }
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-            settings.referenceResolution = new Vector2Int(1080, 2400);
+            settings.scale = 1f;
+            settings.referenceResolution = new Vector2Int(720, 1600);
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 0.5f;
             settings.referenceDpi = 160f;
@@ -98,7 +101,8 @@ namespace ARWalking.Editor
             var settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(path);
             if (settings == null) { settings = ScriptableObject.CreateInstance<PanelSettings>(); AssetDatabase.CreateAsset(settings, path); }
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-            settings.referenceResolution = new Vector2Int(1080, 2400);
+            settings.scale = 1f;
+            settings.referenceResolution = new Vector2Int(720, 1600);
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 0.5f;
             settings.referenceDpi = 160f;
@@ -216,6 +220,11 @@ namespace ARWalking.Editor
             library.companions = CompanionRoster.Entries
                 .Select(entry => Texture("Assets/CorgiAR/UI/Pets/" + entry.Id + ".png")).ToArray();
             library.archivedPlantPlaceholders = Textures("Seedlings/commonPelletRedSprout.png", "Seedlings/commonPelletBlueReady.png", "Seedlings/commonPelletYellowSprout.png");
+            library.foods = new[]
+            {
+                Texture("Assets/_Project/Art/UI/Food/rice-ball.png"),
+                Texture("Assets/_Project/Art/UI/Food/fruit-bowl.png")
+            };
             library.landmarks = Textures("Landmarks/independence-palace.png", "Landmarks/post-office.png", "Landmarks/notre-dame.png");
             library.icons = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Project/Art/UI/ReferenceTemp/Icons" })
                 .Select(AssetDatabase.GUIDToAssetPath).OrderBy(value => value).Select(Texture).ToArray();
