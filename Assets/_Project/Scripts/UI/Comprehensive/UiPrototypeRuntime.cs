@@ -148,12 +148,61 @@ namespace ARWalking.UI
         void RecordPhoto(string path)
         {
             if (!SaveData.savedPhotoPaths.Contains(path)) SaveData.savedPhotoPaths.Add(path);
-            var landmarkId = SelectedLandmarkIndex >= 0 && SelectedLandmarkIndex < Data.Landmarks.Count
-                ? Data.Landmarks[SelectedLandmarkIndex].id
-                : null;
-            var journey = string.IsNullOrEmpty(landmarkId) ? null : FindLatestJourneyForLandmark(landmarkId);
-            if (journey != null) journey.photoPath = path;
+
+            var landmarkId = PetArSceneContext.LandmarkId;
+            if (!string.IsNullOrEmpty(landmarkId))
+            {
+                var journey = FindLatestJourneyForLandmark(landmarkId);
+                if (journey != null) journey.photoPath = path;
+            }
+            else
+            {
+                RecordPetPhoto(path);
+            }
             Persist();
+        }
+
+        /// <summary>
+        /// Links an AR photo taken outside the Landmark flow (Photo/Feed/Companion/Walk entry
+        /// points) to a Journey entry for that pet + day - creating one if this is the first
+        /// photo of that pet taken today.
+        /// </summary>
+        void RecordPetPhoto(string path)
+        {
+            var companionId = PetArSceneContext.PetId;
+            if (string.IsNullOrEmpty(companionId)) return;
+
+            var today = DateTime.UtcNow;
+            JourneyEntryData journey = null;
+            foreach (var candidate in SaveData.journeys)
+            {
+                if (candidate == null || candidate.companionId != companionId) continue;
+                if (!DateTime.TryParse(candidate.createdUtc, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var createdUtc)) continue;
+                if (createdUtc.Date != today.Date) continue;
+                journey = candidate;
+            }
+
+            if (journey == null)
+            {
+                journey = new JourneyEntryData
+                {
+                    id = "pet-" + companionId + "-" + today.ToString("yyyyMMdd"),
+                    companionId = companionId,
+                    title = CompanionName(companionId) + " in AR",
+                    summary = "Photo taken in AR on " + today.ToString("yyyy-MM-dd") + ".",
+                    createdUtc = today.ToString("O")
+                };
+                SaveData.journeys.Add(journey);
+            }
+            journey.photoPath = path;
+        }
+
+        string CompanionName(string companionId)
+        {
+            foreach (var companion in Data.Companions)
+                if (companion.id == companionId) return companion.name;
+            return companionId;
         }
 
         JourneyEntryData FindLatestJourneyForLandmark(string landmarkId)
@@ -207,17 +256,41 @@ namespace ARWalking.UI
             Navigator.ResetToSetup();
         }
 
-        public void EnterLandmarkAr()
+        /// <summary>
+        /// Single entry point into the shared AR scene for every AR feature (Home/Map AR Photo,
+        /// Companion "View in AR", Feed "View in AR", Walk's pet tap, and Landmark AR Memory).
+        /// Only the context differs - see docs/AR-3D-INTEGRATION-CONTRACT.md.
+        /// </summary>
+        public void EnterPetAr(string petId, bool isPhotoMode,
+            PendingPetInteraction interaction = PendingPetInteraction.None, string landmarkId = null)
         {
-            Navigator.Push(UiRoute.LandmarkArMemory);
-            SceneManager.LoadScene("Walk");
+            RequireProfile();
+            PetArSceneContext.PetId = petId;
+            PetArSceneContext.IsPhotoMode = isPhotoMode;
+            PetArSceneContext.Interaction = interaction;
+            PetArSceneContext.LandmarkId = landmarkId;
+            PetArSceneContext.ReturnRoot = Navigator.CurrentRoot;
+            Navigator.Push(UiRoute.PetAr);
+            SceneManager.LoadScene("PetAr");
         }
 
-        public void ReturnFromArToHome()
+        public void ReturnFromPetAr()
         {
-            if (Navigator.CurrentRoute == UiRoute.ArPhoto) Navigator.Back();
-            if (Navigator.CurrentRoute == UiRoute.LandmarkArMemory) Navigator.Back();
+            if (Navigator.CurrentRoute == UiRoute.PetAr) Navigator.Back();
             SceneManager.LoadScene("Home");
+        }
+
+        /// <summary>The companion to show when an entry point (e.g. Walk) has no explicit pet
+        /// selection of its own: the first unlocked companion in roster order, falling back to
+        /// the starter if somehow none are unlocked yet.</summary>
+        public string PrimaryCompanionId()
+        {
+            foreach (var entry in CompanionRoster.Entries)
+            {
+                var progress = Companion(entry.Id);
+                if (progress != null && progress.unlocked) return entry.Id;
+            }
+            return CompanionRoster.Entries[0].Id;
         }
 
         public void ReturnHome(UiRootTab root = UiRootTab.Map)

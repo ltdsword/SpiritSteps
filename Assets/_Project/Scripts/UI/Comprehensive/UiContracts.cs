@@ -4,11 +4,39 @@ using UnityEngine;
 
 namespace ARWalking.UI
 {
+    /// <summary>
+    /// Companion ids match <c>CorgiAR.PetCatalog.Entries</c> ids exactly - this is the only
+    /// join between the ARWalking and CorgiAR assemblies (CorgiAR has no reference back to
+    /// ARWalking, so <see cref="CorgiAR.PetArContextBinder"/> resolves the id string directly
+    /// against its own PetBinder bindings).
+    /// </summary>
     public static class PrototypeIds
     {
-        public const string Dog = "dog";
-        public const string Cat = "cat";
-        public const string Rabbit = "rabbit";
+        public const string Corgi = "corgi";
+        public const string Pug = "pug";
+        public const string Chihuahua = "chihuahua";
+        public const string ShibaKit = "cur";
+        public const string GermanShepherd = "germanshepherd";
+        public const string Fox = "uaa_fox";
+        public const string Husky = "uaa_husky";
+        public const string Wolf = "uaa_wolf";
+        public const string Shiba = "uaa_shiba";
+        public const string Alpaca = "uaa_alpaca";
+        public const string Deer = "uaa_deer";
+        public const string Stag = "uaa_stag";
+        public const string Donkey = "uaa_donkey";
+        public const string Bull = "uaa_bull";
+        public const string Cow = "uaa_cow";
+        public const string Horse = "uaa_horse";
+        public const string HorseWhite = "uaa_horse_white";
+
+        /// <summary>Every companion id in unlock-progression order (starter first).</summary>
+        public static readonly string[] AllCompanions =
+        {
+            Corgi, Husky, Fox, Wolf, Pug, Chihuahua, ShibaKit, GermanShepherd, Shiba,
+            Alpaca, Deer, Stag, Donkey, Bull, Cow, Horse, HorseWhite
+        };
+
         public const string IndependencePalace = "independence-palace";
         public const string CentralPostOffice = "central-post-office";
         public const string NotreDameBasilica = "notre-dame-basilica";
@@ -27,8 +55,7 @@ namespace ARWalking.UI
         CompanionDetail,
         ShopFood,
         LandmarkDetail,
-        LandmarkArMemory,
-        ArPhoto,
+        PetAr,
         JourneyList,
         JourneyDetail
     }
@@ -72,6 +99,8 @@ namespace ARWalking.UI
         [TextArea] public string description;
         public string imageKey;
         public string unlockHint;
+        /// <summary>Total walking distance required to unlock this companion; 0 = starter (unlocked from the start).</summary>
+        [Min(0f)] public float unlockDistanceKilometres;
     }
 
     [Serializable]

@@ -1,0 +1,7 @@
+{
+  "name": "CorgiAR.Tests.EditMode",
+  "rootNamespace": "CorgiAR.Tests",
+  "references": ["CorgiAR.Core"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
