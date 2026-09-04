@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
+  .player-dot, .landmark-pin {
+    border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6); cursor: pointer;
+  }
+  .player-dot { width: 16px; height: 16px; background: #3399ff; cursor: default; }
+  .landmark-pin { width: 26px; height: 26px; background: #ff4d4d; }
+  .recenter-button {
+    position: absolute; right: 10px; bottom: 90px; z-index: 1;
+    width: 36px; height: 36px; border-radius: 6px; border: none; background: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 18px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<button class="recenter-button" id="recenter-btn" title="Recenter">&#8853;</button>
+<script>
+  // Bundled into the app via Assets/StreamingAssets, loaded into a native WebView by WebViewMapView.cs
+  // (net.gree.unity-webview). Bridge contract:
+  //   JS  -> native: Unity.call("marker," + landmarkId)     (a landmark pin was tapped)
+  //   native -> JS : window.mapBridge.update(jsonString)    (WebViewMapView.Render, via EvaluateJS)
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [0, 0],
+    zoom: 2
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+  let mapLoaded = false;
+  let pendingState = null;
+  let lastState = null;
+  let playerMarker = null;
+  const landmarkMarkers = {};
+
+  map.on('load', () => {
+    mapLoaded = true;
+    if (pendingState) { applyState(pendingState); pendingState = null; }
+  });
+
+  document.getElementById('recenter-btn').addEventListener('click', () => {
+    if (lastState) map.flyTo({ center: [lastState.player.lon, lastState.player.lat], zoom: 17 });
+  });
+
+  function makeMarkerEl(className) {
+    const el = document.createElement('div');
+    el.className = className;
+    return el;
+  }
+
+  function applyState(state) {
+    lastState = state;
+
+    if (!playerMarker) {
+      playerMarker = new maplibregl.Marker({ element: makeMarkerEl('player-dot') })
+        .setLngLat([state.player.lon, state.player.lat]).addTo(map);
+      map.jumpTo({ center: [state.player.lon, state.player.lat], zoom: 17 });
+    } else {
+      playerMarker.setLngLat([state.player.lon, state.player.lat]);
+    }
+
+    state.markers.forEach(function (marker) {
+      if (!landmarkMarkers[marker.id]) {
+        const el = makeMarkerEl('landmark-pin');
+        el.title = marker.label;
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.Unity) Unity.call('marker,' + marker.id);
+        });
+        landmarkMarkers[marker.id] = new maplibregl.Marker({ element: el })
+          .setLngLat([marker.lon, marker.lat]).addTo(map);
+      } else {
+        landmarkMarkers[marker.id].setLngLat([marker.lon, marker.lat]);
+      }
+    });
+  }
+
+  window.mapBridge = {
+    update: function (json) {
+      const state = JSON.parse(json);
+      if (!mapLoaded) { pendingState = state; return; }
+      applyState(state);
+    }
+  };
+</script>
+</body>
+</html>
