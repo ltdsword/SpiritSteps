@@ -1,8 +1,10 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
-  <Project Path="ARWalking.Editor.csproj" />
+  <Project Path="CorgiAR.Tests.EditMode.csproj" />
   <Project Path="ARWalking.EditModeTests.csproj" />
-  <Project Path="ARWalking.Runtime.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="ARWalking.Editor.csproj" />
+  <Project Path="CorgiAR.Core.csproj" />
+  <Project Path="ARWalking.Runtime.csproj" />
   <Project Path="ARWalking.PlayModeTests.csproj" />
 </Solution>

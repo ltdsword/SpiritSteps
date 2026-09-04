@@ -112,6 +112,7 @@ MonoBehaviour:
   - {fileID: 3798854004961833403}
   - {fileID: 8720171073900868774}
   - {fileID: 2498510820801162619}
+  - {fileID: 912345678901234567}
   m_Label: HomeMap
   m_TemplateSettings:
     rid: 79909288512585821
@@ -366,6 +367,66 @@ MonoBehaviour:
         m_ShowBackButton: 1
         m_ShowDrawer: 0
         m_ShowNavigationRail: 0
+--- !u!114 &812345678901234567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 819e9866b5cc41e7ac482ba5fe89e09b, type: 3}
+  m_Name: activity_dashboard
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavDestination
+  m_Position: {x: 1290, y: 560}
+  m_Guid: e3c25b7d-99a8-4ca7-a6bb-7de75336903b
+  m_Parent: {fileID: -2249136408117349945}
+  m_Actions: []
+  m_Label: ActivityDashboard
+  m_TemplateSettings:
+    rid: 79909288512585831
+  m_Arguments: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 79909288512585831
+      type: {class: DefaultDestinationTemplate, ns: Unity.AppUI.Navigation, asm: Unity.AppUI.Navigation}
+      data:
+        m_ScreenType: Unity.AppUI.Navigation.NavigationScreen, Unity.AppUI.Navigation,
+          Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        m_ShowBottomNavBar: 0
+        m_ShowAppBar: 1
+        m_ShowBackButton: 1
+        m_ShowDrawer: 0
+        m_ShowNavigationRail: 0
+--- !u!114 &912345678901234567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78073c03d6154685bf631e4ad244b9b8, type: 3}
+  m_Name: open_activity_dashboard
+  m_EditorClassIdentifier: Unity.AppUI.Navigation::Unity.AppUI.Navigation.NavAction
+  m_Position: {x: 0, y: 0}
+  m_Guid: c59b2057-1adf-4853-9401-0ed38f73ad95
+  m_Destination: {fileID: 812345678901234567}
+  m_Options:
+    m_PopUpToStrategy: 0
+    m_PopUpToRoute: {fileID: 0}
+    m_PopUpToInclusive: 0
+    m_EnterAnim: 0
+    m_ExitAnim: 0
+    m_PopEnterAnim: 0
+    m_PopExitAnim: 0
+    m_PopUpToSaveState: 0
+    m_RestoreState: 0
+    m_LaunchSingleTop: 0
+  m_DefaultArguments: []
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -404,6 +465,8 @@ MonoBehaviour:
   - {fileID: 8862690855965169342}
   - {fileID: 5653809624134745860}
   - {fileID: 8161548365074848160}
+  - {fileID: 812345678901234567}
+  - {fileID: 912345678901234567}
 --- !u!114 &1566681119337992948
 MonoBehaviour:
   m_ObjectHideFlags: 0

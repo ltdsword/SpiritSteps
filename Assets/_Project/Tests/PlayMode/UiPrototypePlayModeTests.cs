@@ -13,13 +13,16 @@ namespace ARWalking.Tests.PlayMode
 {
     public sealed class UiPrototypePlayModeTests
     {
-        // Real providers (walk/map/webview bridge) are now UiPrototypeRuntime's default unless overridden -
-        // these tests assume the deterministic mock behavior (e.g. FourTabsWalkResultCompanionDetailAndFeedWork's
-        // fixed coinsAwarded), so every test in this suite pins all three explicitly.
+        // Real providers (walk/map/webview bridge) are UiPrototypeRuntime's default unless overridden - these
+        // tests assume the deterministic mock behavior (e.g. a fixed coinsAwarded, or the v0 illustrated-map
+        // markup this suite's anatomy test checks for), so every test in this suite pins all three explicitly.
+        // Init deliberately calls onError immediately: an unresolved bridge (IsAvailable staying true forever)
+        // would route BuildMap() into the real WebView path instead of the illustrated-map fallback these tests
+        // expect.
         sealed class DeterministicFailingWebViewBridge : IWebViewBridge
         {
             public bool IsInitialized => true;
-            public void Init(Action<string> onMessage, Action<string> onError, Action<string> onLoaded) { }
+            public void Init(Action<string> onMessage, Action<string> onError, Action<string> onLoaded) => onError("test: no network");
             public void SetMargins(int left, int top, int right, int bottom) { }
             public void SetVisibility(bool visible) { }
             public void LoadURL(string url) { }
@@ -87,19 +90,81 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator NavigationAndHeaderControlsUseImageIcons()
+        public IEnumerator NavigationAndHeaderControlsUseV0VectorIconsAndProfileAvatar()
         {
             var home = CreateProfile();
             yield return null;
             var root = home.GetComponent<UIDocument>().rootVisualElement;
             var mapIcon = root.Q<UnityEngine.UIElements.Button>("nav-map")?.Q<UnityEngine.UIElements.Image>("nav-icon");
-            var settingsIcon = root.Q<UnityEngine.UIElements.Button>("settings-button")?.Q<UnityEngine.UIElements.Image>("icon-image");
+            var profileInitial = root.Q<UnityEngine.UIElements.Button>("settings-button")?.Q<UnityEngine.UIElements.Label>(className: "profile-initial");
             Assert.That(mapIcon, Is.Not.Null);
-            Assert.That(mapIcon.image, Is.Not.Null);
-            Assert.That(mapIcon.tintColor, Is.EqualTo(Color.black));
-            Assert.That(settingsIcon, Is.Not.Null);
-            Assert.That(settingsIcon.image, Is.Not.Null);
-            Assert.That(settingsIcon.tintColor, Is.EqualTo(Color.black));
+            Assert.That(mapIcon.vectorImage, Is.Not.Null);
+            Assert.That(mapIcon.tintColor.r, Is.EqualTo(84f / 255f).Within(0.001f));
+            Assert.That(mapIcon.tintColor.g, Is.EqualTo(190f / 255f).Within(0.001f));
+            Assert.That(mapIcon.tintColor.b, Is.EqualTo(107f / 255f).Within(0.001f));
+            Assert.That(mapIcon.tintColor.a, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(profileInitial, Is.Not.Null);
+            Assert.That(profileInitial.text, Is.EqualTo("T"));
+        }
+
+        [UnityTest]
+        public IEnumerator ActivityDashboardOpensFromHomeMapHeaderAndBackReturnsToMap()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var dashboardButton = root.Q<UnityEngine.UIElements.Button>("activity-dashboard-button");
+            Assert.That(dashboardButton, Is.Not.Null, "Home Map should expose an entry point into the Activity Dashboard.");
+
+            home.Navigate(UiRoute.ActivityDashboard);
+            yield return null;
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActivityDashboard));
+            var scroll = home.GetComponent<UIDocument>().rootVisualElement.Q<ScrollView>("screen-scroll");
+            Assert.That(scroll, Is.Not.Null);
+            Assert.That(scroll.Q("daily-activity-ring"), Is.Not.Null, "The v0-style Activity screen should retain its circular daily record.");
+
+            Assert.That(home.HandleBack(), Is.True);
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
+        }
+
+        [UnityTest]
+        public IEnumerator V0ScreenAnatomyIsPresentAcrossEveryPrimaryRoute()
+        {
+            var home = CreateProfile();
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+            Assert.That(root.Q(className: "map-viewport"), Is.Not.Null);
+            Assert.That(root.Q(className: "walk-control-card"), Is.Not.Null);
+            Assert.That(root.Q(className: "bottom-nav"), Is.Not.Null);
+
+            home.SelectRoot(UiRootTab.Companions);
+            yield return null;
+            Assert.That(root.Q(className: "featured-companion"), Is.Not.Null);
+            Assert.That(root.Q(className: "owned-companion-grid"), Is.Not.Null);
+
+            home.SelectRoot(UiRootTab.Shop);
+            yield return null;
+            var foodArt = root.Q<UnityEngine.UIElements.Image>(className: "food-art");
+            Assert.That(foodArt, Is.Not.Null);
+            Assert.That(foodArt.image, Is.Not.Null, "The Unity shop should use the food artwork extracted from the v0 reference.");
+
+            home.SelectRoot(UiRootTab.Journey);
+            yield return null;
+            Assert.That(root.Q(className: "journey-stats"), Is.Not.Null);
+            Assert.That(root.Q(className: "passport-card"), Is.Not.Null);
+
+            home.Navigate(UiRoute.LandmarkDetail);
+            yield return null;
+            Assert.That(root.Q(className: "landmark-hero-card"), Is.Not.Null);
+            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(3));
+
+            home.Navigate(UiRoute.ActivityDashboard);
+            yield return null;
+            Assert.That(root.Q("daily-activity-ring"), Is.Not.Null);
+            Assert.That(root.Q("weekly-activity-chart"), Is.Not.Null);
         }
 
         [UnityTest]
@@ -113,8 +178,8 @@ namespace ARWalking.Tests.PlayMode
             var arBackIcon = ar.GetComponent<UIDocument>().rootVisualElement
                 .Q<UnityEngine.UIElements.Button>("ar-exit")?.Q<UnityEngine.UIElements.Image>("icon-image");
             Assert.That(arBackIcon, Is.Not.Null);
-            Assert.That(arBackIcon.image, Is.Not.Null);
-            Assert.That(arBackIcon.tintColor, Is.EqualTo(Color.black));
+            Assert.That(arBackIcon.vectorImage, Is.Not.Null);
+            Assert.That(arBackIcon.tintColor, Is.EqualTo(Color.white));
             ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage();
             var first = ar.CollectStamp();
             var second = ar.CollectStamp();

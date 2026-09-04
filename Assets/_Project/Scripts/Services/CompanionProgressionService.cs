@@ -5,6 +5,9 @@ namespace ARWalking.UI
 {
     public sealed class CompanionProgressionService
     {
+        /// <summary>Daily walking-distance goal shown by the Activity Dashboard's progress bar and weekly chart.</summary>
+        public const float DailyGoalKilometres = 5f;
+
         readonly PlayerSaveData _save;
 
         public CompanionProgressionService(PlayerSaveData save)
@@ -40,10 +43,15 @@ namespace ARWalking.UI
 
         public WalkResultDto CompleteWalk(WalkMetrics metrics)
         {
-            return CompleteWalk(metrics, CaptureUnlockedCompanionIds());
+            return CompleteWalk(metrics, CaptureUnlockedCompanionIds(), DateTime.UtcNow);
         }
 
         public WalkResultDto CompleteWalk(WalkMetrics metrics, IReadOnlyCollection<string> companionsUnlockedBeforeWalk)
+        {
+            return CompleteWalk(metrics, companionsUnlockedBeforeWalk, DateTime.UtcNow);
+        }
+
+        public WalkResultDto CompleteWalk(WalkMetrics metrics, IReadOnlyCollection<string> companionsUnlockedBeforeWalk, DateTime utcNow)
         {
             if (metrics == null) throw new ArgumentNullException(nameof(metrics));
             if (companionsUnlockedBeforeWalk == null) throw new ArgumentNullException(nameof(companionsUnlockedBeforeWalk));
@@ -86,6 +94,54 @@ namespace ARWalking.UI
                 candidate.unlocked = true;
                 result.newlyUnlockedCompanionIds.Add(entry.Id);
             }
+
+            RecordDailyActivity(distance, result.hasSteps, result.steps, utcNow);
+            return result;
+        }
+
+        void RecordDailyActivity(float distanceKilometres, bool hasSteps, int steps, DateTime utcNow)
+        {
+            var dateKey = utcNow.ToUniversalTime().Date.ToString("yyyy-MM-dd");
+            var day = _save.dailyActivity.Find(item => item != null && item.dateIso == dateKey);
+            if (day == null)
+            {
+                day = new DailyActivityData { dateIso = dateKey };
+                _save.dailyActivity.Add(day);
+            }
+            day.distanceKilometres += distanceKilometres;
+            if (hasSteps)
+            {
+                day.hasSteps = true;
+                day.steps += steps;
+            }
+        }
+
+        /// <summary>Today's progress plus the Monday-Sunday week containing it, for the Activity Dashboard screen.</summary>
+        public WeeklyActivityDto GetWeeklyActivity(DateTime utcNow)
+        {
+            var today = utcNow.ToUniversalTime().Date;
+            var mondayOffset = ((int)today.DayOfWeek + 6) % 7; // DayOfWeek.Sunday == 0, so shift to a Monday-first week.
+            var monday = today.AddDays(-mondayOffset);
+            var result = new WeeklyActivityDto { dailyGoalKilometres = DailyGoalKilometres };
+
+            var sumSoFar = 0f;
+            var daysSoFar = 0;
+            for (var i = 0; i < 7; i++)
+            {
+                var date = monday.AddDays(i);
+                var entry = _save.dailyActivity.Find(item => item != null && item.dateIso == date.ToString("yyyy-MM-dd"));
+                var distance = entry?.distanceKilometres ?? 0f;
+                var isFuture = date > today;
+                result.days[i] = new DayActivity { date = date, distanceKilometres = distance, isToday = date == today, isFuture = isFuture };
+                if (!isFuture) { sumSoFar += distance; daysSoFar++; }
+            }
+            // Averaged over Monday..today only - zero-padding the remaining days of the week would understate progress mid-week.
+            result.weeklyAverageKilometres = daysSoFar > 0 ? sumSoFar / daysSoFar : 0f;
+
+            var todayEntry = _save.dailyActivity.Find(item => item != null && item.dateIso == today.ToString("yyyy-MM-dd"));
+            result.todayDistanceKilometres = todayEntry?.distanceKilometres ?? 0f;
+            result.todayHasSteps = todayEntry?.hasSteps ?? false;
+            result.todaySteps = todayEntry?.steps ?? 0;
             return result;
         }
 

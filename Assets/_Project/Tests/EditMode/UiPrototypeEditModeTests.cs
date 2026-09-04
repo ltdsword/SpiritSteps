@@ -25,12 +25,12 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
-        public void RouteCatalogContainsElevenScreensAndFourRoots()
+        public void RouteCatalogContainsTwelveScreensAndFourRoots()
         {
-            // Was 12 (LandmarkArMemory + ArPhoto as separate routes); the AR migration merged
-            // both into a single UiRoute.PetAr shared by every AR entry point.
-            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(11));
-            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(11));
+            // The AR migration merged LandmarkArMemory + ArPhoto into one PetAr route;
+            // the Activity Dashboard remains a separate Home screen.
+            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(12));
+            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(12));
             Assert.That(Enum.GetValues(typeof(UiRootTab)).Length, Is.EqualTo(4));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Map), Is.EqualTo(UiRoute.HomeMap));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Companions), Is.EqualTo(UiRoute.CompanionCollection));
@@ -207,6 +207,51 @@ namespace ARWalking.Tests.EditMode
             var rewardResult = service.CompleteLandmarkMemory(PrototypeIds.NotreDameBasilica, PrototypeIds.Husky, DateTime.UtcNow);
             Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Husky));
             Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
+        }
+
+        [Test]
+        public void CompleteWalkRecordsDailyActivityForWeeklyChart()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+            var day = new DateTime(2026, 9, 2, 9, 0, 0, DateTimeKind.Utc);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1.5f, hasSteps = true, steps = 2000 }, service.CaptureUnlockedCompanionIds(), day);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 0.5f, hasSteps = true, steps = 700 }, service.CaptureUnlockedCompanionIds(), day.AddHours(6));
+            Assert.That(save.dailyActivity.Count, Is.EqualTo(1), "Two walks on the same UTC calendar day should accumulate into one entry.");
+            var entry = save.dailyActivity.Single();
+            Assert.That(entry.dateIso, Is.EqualTo("2026-09-02"));
+            Assert.That(entry.distanceKilometres, Is.EqualTo(2.0f).Within(0.001f));
+            Assert.That(entry.hasSteps, Is.True);
+            Assert.That(entry.steps, Is.EqualTo(2700));
+
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, service.CaptureUnlockedCompanionIds(), day.AddDays(1));
+            Assert.That(save.dailyActivity.Count, Is.EqualTo(2), "A walk on a different calendar day should create a separate entry.");
+        }
+
+        [Test]
+        public void WeeklyActivitySummaryAlignsToMondayAndAveragesWeekToDate()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = new CompanionProgressionService(save);
+            var today = new DateTime(2026, 9, 2, 12, 0, 0, DateTimeKind.Utc);
+            var monday = today.AddDays(-((int)today.DayOfWeek + 6) % 7);
+            var todayIndex = (int)(today.Date - monday.Date).TotalDays;
+
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 4f }, service.CaptureUnlockedCompanionIds(), monday);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 2f }, service.CaptureUnlockedCompanionIds(), today);
+
+            var weekly = service.GetWeeklyActivity(today);
+            Assert.That(weekly.days.Length, Is.EqualTo(7));
+            Assert.That(weekly.days[0].date.Date, Is.EqualTo(monday.Date));
+            Assert.That(weekly.days[0].date.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+            Assert.That(weekly.days[6].date.Date, Is.EqualTo(monday.AddDays(6).Date));
+            Assert.That(weekly.days[0].distanceKilometres, Is.EqualTo(4f));
+            Assert.That(weekly.days[todayIndex].isToday, Is.True);
+            Assert.That(weekly.days[todayIndex].distanceKilometres, Is.EqualTo(2f));
+            Assert.That(weekly.days.Count(item => item.isFuture), Is.EqualTo(6 - todayIndex), "Every day after today in this calendar week is future.");
+            Assert.That(weekly.todayDistanceKilometres, Is.EqualTo(2f));
+            Assert.That(weekly.dailyGoalKilometres, Is.EqualTo(CompanionProgressionService.DailyGoalKilometres));
+            Assert.That(weekly.weeklyAverageKilometres, Is.EqualTo(6f / (todayIndex + 1)).Within(0.001f), "Average is over Monday..today only, not zero-padded across the full week.");
         }
 
         [Test]

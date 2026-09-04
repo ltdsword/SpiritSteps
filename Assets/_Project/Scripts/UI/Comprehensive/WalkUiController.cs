@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Unity.AppUI.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,16 +10,18 @@ using UiImage = UnityEngine.UIElements.Image;
 namespace ARWalking.UI
 {
     /// <summary>
-    /// Landmark AR Memory overlay (History -> Architecture -> Did You Know -> Collect Stamp),
-    /// rendered as a UI Toolkit panel layered on top of the real AR camera in the shared
-    /// "PetAr" scene. Only active when <see cref="PetArSceneContext.LandmarkId"/> is set - the
-    /// plain pet-viewing flows (Photo/Feed/Companion/Walk) leave this panel empty and rely on
-    /// CorgiAR's uGUI HUD instead. See docs/AR-3D-INTEGRATION-CONTRACT.md.
+    /// UI Toolkit layer above the shared PetAr scene. Plain pet/photo/feed entries only show the
+    /// v0-style exit control; Landmark entries add the scan, story-sheet, and stamp flow.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UIDocument))]
     public sealed class WalkUiController : MonoBehaviour
     {
+        static readonly Color Ink = new Color32(42, 63, 49, 255);
+        static readonly Color Primary = new Color32(84, 190, 107, 255);
+        static readonly Color BlossomInk = new Color32(143, 72, 86, 255);
+        static readonly Color White = Color.white;
+
         UIDocument _document;
         UiPrototypeRuntime _runtime;
         AppPanel _panel;
@@ -26,6 +30,7 @@ namespace ARWalking.UI
         Vector2Int _lastScreenSize;
         int _memoryPage;
         bool _stampCollected;
+        readonly Dictionary<string, VectorImage> _icons = new Dictionary<string, VectorImage>();
 
         public UiRoute CurrentRoute => _runtime.Navigator.CurrentRoute;
         public bool HasLandmarkMemory => !string.IsNullOrEmpty(PetArSceneContext.LandmarkId);
@@ -34,22 +39,22 @@ namespace ARWalking.UI
         {
             _runtime = UiPrototypeRuntime.EnsureExists();
             _document = GetComponent<UIDocument>();
-            if (_document.panelSettings == null) _document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings");
+            if (_document.panelSettings == null)
+                _document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings");
             var root = _document.rootVisualElement;
             root.Clear();
             var styleSheet = Resources.Load<StyleSheet>("UI/ARWalking");
             if (styleSheet != null) root.styleSheets.Add(styleSheet);
             _panel = new AppPanel { name = "ar-walking-ar-panel", theme = "light", scale = "medium" };
-            _panel.AddToClassList("app-root"); _panel.AddToClassList("ar-panel-root"); root.Add(_panel);
-            // Inline styles always win over any USS rule, including the App UI package's own
-            // theme stylesheet (Panel's "light" theme paints an opaque app background by design -
-            // no class selector in our own stylesheet can out-rank that). This is the one place
-            // that must actually be transparent so the real AR camera shows through.
+            _panel.AddToClassList("app-root");
+            _panel.AddToClassList("ar-panel-root");
             _panel.style.backgroundColor = new StyleColor(Color.clear);
             root.style.backgroundColor = new StyleColor(Color.clear);
-            _safeRoot = new VisualElement { name = "safe-area" }; _safeRoot.AddToClassList("safe-area"); _panel.Add(_safeRoot);
+            root.Add(_panel);
+            _safeRoot = Element("safe-area", "safe-area");
             _safeRoot.style.backgroundColor = new StyleColor(Color.clear);
-            _document.rootVisualElement.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
+            _panel.Add(_safeRoot);
+            root.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
             ApplySafeArea();
             _runtime.Navigator.Changed += Render;
             _runtime.CompanionTapped += OnCompanionTapped;
@@ -72,30 +77,20 @@ namespace ARWalking.UI
         }
 
         public void SimulateImageTargetRecognition() { _memoryPage = 1; Render(); }
-
-        /// <summary>
-        /// AR/3D integration hook: call this from the real AR Foundation image-target/plane
-        /// recognition handler once the Landmark is recognized, instead of the "Simulate
-        /// recognition" debug button - see docs/AR-3D-INTEGRATION-CONTRACT.md. The debug button
-        /// stays wired to the same logic as a demo fallback if live recognition is unreliable.
-        /// </summary>
         public void OnImageTargetRecognized() => SimulateImageTargetRecognition();
-
         public void NextMemoryPage() { _memoryPage = Mathf.Min(3, _memoryPage + 1); Render(); }
+
         public LandmarkRewardDto CollectStamp()
         {
             var result = _runtime.CompleteLandmarkMemory(PetArSceneContext.LandmarkId);
             _stampCollected = true;
             var unlockedName = string.IsNullOrEmpty(result.unlockedCompanionId) ? null : CompanionName(result.unlockedCompanionId);
             ShowToast(result.newlyCompleted
-                ? "Stamp collected" + (unlockedName != null ? " - " + unlockedName + " unlocked!" : string.Empty)
-                : "This Landmark reward was already collected.");
+                ? "Stamp collected" + (unlockedName != null ? " · " + unlockedName + " unlocked!" : string.Empty)
+                : "This Landmark memory is already in your Journey.");
             Render();
             return result;
         }
-
-        void OnCompanionTapped(string companionId) => ShowToast(CompanionName(companionId) + " reacted!");
-        string CompanionName(string id) { foreach (var item in _runtime.Data.Companions) if (item.id == id) return item.name; return id; }
 
         public void ExitToHome() => _runtime.ReturnFromPetAr();
 
@@ -103,60 +98,165 @@ namespace ARWalking.UI
         {
             if (_safeRoot == null) return;
             _safeRoot.Clear();
-
-            // Always-present top bar with a Back button: CorgiAR's uGUI HUD has no exit control
-            // of its own (it was a standalone sandbox scene), so this UI Toolkit overlay - already
-            // layered above the AR camera and the HUD Canvas - is the one place every PetAr entry
-            // point (plain pet viewing included) gets a way back to Home.
-            var page = new VisualElement { name = "pet-ar-top-bar-screen" }; page.AddToClassList("ar-page");
+            var page = Element("pet-ar-top-bar-screen", "ar-page");
             page.pickingMode = PickingMode.Ignore;
             page.style.backgroundColor = new StyleColor(Color.clear);
-            var top = new VisualElement(); top.AddToClassList("ar-top-bar");
-            top.Add(IconButton(_runtime.Assets.iconBack, "BACK", ExitToHome, "ar-exit"));
-            page.Add(top);
             _safeRoot.Add(page);
 
+            var top = Element("ar-top-bar", "ar-top-bar");
+            var exit = IconButton("x", _runtime.Assets.iconClose, ExitToHome, "ar-exit", "dark-round-control");
+            top.Add(exit);
+            page.Add(top);
             if (HasLandmarkMemory) BuildLandmarkAr(page, top);
         }
 
         void BuildLandmarkAr(VisualElement page, VisualElement top)
         {
-            var landmarkId = PetArSceneContext.LandmarkId;
-            LandmarkUiData landmark = null;
-            foreach (var candidate in _runtime.Data.Landmarks)
-                if (candidate.id == landmarkId) landmark = candidate;
+            var landmark = FindLandmark(PetArSceneContext.LandmarkId);
             if (landmark == null) return;
+            var titlePill = Element("ar-landmark-pill", "ar-top-pill");
+            titlePill.Add(Label(landmark.name, "title"));
+            titlePill.Add(Label("AR Memory", "ar-alert"));
+            top.Add(titlePill);
+            top.Add(Element(null, "ar-top-spacer"));
 
-            var copy = Column(); copy.Add(Label(landmark.name, "title")); copy.Add(Label("AR Memory", "ar-alert")); top.Add(copy);
+            if (_stampCollected)
+            {
+                BuildCollected(page, landmark);
+                return;
+            }
 
-            var guide = new VisualElement(); guide.AddToClassList("ar-guide");
             if (_memoryPage == 0)
             {
-                guide.Add(Label("Point the camera at " + landmark.name, "body"));
-                guide.Add(Button("Simulate recognition", SimulateImageTargetRecognition, "primary-action"));
+                page.Add(Element("ar-scanning-frame", "ar-scanning-frame"));
+                var controls = Element("ar-scan-controls", "ar-scan-controls");
+                var instruction = Element(null, "ar-instruction-pill");
+                instruction.Add(Icon("sparkles", "ar-instruction-icon", Primary));
+                instruction.Add(Label("Point at " + landmark.name, "body"));
+                controls.Add(instruction);
+                controls.Add(ActionButton("sparkles", "Reveal the Memory", SimulateImageTargetRecognition, "primary-action", "ar-reveal-button"));
+                page.Add(controls);
+                return;
             }
+
+            var heading = _memoryPage == 1 ? "History" : _memoryPage == 2 ? "Architecture" : "Did You Know?";
+            var body = _memoryPage == 1 ? landmark.history : _memoryPage == 2 ? landmark.architecture : landmark.didYouKnow;
+            var sheet = Element("ar-story-sheet", "ar-story-sheet");
+            sheet.Add(Element(null, "sheet-handle"));
+            var headingRow = Element(null, "ar-story-heading");
+            headingRow.Add(Icon("sparkles", "ar-story-heading-icon", Primary));
+            headingRow.Add(Label(heading.ToUpperInvariant(), "eyebrow"));
+            sheet.Add(headingRow);
+            sheet.Add(Label(body, "body"));
+            sheet.Add(PageDots(_memoryPage - 1));
+            var actions = Element(null, "ar-story-actions");
+            if (_memoryPage > 1)
+                actions.Add(IconButton("chevron-left", _runtime.Assets.iconBack, () => { _memoryPage--; Render(); }, "ar-memory-previous", "small-round-control"));
+            if (_memoryPage < 3)
+                actions.Add(ActionButton("chevron-right", "Next", NextMemoryPage, "primary-action"));
             else
-            {
-                var heading = _memoryPage == 1 ? "History" : _memoryPage == 2 ? "Architecture" : "Did You Know?";
-                var body = _memoryPage == 1 ? landmark.history : _memoryPage == 2 ? landmark.architecture : landmark.didYouKnow;
-                guide.Add(Label(heading, "subtitle")); guide.Add(Label(body, "body"));
-                if (_memoryPage < 3) guide.Add(Button("Next", NextMemoryPage, "primary-action"));
-                else if (!_stampCollected) guide.Add(Button("Collect Landmark Stamp", () => CollectStamp(), "primary-action"));
-                else guide.Add(Button("View Journey", () => _runtime.ReturnHome(UiRootTab.Journey), "primary-action"));
-            }
-            page.Add(guide);
+                actions.Add(ActionButton("stamp", "Collect Stamp", () => CollectStamp(), "blossom-action"));
+            sheet.Add(actions);
+            page.Add(sheet);
         }
+
+        VisualElement PageDots(int selected)
+        {
+            var dots = Element(null, "ar-page-dots");
+            for (var i = 0; i < 3; i++)
+            {
+                var dot = Element(null, "ar-page-dot");
+                if (i == selected) dot.AddToClassList("ar-page-dot-active");
+                dots.Add(dot);
+            }
+            return dots;
+        }
+
+        void BuildCollected(VisualElement page, LandmarkUiData landmark)
+        {
+            var collected = Element("ar-memory-collected", "ar-collected");
+            var medal = Element(null, "ar-stamp-medallion");
+            medal.Add(Icon("stamp", "ar-stamp-icon", White));
+            collected.Add(medal);
+            collected.Add(Label("Memory Collected!", "title"));
+            collected.Add(Label(landmark.name + " was added to your Journey passport.", "body"));
+            var actions = Element(null, "ar-collected-actions");
+            actions.Add(ActionButton("camera", "Take AR Photo", () => ShowToast("Use the AR camera controls to capture your companion."), "blossom-action"));
+            actions.Add(ActionButton("map", "Back to Map", ExitToHome, "secondary-action"));
+            collected.Add(actions);
+            page.Add(collected);
+        }
+
+        LandmarkUiData FindLandmark(string id)
+        {
+            foreach (var candidate in _runtime.Data.Landmarks) if (candidate.id == id) return candidate;
+            return null;
+        }
+
+        void OnCompanionTapped(string companionId) => ShowToast(CompanionName(companionId) + " reacted!");
+        string CompanionName(string id) { foreach (var item in _runtime.Data.Companions) if (item.id == id) return item.name; return id; }
 
         void ShowToast(string message)
         {
-            var toast = Label(message, "toast"); _panel.notificationContainer.Add(toast);
+            var toast = Label(message, "toast");
+            _panel.notificationContainer.Add(toast);
             toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(2200);
         }
 
-        static VisualElement Column() { var value = new VisualElement(); value.AddToClassList("column"); return value; }
-        static Label Label(string text, string className) { var label = new Label(text); label.AddToClassList(className); return label; }
-        static UiButton IconButton(Texture2D icon, string fallback, System.Action action, string name) { var button = new UiButton(action) { name = name }; button.AddToClassList("icon-button"); if (icon != null) { var image = new UiImage { image = icon, name = "icon-image", scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore, tintColor = Color.black }; button.Add(image); } else button.text = fallback; return button; }
-        static UiButton Button(string text, System.Action action, string className) { var button = new UiButton(action) { text = text }; button.AddToClassList("action-button"); button.AddToClassList(className); return button; }
+        UiImage Icon(string key, string name, Color tint, Texture2D fallback = null)
+        {
+            if (!_icons.TryGetValue(key, out var vector))
+            {
+                vector = Resources.Load<VectorImage>("UI/Icons/" + key);
+                _icons[key] = vector;
+            }
+            var image = new UiImage
+            {
+                name = name,
+                vectorImage = vector,
+                image = vector == null ? fallback : null,
+                scaleMode = ScaleMode.ScaleToFit,
+                pickingMode = PickingMode.Ignore,
+                tintColor = tint
+            };
+            if (!string.IsNullOrEmpty(name)) image.AddToClassList(name);
+            return image;
+        }
+
+        UiButton IconButton(string icon, Texture2D fallback, Action action, string name, params string[] classes)
+        {
+            var button = new UiButton(action) { name = name };
+            button.AddToClassList("icon-button");
+            foreach (var item in classes) button.AddToClassList(item);
+            button.Add(Icon(icon, "icon-image", Array.IndexOf(classes, "dark-round-control") >= 0 ? White : Ink, fallback));
+            return button;
+        }
+
+        UiButton ActionButton(string icon, string text, Action action, params string[] classes)
+        {
+            var button = new UiButton(action) { name = text.ToLowerInvariant().Replace(' ', '-') };
+            button.AddToClassList("action-button");
+            button.AddToClassList("icon-action-button");
+            foreach (var item in classes) button.AddToClassList(item);
+            var tint = Array.IndexOf(classes, "primary-action") >= 0 ? White : Array.IndexOf(classes, "blossom-action") >= 0 ? BlossomInk : Ink;
+            button.Add(Icon(icon, "action-icon", tint));
+            button.Add(Label(text, "action-label"));
+            return button;
+        }
+
+        static VisualElement Element(string name, params string[] classes)
+        {
+            var element = new VisualElement { name = name };
+            foreach (var item in classes) if (!string.IsNullOrEmpty(item)) element.AddToClassList(item);
+            return element;
+        }
+
+        static Label Label(string text, string className)
+        {
+            var label = new Label(text);
+            label.AddToClassList(className);
+            return label;
+        }
 
         void ApplySafeArea()
         {
@@ -168,7 +268,8 @@ namespace ARWalking.UI
             _safeRoot.style.right = (Screen.width - safe.xMax) * scale;
             _safeRoot.style.top = (Screen.height - safe.yMax) * scale;
             _safeRoot.style.bottom = safe.yMin * scale;
-            _lastSafeArea = safe; _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
+            _lastSafeArea = safe;
+            _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
         }
     }
 }

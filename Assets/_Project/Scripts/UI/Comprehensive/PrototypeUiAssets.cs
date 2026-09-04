@@ -16,6 +16,7 @@ namespace ARWalking.UI
         public Texture2D[] companions;
         [FormerlySerializedAs("seedlings")]
         public Texture2D[] archivedPlantPlaceholders;
+        public Texture2D[] foods;
         public Texture2D[] landmarks;
         public Texture2D[] icons;
         public Texture2D iconAr;
@@ -34,6 +35,7 @@ namespace ARWalking.UI
         public Texture2D iconSteps;
 
         public Texture2D Companion(int index) => companions != null && companions.Length > 0 ? companions[Mathf.Clamp(index, 0, companions.Length - 1)] : null;
+        public Texture2D Food(int index) => foods != null && foods.Length > 0 ? foods[Mathf.Clamp(index, 0, foods.Length - 1)] : null;
         public Texture2D Landmark(int index) => landmarks != null && landmarks.Length > 0 ? landmarks[Mathf.Clamp(index, 0, landmarks.Length - 1)] : null;
         public Texture2D Icon(int index) => icons != null && icons.Length > 0 ? icons[Mathf.Clamp(index, 0, icons.Length - 1)] : null;
     }
