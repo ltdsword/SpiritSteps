@@ -59,7 +59,8 @@ used to judge whether the interface is too small or too crowded:
 | Page title | 55–58 px | 7.6–8.1% | 30–31 px |
 | Primary/icon button height | 82 px | 11.4% | 44 px |
 | Bottom navigation height | 128 px | 17.8% | 69 px |
-| Navigation icon | 47 px | 6.5% | 25 px |
+| Bottom navigation label | 33 px | 4.6% | 18 px |
+| Navigation icon | 40 px | 5.6% | 22 px |
 | Standard card padding | 30 px | 4.2% | 16 px |
 | Landmark pin | 78 px | 10.8% | 42 px |
 
@@ -102,3 +103,37 @@ inset must remain below 12% of the 2400px validation-capture height.
 - The CorgiAR uGUI interaction HUD is teammate-owned. UI Toolkit owns the always-present exit and
   Landmark Memory overlays layered above it.
 - All layouts must support the configured 1080×2400 reference and simulated safe areas.
+
+## Art-well image fitting
+
+Every photographic asset (companion, food, landmark, journey) sits in a colored "well" element that
+owns the shape and the fit. The well needs `border-radius`, `overflow: hidden`, and `position: relative`.
+The child `Image` must be `position: absolute; left: 0; right: 0; top: 0; bottom: 0;` (no `width`/`height`)
+and use `ScaleMode.ScaleAndCrop`. This is the "always fill the frame" rule: if the art is smaller than
+the frame, it zooms in to cover it; if it's bigger, it crops to fit — never leave a gap and never let it
+overflow the frame's edges.
+
+Two things bit this repeatedly before landing on the absolute-fill pattern above, so don't regress to
+either:
+
+- **`ScaleMode.ScaleToFit` on a well-bound image.** Because USS `border-radius` is an absolute pixel
+  value, a gap between an undersized "contain"-scaled image and its rounded/circular well exposes the
+  well's own background around the art, which reads as the artwork itself having gone round or
+  blob-shaped instead of staying a clean rectangle.
+- **`width: 100%; height: 100%;` on the image instead of absolute-fill insets.** Percentage sizing on a
+  UI Toolkit `Image` does not reliably fill its parent in this Unity version — it can leave an
+  unpredictable gap on the right/bottom edge even when the well itself is sized correctly. Absolute
+  positioning with all four insets is the only technique confirmed to fill the frame exactly; every
+  other correctly-filling image in this file (`map-image`, `landmark-hero`, `journey-memory-image`)
+  already used this technique, which is what gave it away.
+- **A well whose `overflow` is anything but `hidden`.** `border-radius` on the image itself does
+  nothing for the drawn texture unless an ancestor establishes a clip with `overflow: hidden` — a
+  parent with `overflow: visible` (e.g. one that also hosts a pulse/glow effect meant to bleed outside
+  its bounds, like the map's player marker) silently defeats the image's own radius. Give the clipped
+  photo its own inner well so the bleeding effect can stay a sibling with `overflow: visible` instead of
+  a shared ancestor.
+
+Apply this to every art well, including backdrop/halo-style ones: `player-map-marker` now holds a
+`player-avatar-well` sibling to the pulse ring so the avatar fills and clips correctly while the ring
+still bleeds outward, and `featured-portrait-well` and `starter-reveal`/`reveal-companion` fill and crop
+to their well rather than floating inset with a visible gap.

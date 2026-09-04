@@ -131,6 +131,10 @@ namespace ARWalking.Tests.PlayMode
             var foodArt = root.Q<UnityEngine.UIElements.Image>(className: "food-art");
             Assert.That(foodArt, Is.Not.Null);
             Assert.That(foodArt.image, Is.Not.Null, "The Unity shop should use the food artwork extracted from the v0 reference.");
+            Assert.That(foodArt.scaleMode, Is.EqualTo(ScaleMode.ScaleAndCrop));
+            Assert.That(foodArt.parent.ClassListContains("food-art-well"), Is.True);
+            Assert.That(foodArt.worldBound.width, Is.EqualTo(foodArt.parent.contentRect.width).Within(1f), "Food art should fill its allocated frame width.");
+            Assert.That(foodArt.worldBound.height, Is.EqualTo(foodArt.parent.contentRect.height).Within(1f), "Food art should fill its allocated frame height.");
 
             home.SelectRoot(UiRootTab.Journey);
             yield return null;
