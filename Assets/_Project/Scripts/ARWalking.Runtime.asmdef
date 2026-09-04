@@ -3,7 +3,8 @@
   "rootNamespace": "ARWalking",
   "references": [
     "Unity.AppUI",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "unity-webview"
   ],
   "autoReferenced": true
 }
