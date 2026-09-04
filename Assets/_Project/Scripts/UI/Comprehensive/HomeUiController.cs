@@ -50,11 +50,13 @@ namespace ARWalking.UI
             _runtime.Navigator.Changed += OnNavigationChanged;
             if (!_runtime.HasProfile) _runtime.Navigator.ResetToSetup();
             else Render();
+            SyncMapViewVisibility();
         }
 
         void OnDisable()
         {
             if (_runtime != null && _runtime.Navigator != null) _runtime.Navigator.Changed -= OnNavigationChanged;
+            if (_runtime != null && _runtime.MapView != null) _runtime.MapView.OnMarkerTapped -= OnRealMapMarkerTapped;
         }
 
         void Update()
@@ -62,6 +64,8 @@ namespace ARWalking.UI
             var screenSize = new Vector2Int(Screen.width, Screen.height);
             if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize) ApplySafeArea();
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
+            if (_runtime.Navigator.CurrentRoute == UiRoute.HomeMap && _runtime.MapView != null && _runtime.MapView.IsAvailable)
+                RenderRealMapMarkers();
         }
 
         public void SelectRoot(UiRootTab root) => _runtime.Navigator.SwitchRoot(root);
@@ -89,7 +93,14 @@ namespace ARWalking.UI
             _panel.Add(_safeRoot);
         }
 
-        void OnNavigationChanged() { Render(); RenderOverlay(); }
+        void OnNavigationChanged() { Render(); RenderOverlay(); SyncMapViewVisibility(); }
+
+        void SyncMapViewVisibility()
+        {
+            if (_runtime.MapView == null) return;
+            var onMapWithNoOverlay = _runtime.Navigator.CurrentRoute == UiRoute.HomeMap && _runtime.Navigator.CurrentOverlay == null;
+            _runtime.MapView.SetActive(onMapWithNoOverlay);
+        }
 
         void Render()
         {
@@ -161,6 +172,78 @@ namespace ARWalking.UI
         void BuildMap()
         {
             var page = Page("map-page", true);
+            if (_runtime.MapView != null && _runtime.MapView.IsAvailable) BuildRealMap(page);
+            else BuildIllustratedMapFallback(page);
+        }
+
+        void BuildRealMap(VisualElement page)
+        {
+            var top = new VisualElement { name = "map-top-bar" };
+            top.AddToClassList("map-top-bar");
+            var greeting = Card("compact-card", "glass-card");
+            greeting.Add(Eyebrow("LOCAL-ONLY PROFILE"));
+            greeting.Add(Title("Hello, " + _runtime.SaveData.displayName));
+            greeting.Add(Body("District 1, Ho Chi Minh City"));
+            top.Add(greeting);
+            top.Add(IconAction(_assets.iconSettings, "SET", () => ShowOverlay(UiOverlay.Settings), "settings-button"));
+            page.Add(top);
+
+            var bottom = new VisualElement { name = "map-bottom-bar" };
+            bottom.AddToClassList("map-bottom-bar");
+            bottom.Add(Metric(_runtime.SaveData.coins.ToString(), "Coins"));
+            bottom.Add(Metric(_runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " km", "total distance"));
+            bottom.Add(ActionWithIcon(_assets.iconSteps, "Start a walk", BeginWalk, "primary-action", "compact-action"));
+            bottom.Add(ActionWithIcon(_assets.iconAr, "AR Photo", () =>
+            {
+                _pickingPetForPhoto = true;
+                SelectRoot(UiRootTab.Companions);
+            }, "secondary-action", "compact-action"));
+            bottom.Add(IconAction(_assets.iconHelp, "?", () => ShowToast("Tap a landmark pin to view its distance and AR availability."), "map-help-button"));
+            page.Add(bottom);
+
+            _runtime.LocationService.Activate();
+            _runtime.MapView.OnMarkerTapped -= OnRealMapMarkerTapped; // avoid a duplicate subscription if BuildMap runs again
+            _runtime.MapView.OnMarkerTapped += OnRealMapMarkerTapped;
+
+            page.RegisterCallback<GeometryChangedEvent>(_ => ApplyRealMapMargins(top, bottom));
+            ApplyRealMapMargins(top, bottom);
+            RenderRealMapMarkers();
+        }
+
+        void ApplyRealMapMargins(VisualElement topBar, VisualElement bottomBar)
+        {
+            var panelHeight = _document.rootVisualElement.resolvedStyle.height;
+            if (float.IsNaN(panelHeight) || panelHeight <= 0f) return;
+            var scale = Screen.height / panelHeight;
+
+            var topEdgeScreenPx = topBar.worldBound.yMax * scale;
+            var bottomEdgeScreenPx = bottomBar.worldBound.yMin * scale;
+            var (left, top, right, bottom) = WebViewMapMargins.Compute(topEdgeScreenPx, bottomEdgeScreenPx, Screen.width, Screen.height);
+            _runtime.MapView.SetMargins(left, top, right, bottom);
+        }
+
+        void RenderRealMapMarkers()
+        {
+            if (!_runtime.LocationService.HasFix) return;
+            var markers = new List<WebViewMapMarker>();
+            foreach (var marker in _mapData.Markers)
+            {
+                if (marker.type != MapMarkerType.Landmark) continue;
+                var landmark = _runtime.GeoCatalog?.Find(marker.targetId);
+                if (landmark == null) continue;
+                markers.Add(new WebViewMapMarker(marker.targetId, marker.label, landmark.Location));
+            }
+            _runtime.MapView.Render(_runtime.LocationService.Current, markers);
+        }
+
+        void OnRealMapMarkerTapped(string landmarkId)
+        {
+            _runtime.SelectedLandmarkIndex = FindLandmarkIndex(landmarkId);
+            Navigate(UiRoute.LandmarkDetail);
+        }
+
+        void BuildIllustratedMapFallback(VisualElement page)
+        {
             var viewport = new VisualElement { name = "illustrated-map-viewport" };
             viewport.AddToClassList("map-viewport");
             var canvas = new VisualElement { name = "illustrated-map-canvas" };
