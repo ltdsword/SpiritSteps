@@ -25,10 +25,12 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
-        public void RouteCatalogContainsThirteenScreensAndFourRoots()
+        public void RouteCatalogContainsTwelveScreensAndFourRoots()
         {
-            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(13));
-            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(13));
+            // The AR migration merged LandmarkArMemory + ArPhoto into one PetAr route;
+            // the Activity Dashboard remains a separate Home screen.
+            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(12));
+            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(12));
             Assert.That(Enum.GetValues(typeof(UiRootTab)).Length, Is.EqualTo(4));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Map), Is.EqualTo(UiRoute.HomeMap));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Companions), Is.EqualTo(UiRoute.CompanionCollection));
@@ -64,10 +66,10 @@ namespace ARWalking.Tests.EditMode
             Assert.That(save.displayName, Is.EqualTo("Mai"));
             Assert.That(save.setupComplete, Is.True);
             Assert.That(save.coins, Is.Zero);
-            Assert.That(save.FindCompanion(PrototypeIds.Dog).unlocked, Is.True);
-            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(450));
-            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.False);
-            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.False);
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(450));
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.False);
+            Assert.That(save.FindCompanion(PrototypeIds.Deer).unlocked, Is.False);
         }
 
         [Test]
@@ -115,7 +117,7 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
-        public void WalkRewardsOnlyPreviouslyUnlockedCompanionsAndUnlocksCatAtOneKilometre()
+        public void WalkRewardsOnlyPreviouslyUnlockedCompanionsAndUnlocksHuskyAtOneKilometre()
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics
@@ -124,12 +126,12 @@ namespace ARWalking.Tests.EditMode
             });
             Assert.That(result.coinsAwarded, Is.EqualTo(30));
             Assert.That(save.coins, Is.EqualTo(30));
-            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(550));
-            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.True);
-            Assert.That(save.FindCompanion(PrototypeIds.Cat).growthExperience, Is.Zero, "Cat was locked before this walk");
-            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).growthExperience, Is.Zero);
-            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Dog }));
-            Assert.That(result.newlyUnlockedCompanionIds, Does.Contain(PrototypeIds.Cat));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(550));
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).growthExperience, Is.Zero, "Husky was locked before this walk");
+            Assert.That(save.FindCompanion(PrototypeIds.Deer).growthExperience, Is.Zero);
+            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Corgi }));
+            Assert.That(result.newlyUnlockedCompanionIds, Does.Contain(PrototypeIds.Husky));
             Assert.That(save.totalSteps, Is.EqualTo(1600));
         }
 
@@ -139,7 +141,7 @@ namespace ARWalking.Tests.EditMode
             var save = PlayerSaveData.CreateNew("Mai");
             var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics { distanceKilometres = .75f, elapsedSeconds = 300f });
             Assert.That(result.coinsAwarded, Is.Zero);
-            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(450));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(450));
             Assert.That(save.totalDistanceKilometres, Is.EqualTo(.75f));
         }
 
@@ -149,10 +151,10 @@ namespace ARWalking.Tests.EditMode
             var save = PlayerSaveData.CreateNew("Mai");
             var service = new CompanionProgressionService(save);
             var eligibleAtStart = service.CaptureUnlockedCompanionIds();
-            save.FindCompanion(PrototypeIds.Rabbit).unlocked = true;
+            save.FindCompanion(PrototypeIds.Deer).unlocked = true;
             var result = service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, eligibleAtStart);
-            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Dog }));
-            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).growthExperience, Is.Zero);
+            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Corgi }));
+            Assert.That(save.FindCompanion(PrototypeIds.Deer).growthExperience, Is.Zero);
         }
 
         [Test]
@@ -160,29 +162,29 @@ namespace ARWalking.Tests.EditMode
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var service = new CompanionProgressionService(save);
-            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Cat).success, Is.False);
-            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Dog).error, Is.EqualTo("Not enough Coins."));
+            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Husky).success, Is.False);
+            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Corgi).error, Is.EqualTo("Not enough Coins."));
             save.coins = 40;
-            var result = service.PurchaseAndFeed("better-food", PrototypeIds.Dog);
+            var result = service.PurchaseAndFeed("better-food", PrototypeIds.Corgi);
             Assert.That(result.success, Is.True);
             Assert.That(result.coinsSpent, Is.EqualTo(40));
-            Assert.That(save.FindCompanion(PrototypeIds.Dog).growthExperience, Is.EqualTo(490));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(490));
             save.coins = 20;
-            result = service.PurchaseAndFeed("basic-food", PrototypeIds.Dog);
+            result = service.PurchaseAndFeed("basic-food", PrototypeIds.Corgi);
             Assert.That(result.StageChanged, Is.True);
             Assert.That(result.currentStage, Is.EqualTo(GrowthStage.Young));
         }
 
         [Test]
-        public void CentralPostOfficeRewardUnlocksRabbitAndIsIdempotent()
+        public void CentralPostOfficeRewardUnlocksDeerAndIsIdempotent()
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var service = new CompanionProgressionService(save);
-            var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Rabbit, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
-            var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Rabbit, DateTime.UtcNow);
+            var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Deer, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
+            var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Deer, DateTime.UtcNow);
             Assert.That(first.newlyCompleted, Is.True);
-            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Rabbit));
-            Assert.That(save.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Deer));
+            Assert.That(save.FindCompanion(PrototypeIds.Deer).unlocked, Is.True);
             Assert.That(save.stamps.Select(item => item.stampId), Is.EquivalentTo(new[] { PrototypeIds.CentralPostOfficeStamp }));
             Assert.That(save.journeys.Count, Is.EqualTo(1));
             Assert.That(second.newlyCompleted, Is.False);
@@ -201,10 +203,10 @@ namespace ARWalking.Tests.EditMode
             Assert.That(noRewardResult.stampId, Is.EqualTo(PrototypeIds.IndependencePalace + "-stamp"));
             Assert.That(noRewardResult.unlockedCompanionId, Is.Empty);
 
-            // Any landmark id can carry any companion reward - it is no longer hardcoded to Central Post Office/Rabbit.
-            var rewardResult = service.CompleteLandmarkMemory(PrototypeIds.NotreDameBasilica, PrototypeIds.Cat, DateTime.UtcNow);
-            Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Cat));
-            Assert.That(save.FindCompanion(PrototypeIds.Cat).unlocked, Is.True);
+            // Any landmark id can carry any companion reward - it is no longer hardcoded to Central Post Office/Deer.
+            var rewardResult = service.CompleteLandmarkMemory(PrototypeIds.NotreDameBasilica, PrototypeIds.Husky, DateTime.UtcNow);
+            Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Husky));
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
         }
 
         [Test]
@@ -267,15 +269,16 @@ namespace ARWalking.Tests.EditMode
             var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
             var library = Resources.Load<PrototypeUiAssets>("UI/PrototypeUiAssets");
             Assert.That(catalog, Is.Not.Null);
-            Assert.That(catalog.companions.Select(item => item.id), Is.EquivalentTo(new[] { PrototypeIds.Dog, PrototypeIds.Cat, PrototypeIds.Rabbit }));
+            Assert.That(catalog.companions.Select(item => item.id),
+                Is.EquivalentTo(CompanionRoster.Entries.Select(e => e.Id)));
             Assert.That(catalog.foods.Count, Is.EqualTo(2));
             Assert.That(catalog.landmarks.Count, Is.EqualTo(3));
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).imageTargetReady, Is.True);
-            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).companionRewardId, Is.EqualTo(PrototypeIds.Rabbit));
+            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).companionRewardId, Is.EqualTo(PrototypeIds.Deer));
             Assert.That(catalog.landmarks.Where(item => item.id != PrototypeIds.CentralPostOffice).Select(item => item.companionRewardId),
                 Is.All.Null.Or.Empty, "Only Central Post Office is configured with a companion reward today.");
             Assert.That(library, Is.Not.Null);
-            Assert.That(library.companions.Length, Is.EqualTo(3));
+            Assert.That(library.companions.Length, Is.EqualTo(CompanionRoster.Entries.Length));
             Assert.That(library.archivedPlantPlaceholders.Length, Is.EqualTo(3));
             Assert.That(library.landmarks.Length, Is.EqualTo(3));
             Assert.That(new[]

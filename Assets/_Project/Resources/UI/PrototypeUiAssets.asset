@@ -17,9 +17,23 @@ MonoBehaviour:
   journeyOne: {fileID: 2800000, guid: 02dbe11adc4bcc44eb8710ea65d5a167, type: 3}
   journeyTwo: {fileID: 2800000, guid: 762d382e444172c4fb75e075eb9ceb2f, type: 3}
   companions:
-  - {fileID: 2800000, guid: 4315eabbf801c0d4a87278c6fba919bc, type: 3}
-  - {fileID: 2800000, guid: 160647671713b2e449d67fb78c5c048f, type: 3}
-  - {fileID: 2800000, guid: dfaaf1004432637448ae7f805e7cfe8c, type: 3}
+  - {fileID: 2800000, guid: 5472873b42c6a2a45ab8102ac3008327, type: 3}
+  - {fileID: 2800000, guid: 62e0c8508b575ae45a684f79884d35f1, type: 3}
+  - {fileID: 2800000, guid: ae23f12550d27da4a80b2b54554fd665, type: 3}
+  - {fileID: 2800000, guid: 937e24bfb7f2cc142b4d01234eb9538f, type: 3}
+  - {fileID: 2800000, guid: 45769f6178f6b8344a8db35255709eb8, type: 3}
+  - {fileID: 2800000, guid: 26b4e7a83cd74d74e9ef54288a54f0d4, type: 3}
+  - {fileID: 2800000, guid: 866124a36917fd7419efd9c8c890260d, type: 3}
+  - {fileID: 2800000, guid: de3c161e723f75f4db8a632fc769634c, type: 3}
+  - {fileID: 2800000, guid: 6ed0a5f90927f434eb1b0c7b867e35e3, type: 3}
+  - {fileID: 2800000, guid: 5e00b8a14a2f11349bfa5bf98197135b, type: 3}
+  - {fileID: 2800000, guid: 29effd2043128c04b98fe55273203258, type: 3}
+  - {fileID: 2800000, guid: 0c4dc556c356a61428b32b17936dadca, type: 3}
+  - {fileID: 2800000, guid: 89369c41670cc4d45bed103abb11fb89, type: 3}
+  - {fileID: 2800000, guid: 6dba23c520b6bf94a81aacd316f6832b, type: 3}
+  - {fileID: 2800000, guid: 7ed48ac9c6d27024ea385969ec7c65e7, type: 3}
+  - {fileID: 2800000, guid: a3dc3c9006e809043b052f1d86d9ecc1, type: 3}
+  - {fileID: 2800000, guid: 092e4781b06c00b49a6b8461e1c7dcbb, type: 3}
   archivedPlantPlaceholders:
   - {fileID: 2800000, guid: 97c5668898921d84e9138b5498576959, type: 3}
   - {fileID: 2800000, guid: b1eeb57285ef9344da3a90bb70b0f26e, type: 3}

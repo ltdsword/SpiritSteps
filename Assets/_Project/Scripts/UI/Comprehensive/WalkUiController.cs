@@ -1,6 +1,5 @@
 using Unity.AppUI.UI;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using AppPanel = Unity.AppUI.UI.Panel;
 using UiButton = UnityEngine.UIElements.Button;
@@ -8,6 +7,13 @@ using UiImage = UnityEngine.UIElements.Image;
 
 namespace ARWalking.UI
 {
+    /// <summary>
+    /// Landmark AR Memory overlay (History -> Architecture -> Did You Know -> Collect Stamp),
+    /// rendered as a UI Toolkit panel layered on top of the real AR camera in the shared
+    /// "PetAr" scene. Only active when <see cref="PetArSceneContext.LandmarkId"/> is set - the
+    /// plain pet-viewing flows (Photo/Feed/Companion/Walk) leave this panel empty and rely on
+    /// CorgiAR's uGUI HUD instead. See docs/AR-3D-INTEGRATION-CONTRACT.md.
+    /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UIDocument))]
     public sealed class WalkUiController : MonoBehaviour
@@ -22,27 +28,34 @@ namespace ARWalking.UI
         bool _stampCollected;
 
         public UiRoute CurrentRoute => _runtime.Navigator.CurrentRoute;
+        public bool HasLandmarkMemory => !string.IsNullOrEmpty(PetArSceneContext.LandmarkId);
 
         void Start()
         {
             _runtime = UiPrototypeRuntime.EnsureExists();
             _document = GetComponent<UIDocument>();
-            if (_document.panelSettings == null) _document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingPanelSettings");
+            if (_document.panelSettings == null) _document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings");
             var root = _document.rootVisualElement;
             root.Clear();
             var styleSheet = Resources.Load<StyleSheet>("UI/ARWalking");
             if (styleSheet != null) root.styleSheets.Add(styleSheet);
             _panel = new AppPanel { name = "ar-walking-ar-panel", theme = "light", scale = "medium" };
-            _panel.AddToClassList("app-root"); root.Add(_panel);
+            _panel.AddToClassList("app-root"); _panel.AddToClassList("ar-panel-root"); root.Add(_panel);
+            // Inline styles always win over any USS rule, including the App UI package's own
+            // theme stylesheet (Panel's "light" theme paints an opaque app background by design -
+            // no class selector in our own stylesheet can out-rank that). This is the one place
+            // that must actually be transparent so the real AR camera shows through.
+            _panel.style.backgroundColor = new StyleColor(Color.clear);
+            root.style.backgroundColor = new StyleColor(Color.clear);
             _safeRoot = new VisualElement { name = "safe-area" }; _safeRoot.AddToClassList("safe-area"); _panel.Add(_safeRoot);
+            _safeRoot.style.backgroundColor = new StyleColor(Color.clear);
             _document.rootVisualElement.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
             ApplySafeArea();
             _runtime.Navigator.Changed += Render;
             _runtime.CompanionTapped += OnCompanionTapped;
-            if (_runtime.Navigator.CurrentRoute != UiRoute.LandmarkArMemory && _runtime.Navigator.CurrentRoute != UiRoute.ArPhoto)
-                _runtime.Navigator.Push(UiRoute.LandmarkArMemory);
-            else Render();
-            ShowToast("Camera permission is requested here when the real AR camera is connected.");
+            _memoryPage = 0;
+            _stampCollected = false;
+            Render();
         }
 
         void OnDisable()
@@ -56,23 +69,22 @@ namespace ARWalking.UI
         {
             var screenSize = new Vector2Int(Screen.width, Screen.height);
             if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize) ApplySafeArea();
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) BackOrExit();
         }
 
         public void SimulateImageTargetRecognition() { _memoryPage = 1; Render(); }
 
         /// <summary>
-        /// AR/3D integration hook: call this from the real Vuforia target-found handler once an Image Target
-        /// is recognized, instead of the "Simulate recognition" debug button - see docs/AR-3D-INTEGRATION-CONTRACT.md.
-        /// The debug button stays wired to the same logic as a demo fallback if live recognition is unreliable.
+        /// AR/3D integration hook: call this from the real AR Foundation image-target/plane
+        /// recognition handler once the Landmark is recognized, instead of the "Simulate
+        /// recognition" debug button - see docs/AR-3D-INTEGRATION-CONTRACT.md. The debug button
+        /// stays wired to the same logic as a demo fallback if live recognition is unreliable.
         /// </summary>
         public void OnImageTargetRecognized() => SimulateImageTargetRecognition();
 
         public void NextMemoryPage() { _memoryPage = Mathf.Min(3, _memoryPage + 1); Render(); }
         public LandmarkRewardDto CollectStamp()
         {
-            var landmark = _runtime.Data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _runtime.Data.Landmarks.Count - 1)];
-            var result = _runtime.CompleteLandmarkMemory(landmark.id);
+            var result = _runtime.CompleteLandmarkMemory(PetArSceneContext.LandmarkId);
             _stampCollected = true;
             var unlockedName = string.IsNullOrEmpty(result.unlockedCompanionId) ? null : CompanionName(result.unlockedCompanionId);
             ShowToast(result.newlyCompleted
@@ -85,37 +97,42 @@ namespace ARWalking.UI
         void OnCompanionTapped(string companionId) => ShowToast(CompanionName(companionId) + " reacted!");
         string CompanionName(string id) { foreach (var item in _runtime.Data.Companions) if (item.id == id) return item.name; return id; }
 
-        public void OpenPhoto() => _runtime.Navigator.Push(UiRoute.ArPhoto);
-        public void ExitToHome() => _runtime.ReturnFromArToHome();
-        public void BackOrExit()
-        {
-            if (_runtime.Navigator.CurrentRoute == UiRoute.ArPhoto) _runtime.Navigator.Back();
-            else ExitToHome();
-        }
+        public void ExitToHome() => _runtime.ReturnFromPetAr();
 
         void Render()
         {
             if (_safeRoot == null) return;
             _safeRoot.Clear();
-            if (_runtime.Navigator.CurrentRoute == UiRoute.ArPhoto) BuildPhotoPreview();
-            else BuildLandmarkAr();
-        }
 
-        void BuildLandmarkAr()
-        {
-            var landmark = _runtime.Data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _runtime.Data.Landmarks.Count - 1)];
-            var page = new VisualElement { name = "landmark-ar-memory-screen" }; page.AddToClassList("ar-page");
-            var backdrop = new UiImage { image = _runtime.Assets.arScene, scaleMode = ScaleMode.ScaleAndCrop, pickingMode = PickingMode.Ignore };
-            backdrop.AddToClassList("ar-backdrop"); page.Add(backdrop);
+            // Always-present top bar with a Back button: CorgiAR's uGUI HUD has no exit control
+            // of its own (it was a standalone sandbox scene), so this UI Toolkit overlay - already
+            // layered above the AR camera and the HUD Canvas - is the one place every PetAr entry
+            // point (plain pet viewing included) gets a way back to Home.
+            var page = new VisualElement { name = "pet-ar-top-bar-screen" }; page.AddToClassList("ar-page");
+            page.pickingMode = PickingMode.Ignore;
+            page.style.backgroundColor = new StyleColor(Color.clear);
             var top = new VisualElement(); top.AddToClassList("ar-top-bar");
             top.Add(IconButton(_runtime.Assets.iconBack, "BACK", ExitToHome, "ar-exit"));
-            var copy = Column(); copy.Add(Label(landmark.name, "title")); copy.Add(Label("Simulated Image Target demo", "ar-alert")); top.Add(copy);
-            top.Add(IconButton(_runtime.Assets.iconCamera, "PIC", OpenPhoto, "ar-photo")); page.Add(top);
+            page.Add(top);
+            _safeRoot.Add(page);
+
+            if (HasLandmarkMemory) BuildLandmarkAr(page, top);
+        }
+
+        void BuildLandmarkAr(VisualElement page, VisualElement top)
+        {
+            var landmarkId = PetArSceneContext.LandmarkId;
+            LandmarkUiData landmark = null;
+            foreach (var candidate in _runtime.Data.Landmarks)
+                if (candidate.id == landmarkId) landmark = candidate;
+            if (landmark == null) return;
+
+            var copy = Column(); copy.Add(Label(landmark.name, "title")); copy.Add(Label("AR Memory", "ar-alert")); top.Add(copy);
 
             var guide = new VisualElement(); guide.AddToClassList("ar-guide");
             if (_memoryPage == 0)
             {
-                guide.Add(Label("Point the camera at the Central Post Office Image Target", "body"));
+                guide.Add(Label("Point the camera at " + landmark.name, "body"));
                 guide.Add(Button("Simulate recognition", SimulateImageTargetRecognition, "primary-action"));
             }
             else
@@ -128,34 +145,6 @@ namespace ARWalking.UI
                 else guide.Add(Button("View Journey", () => _runtime.ReturnHome(UiRootTab.Journey), "primary-action"));
             }
             page.Add(guide);
-
-            var companion = new UiImage { image = _runtime.Assets.Companion(0), scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            companion.AddToClassList("ar-companion"); page.Add(companion);
-            _safeRoot.Add(page);
-        }
-
-        void BuildPhotoPreview()
-        {
-            var page = new VisualElement { name = "ar-photo-preview-screen" }; page.AddToClassList("ar-page");
-            var preview = new UiImage { image = _runtime.Assets.arScene, scaleMode = ScaleMode.ScaleAndCrop, pickingMode = PickingMode.Ignore };
-            preview.AddToClassList("photo-preview"); page.Add(preview);
-            var companion = new UiImage { image = _runtime.Assets.Companion(0), scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            companion.AddToClassList("photo-companion"); page.Add(companion);
-            var top = new VisualElement(); top.AddToClassList("ar-top-bar");
-            top.Add(IconButton(_runtime.Assets.iconBack, "BACK", () => _runtime.Navigator.Back(), "photo-back")); top.Add(Label("AR photo preview", "title")); page.Add(top);
-            var card = new VisualElement(); card.AddToClassList("photo-caption-card");
-            card.Add(Label("Dog at Central Post Office", "subtitle")); card.Add(Label("Temporary preview; real camera capture is not connected", "body")); page.Add(card);
-            var actions = new VisualElement(); actions.AddToClassList("photo-actions");
-            actions.Add(Button("Retake", () => _runtime.Navigator.Back(), "secondary-action"));
-            actions.Add(Button("Save photo path", SavePhoto, "primary-action")); page.Add(actions);
-            _safeRoot.Add(page);
-        }
-
-        public void SavePhoto()
-        {
-            _runtime.SaveArPhoto();
-            ShowToast("Photo path saved to the local profile");
-            _runtime.Navigator.Back();
         }
 
         void ShowToast(string message)

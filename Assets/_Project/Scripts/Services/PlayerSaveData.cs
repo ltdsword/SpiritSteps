@@ -16,7 +16,11 @@ namespace ARWalking.UI
     public sealed class JourneyEntryData
     {
         public string id;
+        /// <summary>Set for Landmark-flow entries (AR Memory / stamp); null for pet-photo entries.</summary>
         public string landmarkId;
+        /// <summary>Set for a photo taken of a pet outside the Landmark flow (Photo/Feed/Companion/Walk
+        /// entry points into PetAr); null for Landmark-flow entries.</summary>
+        public string companionId;
         public string title;
         public string summary;
         public string createdUtc;
@@ -49,7 +53,9 @@ namespace ARWalking.UI
     [Serializable]
     public sealed class PlayerSaveData
     {
-        public const int CurrentSchemaVersion = 1;
+        /// <summary>v2: companion roster switched from dog/cat/rabbit to the 17-pet CorgiAR
+        /// roster (see CompanionRoster); old ids are dropped on load by RepairCollections().</summary>
+        public const int CurrentSchemaVersion = 2;
 
         public int schemaVersion = CurrentSchemaVersion;
         public bool setupComplete;
@@ -71,18 +77,9 @@ namespace ARWalking.UI
             if (!IsValidDisplayName(normalized))
                 throw new ArgumentException("Display name must contain 1 to 20 characters.", nameof(displayName));
 
-            return new PlayerSaveData
-            {
-                setupComplete = true,
-                displayName = normalized,
-                coins = 0,
-                companions = new List<CompanionProgressData>
-                {
-                    new CompanionProgressData { companionId = PrototypeIds.Dog, unlocked = true, growthExperience = 450 },
-                    new CompanionProgressData { companionId = PrototypeIds.Cat, unlocked = false, growthExperience = 0 },
-                    new CompanionProgressData { companionId = PrototypeIds.Rabbit, unlocked = false, growthExperience = 0 }
-                }
-            };
+            var save = new PlayerSaveData { setupComplete = true, displayName = normalized, coins = 0 };
+            save.RepairCollections();
+            return save;
         }
 
         public static string NormalizeDisplayName(string value) => (value ?? string.Empty).Trim();
@@ -105,9 +102,18 @@ namespace ARWalking.UI
             journeys = journeys ?? new List<JourneyEntryData>();
             savedPhotoPaths = savedPhotoPaths ?? new List<string>();
             dailyActivity = dailyActivity ?? new List<DailyActivityData>();
-            EnsureCompanion(PrototypeIds.Dog, true, 450);
-            EnsureCompanion(PrototypeIds.Cat, false, 0);
-            EnsureCompanion(PrototypeIds.Rabbit, false, 0);
+
+            // Drop companion ids from an older roster (e.g. the pre-migration dog/cat/rabbit
+            // save format) that no longer exist in CompanionRoster.
+            var validIds = new HashSet<string>();
+            foreach (var entry in CompanionRoster.Entries) validIds.Add(entry.Id);
+            companions.RemoveAll(item => item == null || !validIds.Contains(item.companionId));
+
+            foreach (var entry in CompanionRoster.Entries)
+            {
+                var isStarter = entry.UnlockDistanceKilometres <= 0f;
+                EnsureCompanion(entry.Id, isStarter, isStarter ? 450 : 0);
+            }
         }
 
         void EnsureCompanion(string id, bool unlocked, int experience)

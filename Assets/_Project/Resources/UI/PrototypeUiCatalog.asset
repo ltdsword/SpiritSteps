@@ -13,23 +13,109 @@ MonoBehaviour:
   m_Name: PrototypeUiCatalog
   m_EditorClassIdentifier: ARWalking.Runtime::ARWalking.UI.PrototypeUiCatalog
   companions:
-  - id: dog
-    name: Dog
+  - id: corgi
+    name: Corgi
     description: A loyal starter who gains Growth EXP from completed kilometres and
       food.
-    imageKey: dog-corgi
+    imageKey: corgi
     unlockHint: Starter companion
-  - id: cat
-    name: Cat
-    description: A curious companion unlocked after 1 km of total walking distance.
-    imageKey: temporary-plant-cat
+    unlockDistanceKilometres: 0
+  - id: uaa_husky
+    name: Husky
+    description: A companion unlocked after 1 km of total walking distance.
+    imageKey: uaa_husky
     unlockHint: Walk 1 km total to unlock
-  - id: rabbit
-    name: Rabbit
-    description: A bright companion unlocked by collecting the Central Post Office
-      Stamp.
-    imageKey: temporary-plant-rabbit
+    unlockDistanceKilometres: 1
+  - id: uaa_fox
+    name: Fox
+    description: A companion unlocked after 2 km of total walking distance.
+    imageKey: uaa_fox
+    unlockHint: Walk 2 km total to unlock
+    unlockDistanceKilometres: 2
+  - id: uaa_wolf
+    name: Wolf
+    description: A companion unlocked after 3 km of total walking distance.
+    imageKey: uaa_wolf
+    unlockHint: Walk 3 km total to unlock
+    unlockDistanceKilometres: 3
+  - id: pug
+    name: Pug
+    description: A companion unlocked after 4 km of total walking distance.
+    imageKey: pug
+    unlockHint: Walk 4 km total to unlock
+    unlockDistanceKilometres: 4
+  - id: chihuahua
+    name: Chihuahua
+    description: A companion unlocked after 5 km of total walking distance.
+    imageKey: chihuahua
+    unlockHint: Walk 5 km total to unlock
+    unlockDistanceKilometres: 5
+  - id: cur
+    name: Shiba Inu (Kit)
+    description: A companion unlocked after 6 km of total walking distance.
+    imageKey: cur
+    unlockHint: Walk 6 km total to unlock
+    unlockDistanceKilometres: 6
+  - id: germanshepherd
+    name: German Shepherd
+    description: A companion unlocked after 7 km of total walking distance.
+    imageKey: germanshepherd
+    unlockHint: Walk 7 km total to unlock
+    unlockDistanceKilometres: 7
+  - id: uaa_shiba
+    name: Shiba Inu
+    description: A companion unlocked after 8 km of total walking distance.
+    imageKey: uaa_shiba
+    unlockHint: Walk 8 km total to unlock
+    unlockDistanceKilometres: 8
+  - id: uaa_alpaca
+    name: Alpaca
+    description: A companion unlocked after 9 km of total walking distance.
+    imageKey: uaa_alpaca
+    unlockHint: Walk 9 km total to unlock
+    unlockDistanceKilometres: 9
+  - id: uaa_deer
+    name: Deer
+    description: A companion unlocked by completing the Central Post Office AR Memory.
+    imageKey: uaa_deer
     unlockHint: Complete the Central Post Office AR Memory
+    unlockDistanceKilometres: 0
+  - id: uaa_stag
+    name: Stag
+    description: A companion unlocked after 10 km of total walking distance.
+    imageKey: uaa_stag
+    unlockHint: Walk 10 km total to unlock
+    unlockDistanceKilometres: 10
+  - id: uaa_donkey
+    name: Donkey
+    description: A companion unlocked after 12 km of total walking distance.
+    imageKey: uaa_donkey
+    unlockHint: Walk 12 km total to unlock
+    unlockDistanceKilometres: 12
+  - id: uaa_bull
+    name: Bull
+    description: A companion unlocked after 14 km of total walking distance.
+    imageKey: uaa_bull
+    unlockHint: Walk 14 km total to unlock
+    unlockDistanceKilometres: 14
+  - id: uaa_cow
+    name: Cow
+    description: A companion unlocked after 16 km of total walking distance.
+    imageKey: uaa_cow
+    unlockHint: Walk 16 km total to unlock
+    unlockDistanceKilometres: 16
+  - id: uaa_horse
+    name: Horse
+    description: A companion unlocked after 18 km of total walking distance.
+    imageKey: uaa_horse
+    unlockHint: Walk 18 km total to unlock
+    unlockDistanceKilometres: 18
+  - id: uaa_horse_white
+    name: White Horse
+    description: A companion unlocked after 20 km of total walking distance.
+    imageKey: uaa_horse_white
+    unlockHint: Walk 20 km total to unlock
+    unlockDistanceKilometres: 20
   foods:
   - id: basic-food
     name: Basic Food
@@ -53,7 +139,7 @@ MonoBehaviour:
       1.
     imageKey: independence-palace
     imageTargetReady: 0
-    companionRewardId:
+    companionRewardId: 
   - id: central-post-office
     name: Central Post Office
     localName: Buu dien Trung tam Sai Gon
@@ -64,7 +150,7 @@ MonoBehaviour:
     didYouKnow: The building still operates as a post office while welcoming visitors.
     imageKey: post-office
     imageTargetReady: 1
-    companionRewardId: rabbit
+    companionRewardId: uaa_deer
   - id: notre-dame-basilica
     name: Notre-Dame Basilica
     localName: Nha tho Duc Ba Sai Gon
@@ -75,7 +161,7 @@ MonoBehaviour:
     didYouKnow: Its central location makes it a common meeting point and city reference.
     imageKey: notre-dame
     imageTargetReady: 0
-    companionRewardId:
+    companionRewardId: 
   map:
     textureKey: hcm-illustrated
     regionName: District 1, Ho Chi Minh City
@@ -87,7 +173,7 @@ MonoBehaviour:
     type: 0
     label: Mock player position
     normalizedPosition: {x: 0.48, y: 0.58}
-    targetId:
+    targetId: 
   - id: palace
     type: 1
     label: Independence Palace

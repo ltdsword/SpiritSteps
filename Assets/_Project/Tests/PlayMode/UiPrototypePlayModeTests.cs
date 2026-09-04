@@ -63,7 +63,7 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Companions); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
             home.Navigate(UiRoute.CompanionDetail); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
             home.SelectRoot(UiRootTab.Shop); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ShopFood));
-            var feed = home.Feed("basic-food", PrototypeIds.Dog);
+            var feed = home.Feed("basic-food", PrototypeIds.Corgi);
             Assert.That(feed.success, Is.True);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(10));
             home.SelectRoot(UiRootTab.Journey); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyList));
@@ -107,15 +107,13 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator CentralPostOfficeScanStampRabbitJourneyAndIdempotenceWork()
+        public IEnumerator CentralPostOfficeScanStampDeerJourneyAndIdempotenceWork()
         {
             var home = CreateProfile();
-            UiPrototypeRuntime.Instance.SelectedLandmarkIndex = 1;
-            home.Navigate(UiRoute.LandmarkDetail);
-            UiPrototypeRuntime.Instance.EnterLandmarkAr();
-            yield return WaitForScene("Walk");
+            UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, false, PendingPetInteraction.None, PrototypeIds.CentralPostOffice);
+            yield return WaitForScene("PetAr");
             var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
-            Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.LandmarkArMemory));
+            Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.PetAr));
             var arBackIcon = ar.GetComponent<UIDocument>().rootVisualElement
                 .Q<UnityEngine.UIElements.Button>("ar-exit")?.Q<UnityEngine.UIElements.Image>("icon-image");
             Assert.That(arBackIcon, Is.Not.Null);
@@ -125,9 +123,9 @@ namespace ARWalking.Tests.PlayMode
             var first = ar.CollectStamp();
             var second = ar.CollectStamp();
             Assert.That(first.newlyCompleted, Is.True);
-            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Rabbit));
+            Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Deer));
             Assert.That(second.newlyCompleted, Is.False);
-            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Deer).unlocked, Is.True);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.stamps.Count, Is.EqualTo(1));
         }
@@ -136,15 +134,14 @@ namespace ARWalking.Tests.PlayMode
         public IEnumerator ArPhotoSaveAndRestartReloadPersistData()
         {
             var home = CreateProfile();
-            UiPrototypeRuntime.Instance.SelectedLandmarkIndex = 1;
-            home.Navigate(UiRoute.LandmarkDetail);
-            UiPrototypeRuntime.Instance.EnterLandmarkAr();
-            yield return WaitForScene("Walk");
+            UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, true, PendingPetInteraction.None, PrototypeIds.CentralPostOffice);
+            yield return WaitForScene("PetAr");
             var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
             ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage(); ar.CollectStamp();
-            ar.OpenPhoto(); yield return null;
-            Assert.That(ar.CurrentRoute, Is.EqualTo(UiRoute.ArPhoto));
-            ar.SavePhoto();
+
+            // The real capture button lives on CorgiAR's uGUI HUD (ArPhotoCapture.Capture());
+            // this exercises the same hand-off hook it calls, without needing a live AR camera frame.
+            UiPrototypeRuntime.Instance.SaveArPhoto(new byte[] { 1, 2, 3, 4 });
             Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Single().photoPath,
                 Is.EqualTo(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Single()),
@@ -157,7 +154,26 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(UiPrototypeRuntime.Instance.SaveData.savedPhotoPaths.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Single().photoPath, Is.Not.Null.And.Not.Empty);
-            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Rabbit).unlocked, Is.True);
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Deer).unlocked, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator ArPhotoOfAPlainPetViewLinksToAPerPetPerDayJourneyEntry()
+        {
+            var home = CreateProfile();
+            UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, true);
+            yield return WaitForScene("PetAr");
+
+            UiPrototypeRuntime.Instance.SaveArPhoto(new byte[] { 1, 2, 3, 4 });
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
+            var journey = UiPrototypeRuntime.Instance.SaveData.journeys.Single();
+            Assert.That(journey.companionId, Is.EqualTo(PrototypeIds.Corgi));
+            Assert.That(journey.landmarkId, Is.Null.Or.Empty);
+
+            // A second photo of the same pet on the same day updates the same entry rather than
+            // creating a duplicate Journey record.
+            UiPrototypeRuntime.Instance.SaveArPhoto(new byte[] { 5, 6, 7, 8 });
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -166,14 +182,14 @@ namespace ARWalking.Tests.PlayMode
             CreateProfile();
             var runtime = UiPrototypeRuntime.Instance;
 
-            var dog = runtime.GetCompanionVisualState(PrototypeIds.Dog);
-            Assert.That(dog.unlocked, Is.True);
-            Assert.That(dog.stage, Is.EqualTo(GrowthStage.Baby), "Dog starts at 450 EXP, still under the 500 Baby/Young boundary.");
-            Assert.That(dog.scale, Is.EqualTo(0.70f));
+            var starter = runtime.GetCompanionVisualState(PrototypeIds.Corgi);
+            Assert.That(starter.unlocked, Is.True);
+            Assert.That(starter.stage, Is.EqualTo(GrowthStage.Baby), "The starter begins at 450 EXP, still under the 500 Baby/Young boundary.");
+            Assert.That(starter.scale, Is.EqualTo(0.70f));
 
-            var cat = runtime.GetCompanionVisualState(PrototypeIds.Cat);
-            Assert.That(cat.unlocked, Is.False);
-            Assert.That(cat.scale, Is.Zero, "A locked companion has no meaningful display scale.");
+            var husky = runtime.GetCompanionVisualState(PrototypeIds.Husky);
+            Assert.That(husky.unlocked, Is.False);
+            Assert.That(husky.scale, Is.Zero, "A locked companion has no meaningful display scale.");
 
             yield return null;
         }

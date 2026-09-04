@@ -85,11 +85,14 @@ namespace ARWalking.UI
                 _save.totalSteps += result.steps;
             }
 
-            var cat = _save.FindCompanion(PrototypeIds.Cat);
-            if (!cat.unlocked && _save.totalDistanceKilometres >= 1f)
+            foreach (var entry in CompanionRoster.Entries)
             {
-                cat.unlocked = true;
-                result.newlyUnlockedCompanionIds.Add(PrototypeIds.Cat);
+                if (float.IsPositiveInfinity(entry.UnlockDistanceKilometres)) continue; // Landmark-reward only
+                var candidate = _save.FindCompanion(entry.Id);
+                if (candidate == null || candidate.unlocked) continue;
+                if (_save.totalDistanceKilometres < entry.UnlockDistanceKilometres) continue;
+                candidate.unlocked = true;
+                result.newlyUnlockedCompanionIds.Add(entry.Id);
             }
 
             RecordDailyActivity(distance, result.hasSteps, result.steps, utcNow);

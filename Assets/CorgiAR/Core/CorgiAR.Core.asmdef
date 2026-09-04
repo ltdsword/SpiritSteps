@@ -1,0 +1,6 @@
+{
+  "name": "CorgiAR.Core",
+  "rootNamespace": "CorgiAR",
+  "references": [],
+  "autoReferenced": true
+}
