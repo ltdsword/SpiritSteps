@@ -1,6 +1,6 @@
 {
   "name": "ARWalking.PlayModeTests",
-  "references": ["ARWalking.Runtime"],
+  "references": ["ARWalking.Runtime", "Unity.InputSystem", "Unity.InputSystem.TestFramework"],
   "optionalUnityReferences": ["TestAssemblies"],
   "autoReferenced": false
 }

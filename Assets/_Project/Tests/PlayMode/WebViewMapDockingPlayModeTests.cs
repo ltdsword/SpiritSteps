@@ -127,5 +127,19 @@ namespace ARWalking.Tests.PlayMode
             yield return null;
             Assert.That(_bridge.Visible, Is.True);
         }
+
+        [UnityTest]
+        public IEnumerator StartingAWalk_KeepsWebViewVisible()
+        {
+            var home = CreateProfile();
+            yield return null; yield return null; yield return null;
+            Assert.That(_bridge.Visible, Is.True);
+
+            home.BeginWalk();
+            yield return null;
+
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
+            Assert.That(_bridge.Visible, Is.True, "starting a walk must not hide the map WebView - ActiveWalk still renders the real map");
+        }
     }
 }

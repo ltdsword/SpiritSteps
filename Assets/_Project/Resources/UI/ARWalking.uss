@@ -369,7 +369,8 @@
 /* Walk result */
 .walk-result-page { background-color: rgb(47, 94, 61); padding: 42px; }
 .walk-result-close { position: absolute; right: 38px; top: 34px; }
-.walk-result-content { flex-grow: 1; align-items: center; justify-content: center; padding-top: 76px; }
+.walk-result-scroll { flex-grow: 1; min-height: 0; }
+.walk-result-content { flex-grow: 1; align-items: center; justify-content: center; padding-top: 76px; padding-bottom: 30px; }
 .walk-result-content > .title, .walk-result-content > .body, .walk-result-content > .eyebrow { color: white; -unity-text-align: middle-center; }
 .result-sparkle { width: 100px; height: 100px; margin-bottom: 8px; }
 .walk-result-card { width: 100%; margin-top: 32px; padding: 34px; }

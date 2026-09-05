@@ -38,6 +38,10 @@ namespace ARWalking.UI
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
         bool _pickingPetForPhoto;
+        Label _walkDistanceValueLabel;
+        Label _walkCoinsValueLabel;
+        Label _walkStepsValueLabel;
+        VisualElement _walkProgressFill;
         readonly Dictionary<string, Texture2D> _journeyPhotoCache = new Dictionary<string, Texture2D>();
         readonly Dictionary<string, VectorImage> _vectorIcons = new Dictionary<string, VectorImage>();
 
@@ -74,8 +78,23 @@ namespace ARWalking.UI
             var screenSize = new Vector2Int(Screen.width, Screen.height);
             if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize) ApplySafeArea();
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
-            if (_runtime.Navigator.CurrentRoute == UiRoute.HomeMap && _runtime.MapView != null && _runtime.MapView.IsAvailable)
+            if (IsMapRoute() && _runtime.MapView != null && _runtime.MapView.IsAvailable)
                 RenderRealMapMarkers();
+            if (_runtime.Navigator.CurrentRoute == UiRoute.ActiveWalk) RefreshWalkControlCard();
+        }
+
+        // Render() only rebuilds the walk-control-card on route/overlay changes, but distance/steps/coins
+        // change every frame during a walk - rewriting just these labels each frame keeps the numbers ticking
+        // live without rebuilding the whole page (which OnLocationUpdated firing every frame would make costly).
+        void RefreshWalkControlCard()
+        {
+            if (_walkDistanceValueLabel == null || !_runtime.WalkProvider.IsWalking) return;
+            var metrics = _runtime.WalkProvider.GetLiveMetrics();
+            var weekly = _runtime.GetWeeklyActivity();
+            _walkDistanceValueLabel.text = metrics.distanceKilometres.ToString("0.0");
+            if (_walkCoinsValueLabel != null) _walkCoinsValueLabel.text = "+" + Mathf.FloorToInt(metrics.distanceKilometres * 20f);
+            if (_walkStepsValueLabel != null) _walkStepsValueLabel.text = metrics.hasSteps ? metrics.steps.ToString("N0") : "--";
+            if (_walkProgressFill != null) _walkProgressFill.style.width = Length.Percent(DailyGoalRatio(metrics.distanceKilometres, weekly.dailyGoalKilometres) * 100f);
         }
 
         public void SelectRoot(UiRootTab root) => _runtime.Navigator.SwitchRoot(root);
@@ -112,9 +131,14 @@ namespace ARWalking.UI
         void SyncMapViewVisibility()
         {
             if (_runtime.MapView == null) return;
-            var onMapWithNoOverlay = _runtime.Navigator.CurrentRoute == UiRoute.HomeMap && _runtime.Navigator.CurrentOverlay == null;
+            var onMapWithNoOverlay = IsMapRoute() && _runtime.Navigator.CurrentOverlay == null;
             _runtime.MapView.SetActive(onMapWithNoOverlay);
         }
+
+        // BuildMap() renders the real/illustrated map for both of these routes (an active walk still shows
+        // the map), so anything gating on "is the map currently on screen" must match that pair, not just
+        // HomeMap alone - that mismatch previously left the WebView disabled for the entire ActiveWalk route.
+        bool IsMapRoute() => _runtime.Navigator.CurrentRoute == UiRoute.HomeMap || _runtime.Navigator.CurrentRoute == UiRoute.ActiveWalk;
 
         void Render()
         {
@@ -336,17 +360,24 @@ namespace ARWalking.UI
             var main = Column("walk-main-metric");
             main.Add(Label(walking ? "Walk in progress" : "Ready to explore", "small-label"));
             var distance = Element(null, "walk-distance-line");
-            distance.Add(Label(metrics.distanceKilometres.ToString("0.0"), "walk-distance-value"));
+            _walkDistanceValueLabel = Label(metrics.distanceKilometres.ToString("0.0"), "walk-distance-value");
+            distance.Add(_walkDistanceValueLabel);
             distance.Add(Label("km", "walk-distance-unit"));
             main.Add(distance);
             top.Add(main);
-            top.Add(Metric("+" + Mathf.FloorToInt(metrics.distanceKilometres * 20f), "coins", "walk-mini-metric", "sun-value"));
-            top.Add(Metric(metrics.hasSteps ? metrics.steps.ToString("N0") : "--", "steps", "walk-mini-metric", "blossom-value"));
+            var coinsMetric = Metric("+" + Mathf.FloorToInt(metrics.distanceKilometres * 20f), "coins", "walk-mini-metric", "sun-value");
+            _walkCoinsValueLabel = coinsMetric.Q<Label>(className: "metric-value");
+            top.Add(coinsMetric);
+            var stepsMetric = Metric(metrics.hasSteps ? metrics.steps.ToString("N0") : "--", "steps", "walk-mini-metric", "blossom-value");
+            _walkStepsValueLabel = stepsMetric.Q<Label>(className: "metric-value");
+            top.Add(stepsMetric);
             card.Add(top);
 
             var goal = Row("walk-goal-row");
             goal.Add(IconView("footprints", "walk-goal-icon", Primary, _assets != null ? _assets.iconSteps : null));
-            goal.Add(Progress(DailyGoalRatio(metrics.distanceKilometres, weekly.dailyGoalKilometres), "walk-progress"));
+            var progressTrack = Progress(DailyGoalRatio(metrics.distanceKilometres, weekly.dailyGoalKilometres), "walk-progress");
+            _walkProgressFill = progressTrack.Q<VisualElement>(className: "progress-fill");
+            goal.Add(progressTrack);
             goal.Add(Label(weekly.dailyGoalKilometres.ToString("0") + " km goal", "walk-goal-label"));
             card.Add(goal);
             card.Add(ActionWithIcon(walking ? "square" : "play", _assets != null ? _assets.iconSteps : null,
@@ -359,8 +390,8 @@ namespace ARWalking.UI
         {
             var result = _runtime.LastWalkResult ?? new WalkResultDto();
             var page = Page("walk-result-page", false);
-            var close = IconAction("x", _assets != null ? _assets.iconClose : null, "X", () => SelectRoot(UiRootTab.Map), "walk-result-close", "dark-round-control");
-            page.Add(close);
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "walk-result-scroll" };
+            scroll.AddToClassList("walk-result-scroll");
             var celebration = Element("walk-result-content", "walk-result-content");
             celebration.Add(IconView("sparkles", "result-sparkle", Rgb(250, 220, 116)));
             celebration.Add(Eyebrow("WALK COMPLETE"));
@@ -391,7 +422,13 @@ namespace ARWalking.UI
                 card.Add(InfoRow("sparkles", "New friend", CompanionName(id) + " joined your walk", "sun-info"));
             card.Add(ActionWithIcon("sparkles", null, "Collect & continue", () => SelectRoot(UiRootTab.Companions), "primary-action"));
             celebration.Add(card);
-            page.Add(celebration);
+            scroll.Add(celebration);
+            page.Add(scroll);
+
+            // Keep the exit above the scrolling layer so it remains reachable even when a large
+            // roster makes the reward summary several screens tall.
+            var close = IconAction("x", _assets != null ? _assets.iconClose : null, "X", () => SelectRoot(UiRootTab.Map), "walk-result-close", "dark-round-control");
+            page.Add(close);
         }
 
         void BuildCompanions()
