@@ -60,6 +60,21 @@ namespace CorgiAR
                 gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// Unity's destroyed-object null semantics are not respected by C#'s
+        /// null-conditional operator. Use this when the indicator can be destroyed
+        /// before an owner's OnDisable callback runs.
+        /// </summary>
+        public static void HideIfAlive(ref ThrowLandingIndicator indicator)
+        {
+            if (indicator == null)
+            {
+                indicator = null;
+                return;
+            }
+            indicator.Hide();
+        }
+
         private void Update()
         {
             if (!limited || line == null)

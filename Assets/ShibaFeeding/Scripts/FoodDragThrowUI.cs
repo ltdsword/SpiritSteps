@@ -100,8 +100,6 @@ namespace ShibaFeeding
                 buttonGraphic = GetComponent<Graphic>();
             if (visualFeedback == null)
                 visualFeedback = GetComponent<FoodSourceVisualFeedback>();
-            normalColor = new Color(0.05f, 0.09f, 0.12f, 0.38f);
-            pressedColor = new Color(0.08f, 0.16f, 0.15f, 0.52f);
             BuildRuntimeButtonVisual();
             SetButtonColor(normalColor);
         }
@@ -292,7 +290,7 @@ namespace ShibaFeeding
             shiba.EndFollowingHeldFood();
             releasedFood.SetHeld(false);
             throwBoundary?.SetThrowAimActive(false);
-            landingIndicator?.Hide();
+            ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
 
             float groundY = shiba.GetFoodLandingPoint().y;
             releasedFood.Launch(safeReleaseVelocity, shiba, groundY, boundedThrow);
@@ -427,8 +425,11 @@ namespace ShibaFeeding
             float groundY = shiba != null ? shiba.GetFoodLandingPoint().y : 0f;
             Plane heldPlane = new Plane(Vector3.up, new Vector3(0f, groundY + heldHeight, 0f));
             Ray ray = worldCamera.ScreenPointToRay(screenPosition);
+            // At grazing angles (camera nearly level with the held plane) a tiny finger
+            // movement can send this distance to near-zero or very far, making the held
+            // food visually snap bigger/smaller. Clamp to a plausible arm's-length range.
             if (heldPlane.Raycast(ray, out float distance))
-                return ConstrainHeldPosition(ray.GetPoint(distance));
+                return ConstrainHeldPosition(ray.GetPoint(Mathf.Clamp(distance, 0.4f, 2.6f)));
 
             return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, heldDepth)));
@@ -446,7 +447,7 @@ namespace ShibaFeeding
             safeReleaseVelocity = releaseVelocity;
             if (heldFood == null || throwBoundary == null || !throwBoundary.IsThrowBoundaryActive)
             {
-                landingIndicator?.Hide();
+                ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
                 return;
             }
 
@@ -463,7 +464,7 @@ namespace ShibaFeeding
         private void OnDisable()
         {
             throwBoundary?.SetThrowAimActive(false);
-            landingIndicator?.Hide();
+            ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
         }
 
         private void SetButtonColor(Color color)

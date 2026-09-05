@@ -159,7 +159,7 @@
 .icon-button #icon-image { width: 38px; height: 38px; min-width: 38px; min-height: 38px; align-self: center; }
 .small-round-control { width: 66px; height: 66px; min-width: 66px; min-height: 66px; border-radius: 33px; }
 .small-round-control #icon-image { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
-.dark-round-control { background-color: rgba(24, 34, 27, 0.58); border-width: 0; }
+.dark-round-control { background-color: rgba(20, 18, 16, 0.6); border-width: 0; }
 
 /* Global v0 status and bottom navigation */
 .top-status-bar {
@@ -546,3 +546,40 @@
 .ar-stamp-medallion { width: 250px; height: 250px; border-radius: 125px; border-width: 10px; border-color: rgba(255, 255, 255, 0.78); background-color: rgb(84, 190, 107); align-items: center; justify-content: center; margin-bottom: 30px; }
 .ar-stamp-icon { width: 130px; height: 130px; }
 .ar-collected-actions { width: 100%; max-width: 700px; margin-top: 26px; }
+
+/* Corgi AR gameplay HUD (CorgiArGlassHud) - matches the Claude Design "AR Play" mockup: flat
+   rgba() + border + large radius "glass" illusion, same technique as the rest of this file
+   (Unity UI Toolkit has no real backdrop-filter/blur). */
+.font-display { -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-VariableFont_wght.ttf"); -unity-font-style: bold; }
+.ar-top-stack { position: absolute; left: 24px; right: 24px; top: 56px; flex-direction: column; align-items: flex-start; }
+.ar-status-row { align-items: center; align-self: stretch; margin-bottom: 12px; margin-left: 16px; margin-right: 16px; }
+.ar-status-pill { min-height: 60px; flex-direction: row; align-items: center; padding: 12px 24px; border-radius: 30px; background-color: rgba(0, 0, 0, 0.46); border-width: 1px; border-color: rgba(255, 255, 255, 0.22); }
+.ar-status-label { color: white; font-size: 21px; -unity-text-align: middle-center; white-space: normal; }
+.ar-change-pet-card { flex-direction: row; align-items: center; border-radius: 99px; padding: 6px 16px 6px 6px; background-color: rgba(0, 0, 0, 0.46); border-width: 1px; border-color: rgba(255, 255, 255, 0.22); }
+.ar-change-pet-thumb { width: 46px; height: 46px; border-radius: 23px; border-width: 2px; border-color: rgba(255, 255, 255, 0.55); margin-right: 11px; overflow: hidden; }
+.ar-change-pet-kicker { font-size: 14px; color: rgba(255, 255, 255, 0.6); letter-spacing: 1px; }
+.ar-change-pet-title { font-size: 22px; color: white; margin-top: 2px; }
+.ar-change-pet-swap { width: 20px; height: 20px; margin-left: 8px; }
+.ar-interaction-row { position: absolute; left: 0; right: 0; bottom: 200px; flex-direction: row; justify-content: center; }
+.ar-interaction-item { flex-direction: column; align-items: center; margin-left: 18px; margin-right: 18px; }
+.ar-interaction-circle { width: 104px; height: 104px; border-radius: 52px; background-color: rgba(28, 25, 22, 0.82); border-width: 1px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-interaction-icon { width: 44px; height: 44px; }
+.ar-interaction-label { color: white; font-size: 18px; margin-top: 9px; -unity-text-align: middle-center; }
+.ar-cam-cluster { position: absolute; left: 26px; right: 26px; bottom: 36px; height: 140px; border-radius: 70px; background-color: rgba(22, 20, 18, 0.42); border-width: 1px; border-color: rgba(255, 255, 255, 0.12); flex-direction: row; align-items: center; justify-content: space-between; padding-left: 20px; padding-right: 20px; }
+.ar-cam-flip { width: 78px; height: 78px; border-radius: 39px; background-color: rgba(255, 255, 255, 0.1); border-width: 1px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-cam-flip-icon { width: 34px; height: 34px; }
+.ar-shutter-outer { width: 112px; height: 112px; border-radius: 56px; border-width: 5px; border-color: rgba(255, 255, 255, 0.95); background-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-shutter-inner { width: 84px; height: 84px; border-radius: 42px; background-color: white; align-items: center; justify-content: center; }
+.ar-shutter-icon { width: 40px; height: 40px; }
+.ar-gallery-button { width: 78px; height: 78px; border-radius: 39px; border-width: 1px; border-color: rgba(255, 255, 255, 0.16); overflow: hidden; align-items: center; justify-content: center; background-color: rgba(255, 255, 255, 0.1); }
+.ar-gallery-icon { width: 34px; height: 34px; }
+.ar-gallery-thumb { width: 100%; height: 100%; }
+.ar-gallery-badge { position: absolute; right: -4px; bottom: -4px; min-width: 32px; height: 32px; border-radius: 16px; background-color: rgb(84, 190, 107); align-items: center; justify-content: center; padding-left: 5px; padding-right: 5px; }
+.ar-gallery-badge-label { color: white; font-size: 16px; -unity-text-align: middle-center; }
+.ar-photo-viewer { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.94); align-items: center; }
+.ar-photo-viewer-close { position: absolute; right: 24px; top: 40px; width: 66px; height: 66px; border-radius: 33px; background-color: rgba(255, 255, 255, 0.14); align-items: center; justify-content: center; }
+.ar-photo-viewer-close-icon { width: 30px; height: 30px; }
+.ar-photo-viewer-image { flex-grow: 1; width: 92%; margin-top: 130px; margin-bottom: 20px; }
+.ar-photo-strip { flex-direction: row; height: 106px; padding-bottom: 24px; padding-left: 10px; }
+.ar-photo-strip-item { width: 86px; height: 86px; margin-left: 8px; margin-right: 8px; border-radius: 16px; border-width: 2px; border-color: rgba(255, 255, 255, 0.2); }
+.ar-photo-strip-item-selected { border-color: rgb(84, 190, 107); }

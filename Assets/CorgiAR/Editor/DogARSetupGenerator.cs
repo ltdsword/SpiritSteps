@@ -239,6 +239,8 @@ namespace CorgiAR.EditorTools
                 var headLook = root.AddComponent<PetHeadLook>();
                 var toyFetch = root.AddComponent<ToyFetchController>();
                 var binder = root.AddComponent<PetBinder>();
+                var growth = root.AddComponent<PetGrowthController>();
+                root.AddComponent<PetGrowthVfx>();
 
                 Animator visualAnimator = visual.GetComponentInChildren<Animator>(true);
                 var corgiOverride = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(corgi.OverrideControllerPath);
@@ -270,6 +272,11 @@ namespace CorgiAR.EditorTools
                 Set(binder, ("animatorAdapter", animatorAdapter), ("groundAligner", aligner),
                     ("feeding", feeding), ("dogKitMaterial", petMat),
                     ("headLook", headLook), ("toyFetch", toyFetch));
+                Set(growth, ("feeding", feeding), ("binder", binder),
+                    ("groundAligner", aligner), ("chickensForYoung", 5),
+                    ("additionalChickensForAdult", 10), ("babyScale", 0.8f),
+                    ("youngScale", 1f), ("adultScale", 1.22f),
+                    ("consumedChickenCount", 0));
                 // Pet bindings (esp. the just-built override controllers) are set
                 // in a second pass after the prefab is saved + reimported, so the
                 // AnimatorOverrideController references resolve to persistent GUIDs.

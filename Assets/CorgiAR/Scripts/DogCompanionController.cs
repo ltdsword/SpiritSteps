@@ -271,7 +271,10 @@ namespace CorgiAR
 
             if (comeHereActive)
             {
-                Vector3 anchor = CameraGroundPoint(body.position);
+                // Unlike idle roaming (which aims for the centre of the visible
+                // ground so wandering stays on screen), "come here" should walk
+                // the pet to wherever the player is actually standing.
+                Vector3 anchor = CameraFootPoint();
                 Vector3 toAnchor = anchor - body.position;
                 toAnchor.y = 0f;
                 if (toAnchor.magnitude <= comeHereStopDistance)
@@ -442,6 +445,18 @@ namespace CorgiAR
 
         private float Rand(Vector2 range) =>
             Mathf.Lerp(range.x, range.y, (float)rng.NextDouble());
+
+        /// <summary>Where the player is actually standing (the camera's own X/Z), projected
+        /// to the ground - used by "come here" so the pet walks to the user, not to
+        /// wherever the camera happens to be looking.</summary>
+        private Vector3 CameraFootPoint()
+        {
+            if (movementCamera == null)
+                return new Vector3(body.position.x, groundY, body.position.z);
+            Vector3 foot = movementCamera.transform.position;
+            foot.y = groundY;
+            return ClampToMovementBounds(foot);
+        }
 
         private Vector3 CameraGroundPoint(Vector3 fallback)
         {

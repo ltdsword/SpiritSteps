@@ -49,10 +49,13 @@ namespace ARWalking.UI
             _panel.AddToClassList("app-root");
             _panel.AddToClassList("ar-panel-root");
             _panel.style.backgroundColor = new StyleColor(Color.clear);
+            _panel.pickingMode = PickingMode.Ignore;
             root.style.backgroundColor = new StyleColor(Color.clear);
+            root.pickingMode = PickingMode.Ignore;
             root.Add(_panel);
             _safeRoot = Element("safe-area", "safe-area");
             _safeRoot.style.backgroundColor = new StyleColor(Color.clear);
+            _safeRoot.pickingMode = PickingMode.Ignore;
             _panel.Add(_safeRoot);
             root.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
             ApplySafeArea();

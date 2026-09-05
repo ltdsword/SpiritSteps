@@ -27,6 +27,8 @@ namespace CorgiAR
         [SerializeField, Min(0.1f)] private float toyAwarenessRadius = 5.5f;
         [Tooltip("Abort only after the pet has made no progress for this long.")]
         [SerializeField, Min(0.5f)] private float approachStallTimeout = 1.5f;
+        [Tooltip("The pet keeps turning naturally before it releases the ball.")]
+        [SerializeField, Range(1f, 45f)] private float returnFacingTolerance = 12f;
 
         private Coroutine fetchRoutine;
         private Transform returnAnchor;
@@ -44,7 +46,6 @@ namespace CorgiAR
             if (companion == null) companion = GetComponent<DogCompanionController>();
             if (feeding == null) feeding = GetComponent<DogFeedingController>();
             returnAnchor = new GameObject("Toy Return Anchor").transform;
-            returnAnchor.SetParent(transform, false);
         }
 
         public Vector3 GetThrowAnchorPoint() => transform.TransformPoint(throwAnchorOffset);
@@ -72,6 +73,11 @@ namespace CorgiAR
         {
             if (carriedToy == null)
                 return;
+            SnapCarriedToyToMouth();
+        }
+
+        private void SnapCarriedToyToMouth()
+        {
             Transform anchor = carryBone != null ? carryBone : transform;
             carriedToy.transform.position = anchor.position + transform.TransformVector(mouthOffset);
             carriedToy.transform.rotation = transform.rotation;
@@ -147,7 +153,9 @@ namespace CorgiAR
             returnAnchor.position = CameraGround();
             companion?.ChaseTarget(returnAnchor, run: true, stopDistance: returnDistance);
             float guard = 5f;
-            while (guard > 0f && Planar(transform.position, returnAnchor.position) > returnDistance)
+            while (guard > 0f &&
+                   (Planar(transform.position, returnAnchor.position) > returnDistance ||
+                    !IsFacing(returnAnchor.position)))
             {
                 returnAnchor.position = CameraGround();
                 guard -= Time.deltaTime;
@@ -163,6 +171,7 @@ namespace CorgiAR
             }
 
             // 4. drop it and wag
+            SnapCarriedToyToMouth();
             carriedToy = null;
             toy.transform.SetParent(null, worldPositionStays: true);
             Vector3 dropPos = toy.transform.position;
@@ -171,6 +180,12 @@ namespace CorgiAR
             toy.SetCarried(false);
             companion?.BeginInteraction(1f, DogAnimationState.WigglingTail);
             fetchRoutine = null;
+        }
+
+        private void OnDestroy()
+        {
+            if (returnAnchor != null)
+                Destroy(returnAnchor.gameObject);
         }
 
         private Vector3 CameraGround()
@@ -187,6 +202,15 @@ namespace CorgiAR
         {
             a.y = 0f; b.y = 0f;
             return Vector3.Distance(a, b);
+        }
+
+        private bool IsFacing(Vector3 point)
+        {
+            Vector3 direction = point - transform.position;
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.0001f)
+                return true;
+            return Vector3.Angle(transform.forward, direction) <= returnFacingTolerance;
         }
     }
 }

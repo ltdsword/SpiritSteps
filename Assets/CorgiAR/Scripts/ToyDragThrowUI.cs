@@ -164,7 +164,7 @@ namespace CorgiAR
             target.EndAim();
             toy.SetHeld(false);
             throwBoundary?.SetThrowAimActive(false);
-            landingIndicator?.Hide();
+            ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
 
             float groundY = target is ToyFetchController f ? f.GroundY : target.GetThrowAnchorPoint().y;
             toy.Launch(safeReleaseVelocity, target, groundY, boundedThrow);
@@ -185,8 +185,11 @@ namespace CorgiAR
                 : target != null ? target.GetThrowAnchorPoint().y : 0f;
             Plane heldPlane = new Plane(Vector3.up, new Vector3(0f, groundY + heldHeight, 0f));
             Ray ray = worldCamera.ScreenPointToRay(screenPosition);
+            // At grazing angles (camera nearly level with the held plane) a tiny finger
+            // movement can send this distance to near-zero or very far, making the held
+            // ball visually snap bigger/smaller. Clamp to a plausible arm's-length range.
             if (heldPlane.Raycast(ray, out float distance))
-                return ConstrainHeldPosition(ray.GetPoint(distance));
+                return ConstrainHeldPosition(ray.GetPoint(Mathf.Clamp(distance, 0.4f, 2.6f)));
 
             return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, heldDepth)));
@@ -204,7 +207,7 @@ namespace CorgiAR
             safeReleaseVelocity = releaseVelocity;
             if (heldToy == null || throwBoundary == null || !throwBoundary.IsThrowBoundaryActive)
             {
-                landingIndicator?.Hide();
+                ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
                 return;
             }
 
@@ -223,7 +226,7 @@ namespace CorgiAR
         private void OnDisable()
         {
             throwBoundary?.SetThrowAimActive(false);
-            landingIndicator?.Hide();
+            ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
         }
 
         private void SetColor(Color color)
