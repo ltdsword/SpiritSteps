@@ -390,8 +390,8 @@ namespace ARWalking.UI
         {
             var result = _runtime.LastWalkResult ?? new WalkResultDto();
             var page = Page("walk-result-page", false);
-            var close = IconAction("x", _assets != null ? _assets.iconClose : null, "X", () => SelectRoot(UiRootTab.Map), "walk-result-close", "dark-round-control");
-            page.Add(close);
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "walk-result-scroll" };
+            scroll.AddToClassList("walk-result-scroll");
             var celebration = Element("walk-result-content", "walk-result-content");
             celebration.Add(IconView("sparkles", "result-sparkle", Rgb(250, 220, 116)));
             celebration.Add(Eyebrow("WALK COMPLETE"));
@@ -422,7 +422,13 @@ namespace ARWalking.UI
                 card.Add(InfoRow("sparkles", "New friend", CompanionName(id) + " joined your walk", "sun-info"));
             card.Add(ActionWithIcon("sparkles", null, "Collect & continue", () => SelectRoot(UiRootTab.Companions), "primary-action"));
             celebration.Add(card);
-            page.Add(celebration);
+            scroll.Add(celebration);
+            page.Add(scroll);
+
+            // Keep the exit above the scrolling layer so it remains reachable even when a large
+            // roster makes the reward summary several screens tall.
+            var close = IconAction("x", _assets != null ? _assets.iconClose : null, "X", () => SelectRoot(UiRootTab.Map), "walk-result-close", "dark-round-control");
+            page.Add(close);
         }
 
         void BuildCompanions()
