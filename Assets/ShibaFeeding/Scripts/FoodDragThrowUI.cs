@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using CorgiAR;
 
 namespace ShibaFeeding
 {
@@ -21,9 +22,14 @@ namespace ShibaFeeding
         [SerializeField, Min(0.05f)] private float worldFoodSize = 0.28f;
 
         private IFeedableDog shiba;
+        private IThrowBoundary throwBoundary;
 
         [Header("Interaction feel")]
         [SerializeField, Min(0.5f)] private float heldDepth = 2.4f;
+        [Tooltip("Height of the held treat above the pet's ground plane.")]
+        [SerializeField, Min(0.05f)] private float heldHeight = 0.65f;
+        [SerializeField, Min(0.1f)] private float maxThrowSpeed = 4f;
+        [SerializeField, Min(0.1f)] private float velocitySmoothing = 18f;
         [SerializeField] private Color normalColor = new Color(0.05f, 0.09f, 0.12f, 0.38f);
         [SerializeField] private Color pressedColor = new Color(0.08f, 0.16f, 0.15f, 0.52f);
 
@@ -36,9 +42,19 @@ namespace ShibaFeeding
         private Vector3 lastHeldPosition;
         private float lastHeldTime;
         private Vector3 releaseVelocity;
+        private Vector3 safeReleaseVelocity;
+        private float heldFootprintRadius = 0.14f;
+        private ThrowLandingIndicator landingIndicator;
 
         private void Update()
         {
+            // An active UI input module already invokes the pointer callbacks below.
+            // Reading the same pointer here as well used to sample twice per frame,
+            // producing tiny dt values and occasional enormous throw velocities.
+            if (EventSystem.current != null && EventSystem.current.currentInputModule != null &&
+                EventSystem.current.currentInputModule.isActiveAndEnabled)
+                return;
+
             // Direct Input System fallback keeps the interaction working even when a
             // project's EventSystem actions were replaced or are temporarily disabled.
             if (Touchscreen.current != null)
@@ -79,6 +95,7 @@ namespace ShibaFeeding
                 shiba = FindFirstObjectByType<ShibaFeedingController>();
                 feedTarget = shiba as MonoBehaviour;
             }
+            throwBoundary = feedTarget as IThrowBoundary;
             if (buttonGraphic == null)
                 buttonGraphic = GetComponent<Graphic>();
             if (visualFeedback == null)
@@ -109,6 +126,7 @@ namespace ShibaFeeding
             worldCamera = camera;
             shiba = receiver;
             feedTarget = receiver as MonoBehaviour;
+            throwBoundary = receiver as IThrowBoundary;
             foodPrefab = prefab;
             buttonGraphic = graphic;
         }
@@ -138,6 +156,9 @@ namespace ShibaFeeding
                 return;
             }
             heldFood.SetHeld(true);
+            heldFootprintRadius = ThrowLandingIndicator.MeasureFootprint(heldFood.transform, 0.14f);
+            heldFood.transform.position = ConstrainHeldPosition(heldFood.transform.position);
+            throwBoundary?.SetThrowAimActive(true);
             shiba.BeginFollowingHeldFood(heldFood.transform);
             if (visualFeedback != null)
                 visualFeedback.SetHeld(true);
@@ -146,6 +167,8 @@ namespace ShibaFeeding
             lastHeldPosition = heldFood.transform.position;
             lastHeldTime = Time.time;
             releaseVelocity = Vector3.zero;
+            safeReleaseVelocity = Vector3.zero;
+            UpdateThrowPreview();
         }
 
         private ThrownFood PrepareWorldFood(GameObject foodObject)
@@ -240,10 +263,14 @@ namespace ShibaFeeding
                 return;
             Vector3 newPosition = ScreenToHeldWorld(screenPosition);
             float dt = Mathf.Max(Time.time - lastHeldTime, 0.0001f);
-            releaseVelocity = (newPosition - lastHeldPosition) / dt;
+            Vector3 instantVelocity = (newPosition - lastHeldPosition) / dt;
+            float blend = 1f - Mathf.Exp(-velocitySmoothing * dt);
+            releaseVelocity = Vector3.Lerp(releaseVelocity, instantVelocity, blend);
+            releaseVelocity = Vector3.ClampMagnitude(releaseVelocity, maxThrowSpeed);
             heldFood.transform.position = newPosition;
             lastHeldPosition = newPosition;
             lastHeldTime = Time.time;
+            UpdateThrowPreview();
         }
 
         private void ReleaseFood(Vector2 screenPosition)
@@ -259,12 +286,16 @@ namespace ShibaFeeding
                 return;
 
             ThrownFood releasedFood = heldFood;
+            UpdateThrowPreview();
+            bool boundedThrow = throwBoundary != null && throwBoundary.IsThrowBoundaryActive;
             heldFood = null;
             shiba.EndFollowingHeldFood();
             releasedFood.SetHeld(false);
+            throwBoundary?.SetThrowAimActive(false);
+            landingIndicator?.Hide();
 
             float groundY = shiba.GetFoodLandingPoint().y;
-            releasedFood.Launch(releaseVelocity, shiba, groundY);
+            releasedFood.Launch(safeReleaseVelocity, shiba, groundY, boundedThrow);
             if (visualFeedback != null)
                 visualFeedback.MarkInteractionUsed();
         }
@@ -389,7 +420,50 @@ namespace ShibaFeeding
         {
             if (worldCamera == null)
                 return Vector3.zero;
-            return worldCamera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, heldDepth));
+
+            // Map the pointer to a stable plane above the meadow. A fixed camera
+            // depth changes meaning whenever the user zooms, which made identical
+            // gestures land at wildly different world positions.
+            float groundY = shiba != null ? shiba.GetFoodLandingPoint().y : 0f;
+            Plane heldPlane = new Plane(Vector3.up, new Vector3(0f, groundY + heldHeight, 0f));
+            Ray ray = worldCamera.ScreenPointToRay(screenPosition);
+            if (heldPlane.Raycast(ray, out float distance))
+                return ConstrainHeldPosition(ray.GetPoint(distance));
+
+            return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
+                new Vector3(screenPosition.x, screenPosition.y, heldDepth)));
+        }
+
+        private Vector3 ConstrainHeldPosition(Vector3 position)
+        {
+            return throwBoundary != null && throwBoundary.IsThrowBoundaryActive
+                ? throwBoundary.ConstrainHeldPosition(worldCamera, position, heldFootprintRadius)
+                : position;
+        }
+
+        private void UpdateThrowPreview()
+        {
+            safeReleaseVelocity = releaseVelocity;
+            if (heldFood == null || throwBoundary == null || !throwBoundary.IsThrowBoundaryActive)
+            {
+                landingIndicator?.Hide();
+                return;
+            }
+
+            float groundY = shiba.GetFoodLandingPoint().y;
+            safeReleaseVelocity = throwBoundary.ConstrainLaunchVelocity(worldCamera,
+                heldFood.transform.position, releaseVelocity, groundY, heldFootprintRadius,
+                out Vector3 landing, out bool limited);
+            landing.y = throwBoundary.ThrowPreviewGroundY;
+            if (landingIndicator == null)
+                landingIndicator = ThrowLandingIndicator.Create(heldFootprintRadius);
+            landingIndicator.Show(landing, limited);
+        }
+
+        private void OnDisable()
+        {
+            throwBoundary?.SetThrowAimActive(false);
+            landingIndicator?.Hide();
         }
 
         private void SetButtonColor(Color color)

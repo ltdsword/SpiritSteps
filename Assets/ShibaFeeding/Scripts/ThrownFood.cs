@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using CorgiAR;
 
 namespace ShibaFeeding
 {
@@ -13,6 +14,8 @@ namespace ShibaFeeding
         [SerializeField, Min(0f)] private float groundClearance = 0.008f;
         [SerializeField] private Vector3 groundRestEuler = new(12f, 28f, 18f);
         [SerializeField, Min(0.1f)] private float mouthFollowSharpness = 22f;
+        [SerializeField, Min(0f)] private float ignoredLingerDuration = 2.5f;
+        [SerializeField, Min(0.1f)] private float ignoredDisappearDuration = 0.85f;
 
         private Coroutine movementRoutine;
         private Vector3 baseScale;
@@ -39,11 +42,13 @@ namespace ShibaFeeding
         /// motion — no aim-assist, no added force). Gravity does the rest, so
         /// a ~zero velocity release just drops the treat straight down.
         /// </summary>
-        public void Launch(Vector3 initialVelocity, IFeedableDog receiver, float groundY)
+        public void Launch(Vector3 initialVelocity, IFeedableDog receiver, float groundY,
+            bool deterministicTrajectory = false)
         {
             if (movementRoutine != null)
                 StopCoroutine(movementRoutine);
-            movementRoutine = StartCoroutine(FlyPhysics(initialVelocity, receiver, groundY));
+            movementRoutine = StartCoroutine(FlyPhysics(initialVelocity, receiver, groundY,
+                deterministicTrajectory));
         }
 
         public void BeginBeingEaten(Transform mouth)
@@ -51,6 +56,14 @@ namespace ShibaFeeding
             if (movementRoutine != null)
                 StopCoroutine(movementRoutine);
             movementRoutine = StartCoroutine(ShrinkUnderMouth(mouth));
+        }
+
+        /// <summary>Softly removes a treat that the pet did not notice or could not reach.</summary>
+        public void BeginDisappearing()
+        {
+            if (movementRoutine != null)
+                StopCoroutine(movementRoutine);
+            movementRoutine = StartCoroutine(FadeAfterDelay());
         }
 
         private IEnumerator HeldPulse()
@@ -66,17 +79,37 @@ namespace ShibaFeeding
             }
         }
 
-        private IEnumerator FlyPhysics(Vector3 velocity, IFeedableDog receiver, float groundY)
+        private IEnumerator FlyPhysics(Vector3 velocity, IFeedableDog receiver, float groundY,
+            bool deterministicTrajectory)
         {
             transform.localScale = baseScale;
 
-            while (transform.position.y > groundY)
+            if (deterministicTrajectory)
             {
-                velocity += Physics.gravity * Time.deltaTime;
-                transform.position += velocity * Time.deltaTime;
-                transform.Rotate(new Vector3(1f, 0.65f, 0.35f),
-                    spinSpeed * Time.deltaTime * Mathf.Clamp01(velocity.magnitude / 3f), Space.Self);
-                yield return null;
+                Vector3 origin = transform.position;
+                float duration = ThrowBallistics.TimeToGround(origin, velocity, groundY);
+                float elapsed = 0f;
+                while (elapsed < duration)
+                {
+                    elapsed = Mathf.Min(duration, elapsed + Time.deltaTime);
+                    transform.position = ThrowBallistics.PositionAtTime(origin, velocity, elapsed);
+                    Vector3 currentVelocity = velocity + Physics.gravity * elapsed;
+                    transform.Rotate(new Vector3(1f, 0.65f, 0.35f),
+                        spinSpeed * Time.deltaTime * Mathf.Clamp01(currentVelocity.magnitude / 3f), Space.Self);
+                    yield return null;
+                }
+            }
+            else
+            {
+                // Preserve the existing AR / standalone demo flight exactly.
+                while (transform.position.y > groundY)
+                {
+                    velocity += Physics.gravity * Time.deltaTime;
+                    transform.position += velocity * Time.deltaTime;
+                    transform.Rotate(new Vector3(1f, 0.65f, 0.35f),
+                        spinSpeed * Time.deltaTime * Mathf.Clamp01(velocity.magnitude / 3f), Space.Self);
+                    yield return null;
+                }
             }
 
             Vector3 landed = transform.position;
@@ -87,7 +120,7 @@ namespace ShibaFeeding
             transform.rotation = Quaternion.Euler(groundRestEuler);
             movementRoutine = null;
             if (receiver == null || !receiver.TryEat(this))
-                StartCoroutine(BounceAndDisappear());
+                BeginDisappearing();
         }
 
         private IEnumerator ShrinkUnderMouth(Transform mouth)
@@ -131,15 +164,19 @@ namespace ShibaFeeding
             transform.position = Vector3.Lerp(transform.position, target, blend);
         }
 
-        private IEnumerator BounceAndDisappear()
+        private IEnumerator FadeAfterDelay()
         {
-            Vector3 start = transform.position;
+            Vector3 startScale = transform.localScale;
+            if (ignoredLingerDuration > 0f)
+                yield return new WaitForSeconds(ignoredLingerDuration);
+
             float elapsed = 0f;
-            while (elapsed < 0.6f)
+            while (elapsed < ignoredDisappearDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = elapsed / 0.6f;
-                transform.position = start + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.18f);
+                float t = Mathf.Clamp01(elapsed / ignoredDisappearDuration);
+                transform.localScale = Vector3.Lerp(startScale, Vector3.zero,
+                    t * t * (3f - 2f * t));
                 yield return null;
             }
             Destroy(gameObject);
@@ -167,6 +204,10 @@ namespace ShibaFeeding
                     continue;
                 Transform surfaceTransform = surface.transform;
                 if (surfaceTransform == transform || surfaceTransform.IsChildOf(transform))
+                    continue;
+                // Another treat is not terrain. Without this check, overlapping
+                // treats repeatedly lift one another and appear to bounce away.
+                if (surface.GetComponentInParent<ThrownFood>() != null)
                     continue;
                 if (surface.attachedRigidbody != null)
                     continue;

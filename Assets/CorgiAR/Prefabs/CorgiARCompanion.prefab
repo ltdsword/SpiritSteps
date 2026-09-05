@@ -197,6 +197,9 @@ MonoBehaviour:
   foodLandingOffset: {x: 0, y: 0.15, z: 0.32}
   headMouthForwardOffset: 0.11
   headMouthDownOffset: 0.045
+  foodAwarenessRadius: 5.5
+  foodReachDistance: 0.38
+  approachStallTimeout: 1.5
   chewDuration: 2.6
   endDuration: 1.1
   popupColor: {r: 1, g: 0.45, b: 0.12, a: 1}
@@ -255,6 +258,8 @@ MonoBehaviour:
   mouthOffset: {x: 0, y: -0.03, z: 0.1}
   reachDistance: 0.4
   returnDistance: 0.85
+  toyAwarenessRadius: 5.5
+  approachStallTimeout: 1.5
 --- !u!114 &4132646230446275410
 MonoBehaviour:
   m_ObjectHideFlags: 0

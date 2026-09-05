@@ -19,8 +19,14 @@ namespace CorgiAR
 
         private Coroutine routine;
         private Vector3 baseScale;
+        private Renderer[] visualRenderers;
+        private float restingGroundY;
 
-        private void Awake() => baseScale = transform.localScale;
+        private void Awake()
+        {
+            baseScale = transform.localScale;
+            visualRenderers = GetComponentsInChildren<Renderer>(true);
+        }
 
         public void SetHeld(bool held)
         {
@@ -33,10 +39,13 @@ namespace CorgiAR
         /// motion — no aim-assist, no added force). Gravity does the rest, so
         /// a ~zero velocity release just drops the ball straight down.
         /// </summary>
-        public void Launch(Vector3 initialVelocity, IThrowTarget receiver, float groundY)
+        public void Launch(Vector3 initialVelocity, IThrowTarget receiver, float groundY,
+            bool deterministicTrajectory = false)
         {
             if (routine != null) StopCoroutine(routine);
-            routine = StartCoroutine(FlyPhysics(initialVelocity, receiver, groundY));
+            restingGroundY = groundY;
+            routine = StartCoroutine(FlyPhysics(initialVelocity, receiver, groundY,
+                deterministicTrajectory));
         }
 
         /// <summary>Pet picked the toy up — freeze its own motion while it's carried.</summary>
@@ -51,8 +60,19 @@ namespace CorgiAR
             else
             {
                 transform.localScale = baseScale;
+                restingGroundY = transform.position.y;
+                PlaceOnGround(restingGroundY);
                 routine = StartCoroutine(RollToRest());
             }
+        }
+
+        /// <summary>Leaves an abandoned/unreachable ball visible briefly, then removes it.</summary>
+        public void BeginResting()
+        {
+            if (routine != null)
+                StopCoroutine(routine);
+            PlaceOnGround(restingGroundY);
+            routine = StartCoroutine(RollToRest());
         }
 
         private IEnumerator HeldPulse()
@@ -67,25 +87,46 @@ namespace CorgiAR
             }
         }
 
-        private IEnumerator FlyPhysics(Vector3 velocity, IThrowTarget receiver, float groundY)
+        private IEnumerator FlyPhysics(Vector3 velocity, IThrowTarget receiver, float groundY,
+            bool deterministicTrajectory)
         {
             transform.localScale = baseScale;
 
-            while (transform.position.y > groundY)
+            if (deterministicTrajectory)
             {
-                velocity += Physics.gravity * Time.deltaTime;
-                transform.position += velocity * Time.deltaTime;
-                transform.Rotate(new Vector3(1f, 0.6f, 0.3f),
-                    spinSpeed * Time.deltaTime * Mathf.Clamp01(velocity.magnitude / 3f), Space.Self);
-                yield return null;
+                Vector3 origin = transform.position;
+                float duration = ThrowBallistics.TimeToGround(origin, velocity, groundY);
+                float elapsed = 0f;
+                while (elapsed < duration)
+                {
+                    elapsed = Mathf.Min(duration, elapsed + Time.deltaTime);
+                    transform.position = ThrowBallistics.PositionAtTime(origin, velocity, elapsed);
+                    Vector3 currentVelocity = velocity + Physics.gravity * elapsed;
+                    transform.Rotate(new Vector3(1f, 0.6f, 0.3f),
+                        spinSpeed * Time.deltaTime * Mathf.Clamp01(currentVelocity.magnitude / 3f), Space.Self);
+                    yield return null;
+                }
+            }
+            else
+            {
+                // Preserve the existing AR flight exactly.
+                while (transform.position.y > groundY)
+                {
+                    velocity += Physics.gravity * Time.deltaTime;
+                    transform.position += velocity * Time.deltaTime;
+                    transform.Rotate(new Vector3(1f, 0.6f, 0.3f),
+                        spinSpeed * Time.deltaTime * Mathf.Clamp01(velocity.magnitude / 3f), Space.Self);
+                    yield return null;
+                }
             }
 
             Vector3 landed = transform.position;
             landed.y = groundY;
             transform.position = landed;
+            PlaceOnGround(groundY);
             routine = null;
             if (receiver == null || !receiver.TryFetch(this))
-                routine = StartCoroutine(RollToRest());
+                BeginResting();
         }
 
         private IEnumerator RollToRest()
@@ -102,6 +143,38 @@ namespace CorgiAR
             }
             yield return new WaitForSeconds(lingerSeconds);
             Destroy(gameObject);
+        }
+
+        private void PlaceOnGround(float groundY)
+        {
+            if (!TryGetVisualBounds(out Bounds visualBounds))
+                return;
+            transform.position += Vector3.up * (groundY - visualBounds.min.y);
+        }
+
+        private bool TryGetVisualBounds(out Bounds bounds)
+        {
+            bounds = default;
+            bool found = false;
+            if (visualRenderers == null)
+                visualRenderers = GetComponentsInChildren<Renderer>(true);
+
+            foreach (Renderer renderer in visualRenderers)
+            {
+                if (renderer == null || renderer is TrailRenderer || !renderer.enabled ||
+                    !renderer.gameObject.activeInHierarchy)
+                    continue;
+                if (!found)
+                {
+                    bounds = renderer.bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+            return found;
         }
 
     }

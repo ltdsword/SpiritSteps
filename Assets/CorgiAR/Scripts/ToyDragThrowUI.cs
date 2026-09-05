@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using ShibaFeeding;
 
 namespace CorgiAR
 {
@@ -18,10 +19,14 @@ namespace CorgiAR
         [SerializeField] private Graphic buttonGraphic;
 
         [SerializeField, Min(0.5f)] private float heldDepth = 2.4f;
+        [SerializeField, Min(0.05f)] private float heldHeight = 0.65f;
+        [SerializeField, Min(0.1f)] private float maxThrowSpeed = 4f;
+        [SerializeField, Min(0.1f)] private float velocitySmoothing = 18f;
         [SerializeField] private Color normalColor = new(0.10f, 0.28f, 0.52f, 0.85f);
         [SerializeField] private Color pressedColor = new(0.20f, 0.44f, 0.78f, 0.96f);
 
         private IThrowTarget target;
+        private IThrowBoundary throwBoundary;
         private ThrownToy heldToy;
         private bool dragging;
 
@@ -31,12 +36,16 @@ namespace CorgiAR
         private Vector3 lastHeldPosition;
         private float lastHeldTime;
         private Vector3 releaseVelocity;
+        private Vector3 safeReleaseVelocity;
+        private float heldFootprintRadius = 0.16f;
+        private ThrowLandingIndicator landingIndicator;
 
         public void Configure(Camera camera, IThrowTarget receiver, GameObject prefab, Graphic graphic)
         {
             worldCamera = camera;
             target = receiver;
             fetchTarget = receiver as MonoBehaviour;
+            throwBoundary = receiver as IThrowBoundary;
             toyPrefab = prefab;
             buttonGraphic = graphic;
         }
@@ -55,17 +64,27 @@ namespace CorgiAR
         private void ResolveTarget()
         {
             if (worldCamera == null) worldCamera = Camera.main;
-            if (target != null) return;
+            if (target != null)
+            {
+                if (throwBoundary == null)
+                    throwBoundary = fetchTarget as IThrowBoundary;
+                return;
+            }
             target = fetchTarget as IThrowTarget;
             if (target == null)
             {
                 target = FindFirstObjectByType<ToyFetchController>();
                 fetchTarget = target as MonoBehaviour;
             }
+            throwBoundary = fetchTarget as IThrowBoundary;
         }
 
         private void Update()
         {
+            if (EventSystem.current != null && EventSystem.current.currentInputModule != null &&
+                EventSystem.current.currentInputModule.isActiveAndEnabled)
+                return;
+
             if (Touchscreen.current != null)
             {
                 var touch = Touchscreen.current.primaryTouch;
@@ -103,12 +122,17 @@ namespace CorgiAR
                 return;
             }
             heldToy.SetHeld(true);
+            heldFootprintRadius = ThrowLandingIndicator.MeasureFootprint(heldToy.transform, 0.16f);
+            heldToy.transform.position = ConstrainHeldPosition(heldToy.transform.position);
+            throwBoundary?.SetThrowAimActive(true);
             target.BeginAim(heldToy.transform);
             SetColor(pressedColor);
 
-            lastHeldPosition = spawnPos;
+            lastHeldPosition = heldToy.transform.position;
             lastHeldTime = Time.time;
             releaseVelocity = Vector3.zero;
+            safeReleaseVelocity = Vector3.zero;
+            UpdateThrowPreview();
         }
 
         private void MoveHeld(Vector2 screenPosition)
@@ -116,10 +140,14 @@ namespace CorgiAR
             if (!dragging || heldToy == null) return;
             Vector3 newPosition = ScreenToWorld(screenPosition);
             float dt = Mathf.Max(Time.time - lastHeldTime, 0.0001f);
-            releaseVelocity = (newPosition - lastHeldPosition) / dt;
+            Vector3 instantVelocity = (newPosition - lastHeldPosition) / dt;
+            float blend = 1f - Mathf.Exp(-velocitySmoothing * dt);
+            releaseVelocity = Vector3.Lerp(releaseVelocity, instantVelocity, blend);
+            releaseVelocity = Vector3.ClampMagnitude(releaseVelocity, maxThrowSpeed);
             heldToy.transform.position = newPosition;
             lastHeldPosition = newPosition;
             lastHeldTime = Time.time;
+            UpdateThrowPreview();
         }
 
         private void Release(Vector2 screenPosition)
@@ -130,12 +158,16 @@ namespace CorgiAR
             if (heldToy == null) return;
 
             ThrownToy toy = heldToy;
+            UpdateThrowPreview();
+            bool boundedThrow = throwBoundary != null && throwBoundary.IsThrowBoundaryActive;
             heldToy = null;
             target.EndAim();
             toy.SetHeld(false);
+            throwBoundary?.SetThrowAimActive(false);
+            landingIndicator?.Hide();
 
             float groundY = target is ToyFetchController f ? f.GroundY : target.GetThrowAnchorPoint().y;
-            toy.Launch(releaseVelocity, target, groundY);
+            toy.Launch(safeReleaseVelocity, target, groundY, boundedThrow);
         }
 
         private bool IsInside(Vector2 screenPosition)
@@ -147,7 +179,51 @@ namespace CorgiAR
         private Vector3 ScreenToWorld(Vector2 screenPosition)
         {
             if (worldCamera == null) return Vector3.zero;
-            return worldCamera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, heldDepth));
+
+            float groundY = target is ToyFetchController fetch
+                ? fetch.GroundY
+                : target != null ? target.GetThrowAnchorPoint().y : 0f;
+            Plane heldPlane = new Plane(Vector3.up, new Vector3(0f, groundY + heldHeight, 0f));
+            Ray ray = worldCamera.ScreenPointToRay(screenPosition);
+            if (heldPlane.Raycast(ray, out float distance))
+                return ConstrainHeldPosition(ray.GetPoint(distance));
+
+            return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
+                new Vector3(screenPosition.x, screenPosition.y, heldDepth)));
+        }
+
+        private Vector3 ConstrainHeldPosition(Vector3 position)
+        {
+            return throwBoundary != null && throwBoundary.IsThrowBoundaryActive
+                ? throwBoundary.ConstrainHeldPosition(worldCamera, position, heldFootprintRadius)
+                : position;
+        }
+
+        private void UpdateThrowPreview()
+        {
+            safeReleaseVelocity = releaseVelocity;
+            if (heldToy == null || throwBoundary == null || !throwBoundary.IsThrowBoundaryActive)
+            {
+                landingIndicator?.Hide();
+                return;
+            }
+
+            float groundY = target is ToyFetchController fetch
+                ? fetch.GroundY
+                : target.GetThrowAnchorPoint().y;
+            safeReleaseVelocity = throwBoundary.ConstrainLaunchVelocity(worldCamera,
+                heldToy.transform.position, releaseVelocity, groundY, heldFootprintRadius,
+                out Vector3 landing, out bool limited);
+            landing.y = throwBoundary.ThrowPreviewGroundY;
+            if (landingIndicator == null)
+                landingIndicator = ThrowLandingIndicator.Create(heldFootprintRadius);
+            landingIndicator.Show(landing, limited);
+        }
+
+        private void OnDisable()
+        {
+            throwBoundary?.SetThrowAimActive(false);
+            landingIndicator?.Hide();
         }
 
         private void SetColor(Color color)

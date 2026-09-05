@@ -469,6 +469,19 @@ namespace CorgiAR
             return position;
         }
 
+        /// <summary>Whether this point itself lies inside the movement boundary.</summary>
+        public bool CanReach(Vector3 position)
+        {
+            Vector3 clamped = ClampToMovementBounds(position);
+            return (clamped - position).sqrMagnitude < 0.0001f;
+        }
+
+        /// <summary>
+        /// Returns a valid navigation target. This is used for invisible helper
+        /// anchors such as fetch return points, never to teleport visible props.
+        /// </summary>
+        public Vector3 GetReachablePoint(Vector3 position) => ClampToMovementBounds(position);
+
 
         // ---- shared helpers ----
 

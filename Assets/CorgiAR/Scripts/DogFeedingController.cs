@@ -13,7 +13,7 @@ namespace CorgiAR
     /// pops a "NGON QUÁ" bubble before resuming its mode.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class DogFeedingController : MonoBehaviour, IFeedableDog
+    public sealed class DogFeedingController : MonoBehaviour, IFeedableDog, IThrowBoundary
     {
         [SerializeField] private DogCompanionController companion;
         [SerializeField] private DogAnimatorAdapter animatorAdapter;
@@ -25,6 +25,12 @@ namespace CorgiAR
         [SerializeField] private Vector3 foodLandingOffset = new(0f, 0.15f, 0.32f);
         [SerializeField, Min(0f)] private float headMouthForwardOffset = 0.11f;
         [SerializeField, Min(0f)] private float headMouthDownOffset = 0.045f;
+        [Tooltip("The pet reacts only when a landed treat is this close on the ground plane.")]
+        [SerializeField, Min(0.1f)] private float foodAwarenessRadius = 5.5f;
+        [Tooltip("Distance at which the pet can take the treat without moving closer.")]
+        [SerializeField, Min(0.05f)] private float foodReachDistance = 0.38f;
+        [Tooltip("Abort only after the pet has made no progress for this long.")]
+        [SerializeField, Min(0.5f)] private float approachStallTimeout = 1.5f;
         [SerializeField, Min(0.2f)] private float chewDuration = 2.6f;
         [SerializeField, Min(0.1f)] private float endDuration = 1.1f;
         [SerializeField] private Color popupColor = new(1f, 0.45f, 0.12f);
@@ -33,6 +39,8 @@ namespace CorgiAR
         private Coroutine eatRoutine;
 
         public bool IsEating { get; private set; }
+        public bool IsThrowBoundaryActive => false;
+        public float ThrowPreviewGroundY => transform.position.y;
 
         /// <summary>Raised once the pet finishes a treat (used by <see cref="PetMoodController"/>).</summary>
         public event Action Fed;
@@ -48,6 +56,20 @@ namespace CorgiAR
         public void RebindCarry(Transform newMouthBone) => mouthBone = newMouthBone;
 
         public Vector3 GetFoodLandingPoint() => transform.TransformPoint(foodLandingOffset);
+
+        public Vector3 ConstrainHeldPosition(Camera camera, Vector3 desiredPosition, float footprintRadius) =>
+            desiredPosition;
+
+        public Vector3 ConstrainLaunchVelocity(Camera camera, Vector3 origin,
+            Vector3 initialVelocity, float landingY, float footprintRadius,
+            out Vector3 predictedLanding, out bool wasLimited)
+        {
+            predictedLanding = ThrowBallistics.LandingPoint(origin, initialVelocity, landingY);
+            wasLimited = false;
+            return initialVelocity;
+        }
+
+        public void SetThrowAimActive(bool active) { }
 
         public void BeginFollowingHeldFood(Transform heldFood)
         {
@@ -66,6 +88,12 @@ namespace CorgiAR
         {
             if (IsEating || food == null)
                 return false;
+
+            float distance = PlanarDistance(transform.position, food.transform.position);
+            if (distance > foodAwarenessRadius ||
+                (companion != null && !companion.CanReach(food.transform.position)))
+                return false;
+
             ResolveMouthIfNeeded();
             if (eatRoutine != null)
                 StopCoroutine(eatRoutine);
@@ -77,28 +105,37 @@ namespace CorgiAR
         {
             IsEating = true;
 
-            // Run to the treat if it landed out of reach. Chasing itself is
-            // clamped to the play-area boundary (DogCompanionController), so a
-            // treat thrown beyond it is never actually reached — the guard here
-            // only protects against never triggering; when it fires without the
-            // pet closing the distance, the treat is out of bounds and stays
-            // uneaten rather than being force-eaten from afar.
+            // A treat at the mouth proceeds immediately. Otherwise the pet runs
+            // over, but only after TryEat has confirmed it noticed and can reach it.
             if (companion != null)
             {
-                companion.ChaseTarget(food.transform, run: true, stopDistance: 0.3f);
-                float guard = 4f;
-                while (guard > 0f && food != null &&
-                       PlanarDistance(transform.position, food.transform.position) > 0.34f)
+                companion.ChaseTarget(food.transform, run: true,
+                    stopDistance: Mathf.Max(0.05f, foodReachDistance - 0.04f));
+                float stallRemaining = approachStallTimeout;
+                float bestDistance = PlanarDistance(transform.position, food.transform.position);
+                while (stallRemaining > 0f && food != null &&
+                       PlanarDistance(transform.position, food.transform.position) > foodReachDistance)
                 {
-                    guard -= Time.deltaTime;
+                    float currentDistance = PlanarDistance(transform.position, food.transform.position);
+                    if (currentDistance < bestDistance - 0.01f)
+                    {
+                        bestDistance = currentDistance;
+                        stallRemaining = approachStallTimeout;
+                    }
+                    else
+                    {
+                        stallRemaining -= Time.deltaTime;
+                    }
                     yield return null;
                 }
                 companion.StopChasing();
 
                 bool reached = food != null &&
-                               PlanarDistance(transform.position, food.transform.position) <= 0.34f;
+                               PlanarDistance(transform.position, food.transform.position) <= foodReachDistance;
                 if (!reached)
                 {
+                    if (food != null)
+                        food.BeginDisappearing();
                     IsEating = false;
                     eatRoutine = null;
                     yield break;
@@ -120,6 +157,7 @@ namespace CorgiAR
             }
             companion?.BeginInteraction(total, DogAnimationState.Eating);
             animatorAdapter?.SetPlaybackSpeed(eatingSpeed);
+            animatorAdapter?.RestartEatingAnimation();
             if (food != null)
                 food.BeginBeingEaten(mouthBone != null ? mouthBone : transform);
 

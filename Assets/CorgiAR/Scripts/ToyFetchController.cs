@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using ShibaFeeding;
 
 namespace CorgiAR
 {
@@ -9,7 +10,7 @@ namespace CorgiAR
     /// in the pet's mouth back to the player and dropped instead of eaten.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class ToyFetchController : MonoBehaviour, IThrowTarget
+    public sealed class ToyFetchController : MonoBehaviour, IThrowTarget, IThrowBoundary
     {
         [SerializeField] private DogCompanionController companion;
         [SerializeField] private DogFeedingController feeding;
@@ -22,12 +23,18 @@ namespace CorgiAR
         [SerializeField] private Vector3 mouthOffset = new(0f, -0.03f, 0.10f);
         [SerializeField, Min(0.1f)] private float reachDistance = 0.4f;
         [SerializeField, Min(0.1f)] private float returnDistance = 0.85f;
+        [Tooltip("The pet reacts only when a landed ball is this close on the ground plane.")]
+        [SerializeField, Min(0.1f)] private float toyAwarenessRadius = 5.5f;
+        [Tooltip("Abort only after the pet has made no progress for this long.")]
+        [SerializeField, Min(0.5f)] private float approachStallTimeout = 1.5f;
 
         private Coroutine fetchRoutine;
         private Transform returnAnchor;
         private ThrownToy carriedToy;
 
         public bool IsBusy => fetchRoutine != null;
+        public bool IsThrowBoundaryActive => false;
+        public float ThrowPreviewGroundY => transform.position.y;
 
         public void SetCamera(Camera camera) => playerCamera = camera;
         public void RebindCarry(Transform bone) => carryBone = bone;
@@ -41,6 +48,20 @@ namespace CorgiAR
         }
 
         public Vector3 GetThrowAnchorPoint() => transform.TransformPoint(throwAnchorOffset);
+
+        public Vector3 ConstrainHeldPosition(Camera camera, Vector3 desiredPosition, float footprintRadius) =>
+            desiredPosition;
+
+        public Vector3 ConstrainLaunchVelocity(Camera camera, Vector3 origin,
+            Vector3 initialVelocity, float landingY, float footprintRadius,
+            out Vector3 predictedLanding, out bool wasLimited)
+        {
+            predictedLanding = ThrowBallistics.LandingPoint(origin, initialVelocity, landingY);
+            wasLimited = false;
+            return initialVelocity;
+        }
+
+        public void SetThrowAimActive(bool active) { }
 
         /// <summary>Ground height the toy should be thrown along.</summary>
         public float GroundY => transform.position.y;
@@ -73,6 +94,9 @@ namespace CorgiAR
         {
             if (IsBusy || toy == null || (feeding != null && feeding.IsEating))
                 return false;
+            if (Planar(transform.position, toy.transform.position) > toyAwarenessRadius ||
+                (companion != null && !companion.CanReach(toy.transform.position)))
+                return false;
             fetchRoutine = StartCoroutine(FetchSequence(toy));
             return true;
         }
@@ -81,21 +105,33 @@ namespace CorgiAR
         {
             // 1. run out to the toy. Chasing itself is clamped to the play-area
             // boundary (DogCompanionController), so a ball thrown beyond it is
-            // never actually reached — if the guard fires without the pet
-            // closing the distance, the ball is out of bounds and stays where
-            // it landed rather than being force-fetched from afar.
+            // never actually reached — abort only after the pet stops making
+            // progress, not on a flat timer, so a distant-but-reachable ball
+            // isn't given up on too early.
             companion?.ChaseTarget(toy.transform, run: true, stopDistance: 0.3f);
-            float guard = 4f;
-            while (guard > 0f && toy != null &&
+            float stallRemaining = approachStallTimeout;
+            float bestDistance = Planar(transform.position, toy.transform.position);
+            while (stallRemaining > 0f && toy != null &&
                    Planar(transform.position, toy.transform.position) > reachDistance)
             {
-                guard -= Time.deltaTime;
+                float currentDistance = Planar(transform.position, toy.transform.position);
+                if (currentDistance < bestDistance - 0.01f)
+                {
+                    bestDistance = currentDistance;
+                    stallRemaining = approachStallTimeout;
+                }
+                else
+                {
+                    stallRemaining -= Time.deltaTime;
+                }
                 yield return null;
             }
             companion?.StopChasing();
             bool reached = toy != null && Planar(transform.position, toy.transform.position) <= reachDistance;
             if (!reached)
             {
+                if (toy != null)
+                    toy.BeginResting();
                 fetchRoutine = null;
                 yield break;
             }
@@ -110,7 +146,7 @@ namespace CorgiAR
             // 3. carry it back to the player, who may be moving
             returnAnchor.position = CameraGround();
             companion?.ChaseTarget(returnAnchor, run: true, stopDistance: returnDistance);
-            guard = 5f;
+            float guard = 5f;
             while (guard > 0f && Planar(transform.position, returnAnchor.position) > returnDistance)
             {
                 returnAnchor.position = CameraGround();
@@ -144,7 +180,7 @@ namespace CorgiAR
                 return transform.position;
             Vector3 p = cam.transform.position;
             p.y = transform.position.y;
-            return p;
+            return companion != null ? companion.GetReachablePoint(p) : p;
         }
 
         private static float Planar(Vector3 a, Vector3 b)

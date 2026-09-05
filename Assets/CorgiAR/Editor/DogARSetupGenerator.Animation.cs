@@ -134,16 +134,29 @@ namespace CorgiAR.EditorTools
             foreach (AnimRole role in roles)
                 if (role.AnimationId >= 0)
                 {
-                    AnimatorStateTransition t = machine.AddAnyStateTransition(states[role.State]);
-                    t.canTransitionToSelf = false;
-                    Condition(t, AnimatorConditionMode.Equals, role.AnimationId, 0.2f);
+                    if (family == PetFamily.DogKit && role.State == "SittingStart")
+                    {
+                        AddGuardedChainEntryTransitions(states, states[role.State],
+                            role.AnimationId, "SittingStart", "SittingCycle");
+                    }
+                    else if (family == PetFamily.DogKit && role.State == "EatingStart")
+                    {
+                        AddGuardedChainEntryTransitions(states, states[role.State],
+                            role.AnimationId, "EatingStart", "EatingCycle", "EatingEnd");
+                    }
+                    else
+                    {
+                        AnimatorStateTransition t = machine.AddAnyStateTransition(states[role.State]);
+                        t.canTransitionToSelf = false;
+                        Condition(t, AnimatorConditionMode.Equals, role.AnimationId, 0.2f);
+                    }
                 }
 
             if (family == PetFamily.DogKit)
             {
                 TimedTransition(states["SittingStart"], states["SittingCycle"], 0.9f, 0.12f);
                 Condition(states["SittingCycle"].AddTransition(states["Breathing"]),
-                    AnimatorConditionMode.NotEqual, 6, 0.28f);
+                    AnimatorConditionMode.NotEqual, 4, 0.28f);
                 TimedTransition(states["EatingStart"], states["EatingCycle"], 0.9f, 0.12f);
                 Condition(states["EatingCycle"].AddTransition(states["EatingEnd"]),
                     AnimatorConditionMode.NotEqual, 5, 0.18f);
@@ -153,6 +166,22 @@ namespace CorgiAR.EditorTools
             EditorUtility.SetDirty(controller);
             Debug.Log($"BASE CONTROLLER built: {path}");
             return controller;
+        }
+
+        private static void AddGuardedChainEntryTransitions(
+            Dictionary<string, AnimatorState> states, AnimatorState destination,
+            int animationId, params string[] chainStates)
+        {
+            var excluded = new HashSet<string>(chainStates);
+            foreach (KeyValuePair<string, AnimatorState> pair in states)
+            {
+                if (excluded.Contains(pair.Key))
+                    continue;
+
+                AnimatorStateTransition transition = pair.Value.AddTransition(destination);
+                transition.canTransitionToSelf = false;
+                Condition(transition, AnimatorConditionMode.Equals, animationId, 0.2f);
+            }
         }
 
         private static void Condition(AnimatorStateTransition t, AnimatorConditionMode mode, int threshold, float duration)
