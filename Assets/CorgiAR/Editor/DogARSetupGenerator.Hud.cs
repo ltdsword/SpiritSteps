@@ -12,7 +12,7 @@ namespace CorgiAR.EditorTools
     {
         private const string HudName = "Corgi AR HUD";
         private const string FoodPrefabPath = "Assets/ShibaFeeding/Generated/ChickenLegFood.prefab";
-        private const string FoodIconPath = "Assets/PikminTest/chicken-drumstick.png";
+        private const string FoodIconPath = "Assets/CorgiAR/ExternalAssets/chicken-drumstick.png";
         private const string BallPrefabPath = "Assets/CorgiAR/Generated/PlayBall.prefab";
         private const string BallModelPath = "Assets/CorgiAR/Models/Ball/Ball.fbx";
         private const float BallDiameter = 0.12f;
@@ -48,6 +48,7 @@ namespace CorgiAR.EditorTools
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
+            canvas.pixelPerfect = true;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 1920f);
@@ -118,7 +119,7 @@ namespace CorgiAR.EditorTools
             foodImg.sprite = KnobSprite;
             foodImg.color = new Color(0.05f, 0.09f, 0.12f, 0.38f);
             Sprite foodIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FoodIconPath);
-            GameObject drum = new("Drumstick Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            GameObject drum = new("Food Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             drum.transform.SetParent(foodGo.transform, false);
             RectTransform drumRect = (RectTransform)drum.transform;
             drumRect.anchorMin = drumRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -133,6 +134,7 @@ namespace CorgiAR.EditorTools
             var foodDrag = foodGo.AddComponent<FoodDragThrowUI>();
             GameObject foodPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(FoodPrefabPath);
             foodDrag.Configure(hudCamera, feeding, foodPrefab, foodImg);
+            ConfigureFoodSelector(foodGo, foodDrag, foodPrefab);
             foodRect.anchoredPosition = new Vector2(0f, 200f);
 
             // --- ball button (bottom-right) ---

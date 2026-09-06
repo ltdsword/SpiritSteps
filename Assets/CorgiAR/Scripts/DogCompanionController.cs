@@ -32,6 +32,11 @@ namespace CorgiAR
         [Tooltip("Maximum X/Z distance from the placement point. Applies only to automatic roaming and chasing a thrown toy/treat — manual (joystick) movement is unrestricted.")]
         [SerializeField] private Vector2 movementHalfExtents = new(4.4f, 3.6f);
 
+        [Header("Desktop meadow")]
+        [SerializeField] private MeadowPlayArea playArea;
+        // Serialized so a domain reload in Play Mode preserves the selected mode.
+        [SerializeField, HideInInspector] private bool movementBoundsEnabled;
+
         [Header("Automatic roaming (follows the player)")]
         [SerializeField, Min(0.3f)] private float roamRadius = 1.5f;
         [SerializeField, Min(0.05f)] private float arrivalThreshold = 0.12f;
@@ -88,6 +93,9 @@ namespace CorgiAR
         public bool IsInteracting => interactionRemaining > 0f;
         public bool IsPlaced => isPlaced;
         public bool IsSitting => sitCommanded;
+        public bool UsesMovementBounds => movementBoundsEnabled &&
+                                          playArea != null && playArea.IsBoundaryActive;
+        public MeadowPlayArea PlayArea => playArea;
         public DogAnimationState DesiredAnimation => desiredAnim;
         public CompanionControlMode Mode => mode;
         public Rigidbody Body { get { EnsureBody(); return body; } }
@@ -178,6 +186,26 @@ namespace CorgiAR
             arRaycastManager = raycastValue;
         }
 
+        public void ConfigurePlayArea(MeadowPlayArea area)
+        {
+            playArea = area;
+            if (playArea != null)
+                playArea.SetBoundaryActive(movementBoundsEnabled);
+        }
+
+        /// <summary>
+        /// Enables the invisible X/Z play-area boundary used by the non-AR meadow.
+        /// AR placement deliberately leaves this disabled so tracked-space movement
+        /// and plane-based roaming keep their existing behaviour.
+        /// </summary>
+        public void SetMovementBoundsEnabled(bool enabled)
+        {
+            movementBoundsEnabled = enabled;
+            playArea?.SetBoundaryActive(enabled);
+            if (UsesMovementBounds && isPlaced)
+                body.position = playArea.ClampGameplayPoint(body.position);
+        }
+
         private void EnsureBody()
         {
             if (body != null)
@@ -211,6 +239,8 @@ namespace CorgiAR
             EnsureBody();
             groundY = pose.position.y;
             movementCenter = pose.position;
+            if (UsesMovementBounds)
+                playArea.Configure(pose.position, groundY, true);
             body.position = pose.position;
             roamAnchor = CameraGroundPoint(pose.position);
             sitCommanded = false;
@@ -256,7 +286,19 @@ namespace CorgiAR
 
         private void FixedUpdate()
         {
-            if (!isPlaced || interactionRemaining > 0f || movementCamera == null)
+            if (!isPlaced)
+                return;
+
+            // Recover immediately if tuning changes or a Play Mode script reload
+            // leaves the kinematic body just outside the authored bounds.
+            if (UsesMovementBounds)
+            {
+                Vector3 boundedPosition = playArea.ClampGameplayPoint(body.position);
+                if ((boundedPosition - body.position).sqrMagnitude > 0.000001f)
+                    body.position = boundedPosition;
+            }
+
+            if (interactionRemaining > 0f || movementCamera == null)
                 return;
 
             float dt = Time.fixedDeltaTime;
@@ -358,6 +400,8 @@ namespace CorgiAR
             // target before it reaches here — see the chaseTarget/roam branches
             // in FixedUpdate). Manual movement is intentionally unrestricted.
             Vector3 next = body.position + direction.normalized * (speed * dt);
+            if (UsesMovementBounds)
+                next = playArea.ConstrainPetMotion(movementCamera, body.position, next);
             if (TryResolveGround(next, out float resolvedY))
                 groundY = resolvedY;
             next.y = groundY;
@@ -475,6 +519,9 @@ namespace CorgiAR
 
         private Vector3 ClampToMovementBounds(Vector3 position)
         {
+            if (UsesMovementBounds)
+                return playArea.ClampReachablePoint(movementCamera, position);
+
             position.x = Mathf.Clamp(position.x,
                 movementCenter.x - movementHalfExtents.x,
                 movementCenter.x + movementHalfExtents.x);
@@ -487,6 +534,9 @@ namespace CorgiAR
         /// <summary>Whether this point itself lies inside the movement boundary.</summary>
         public bool CanReach(Vector3 position)
         {
+            if (UsesMovementBounds)
+                return playArea.Contains(movementCamera, position);
+
             Vector3 clamped = ClampToMovementBounds(position);
             return (clamped - position).sqrMagnitude < 0.0001f;
         }
@@ -495,7 +545,9 @@ namespace CorgiAR
         /// Returns a valid navigation target. This is used for invisible helper
         /// anchors such as fetch return points, never to teleport visible props.
         /// </summary>
-        public Vector3 GetReachablePoint(Vector3 position) => ClampToMovementBounds(position);
+        public Vector3 GetReachablePoint(Vector3 position) => UsesMovementBounds
+            ? playArea.ClampReachablePoint(movementCamera, position)
+            : ClampToMovementBounds(position);
 
 
         // ---- shared helpers ----

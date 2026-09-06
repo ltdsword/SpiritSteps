@@ -5,9 +5,9 @@ using UnityEngine.InputSystem;
 namespace CorgiAR
 {
     /// <summary>
-    /// Elevated, softly-following meadow camera for the non-AR preview. Drag an
-    /// empty part of the screen to inspect the nearby field; both panning and
-    /// following stay inside the authored play area.
+    /// Elevated garden camera for the non-AR preview. Its pivot belongs to the
+    /// meadow, not the pet; it only moves automatically when the pet approaches
+    /// the viewport safe edge.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
@@ -15,6 +15,7 @@ namespace CorgiAR
     {
         [Header("Pikmin-style view")]
         [SerializeField] private Transform target;
+        [SerializeField] private MeadowPlayArea playArea;
         [SerializeField] private float yaw = 180f;
         [SerializeField, Range(20f, 60f)] private float pitch = 36f;
         [SerializeField, Min(1f)] private float distance = 4.1f;
@@ -22,28 +23,33 @@ namespace CorgiAR
         [SerializeField, Range(30f, 70f)] private float fieldOfView = 50f;
 
         [Header("Moderate zoom")]
-        [SerializeField] private Vector2 zoomLimits = new(1f, 5.2f);
+        [SerializeField] private Vector2 zoomLimits = new(1f, 4.8f);
         [Tooltip("World-space zoom distance per normalized mouse-wheel notch.")]
         [SerializeField, Min(0.01f)] private float wheelZoomSensitivity = 0.34f;
         [SerializeField, Min(0.0001f)] private float pinchZoomSensitivity = 0.006f;
         [SerializeField, Min(0.1f)] private float zoomSharpness = 15f;
 
         [Header("Bounded exploration")]
-        [SerializeField] private Vector2 worldHalfExtents = new(4.4f, 3.6f);
-        [SerializeField, Min(0f)] private float maxPanFromPet = 1.65f;
         [SerializeField, Min(0.0001f)] private float dragWorldUnitsPerPixel = 0.0045f;
 
         [Header("Smoothing")]
         [SerializeField, Min(0.1f)] private float followSharpness = 5.5f;
 
         private Camera meadowCamera;
-        private Vector3 movementCenter;
+        private Vector3 gardenCenter;
         private Vector3 panOffset;
         private Vector3 smoothPivot;
         private float targetDistance;
         private float currentDistance;
         private bool initialized;
         private bool pointerPanning;
+
+        public void Configure(Transform pet, MeadowPlayArea area)
+        {
+            target = pet;
+            playArea = area;
+            initialized = false;
+        }
 
         private void Awake()
         {
@@ -66,13 +72,26 @@ namespace CorgiAR
             if (!initialized)
                 InitializeView();
 
-            ReadPanInput();
+            if (playArea == null || !playArea.IsThrowAimActive)
+                ReadPanInput();
+            else
+                pointerPanning = false;
 
-            Vector3 desiredPivot = target.position + Vector3.up * targetHeight + panOffset;
-            desiredPivot.x = Mathf.Clamp(desiredPivot.x,
-                movementCenter.x - worldHalfExtents.x, movementCenter.x + worldHalfExtents.x);
-            desiredPivot.z = Mathf.Clamp(desiredPivot.z,
-                movementCenter.z - worldHalfExtents.y, movementCenter.z + worldHalfExtents.y);
+            if (playArea != null && playArea.IsBoundaryActive && !playArea.IsThrowAimActive)
+            {
+                Vector3 correction = playArea.GetVisibilityCorrection(meadowCamera, target.position);
+                if (correction.sqrMagnitude > 0.000001f)
+                {
+                    Vector3 corrected = playArea.ClampCameraPivot(gardenCenter + panOffset + correction);
+                    panOffset = corrected - gardenCenter;
+                    panOffset.y = 0f;
+                }
+            }
+
+            Vector3 desiredGroundPivot = gardenCenter + panOffset;
+            if (playArea != null)
+                desiredGroundPivot = playArea.ClampCameraPivot(desiredGroundPivot);
+            Vector3 desiredPivot = desiredGroundPivot + Vector3.up * targetHeight;
 
             float blend = 1f - Mathf.Exp(-followSharpness * Mathf.Max(Time.unscaledDeltaTime, 0.0001f));
             smoothPivot = Vector3.Lerp(smoothPivot, desiredPivot, blend);
@@ -86,8 +105,17 @@ namespace CorgiAR
 
         private void InitializeView()
         {
-            movementCenter = target.position;
-            smoothPivot = movementCenter + Vector3.up * targetHeight;
+            if (playArea == null)
+            {
+                DogCompanionController companion = target.GetComponent<DogCompanionController>();
+                if (companion != null)
+                    playArea = companion.PlayArea;
+            }
+            gardenCenter = playArea != null && playArea.IsBoundaryActive
+                ? playArea.Center
+                : target.position;
+            panOffset = Vector3.zero;
+            smoothPivot = gardenCenter + Vector3.up * targetHeight;
             meadowCamera.fieldOfView = fieldOfView;
             targetDistance = Mathf.Clamp(distance, zoomLimits.x, zoomLimits.y);
             currentDistance = targetDistance;
@@ -104,7 +132,11 @@ namespace CorgiAR
                 return;
             DogCompanionController companion = FindFirstObjectByType<DogCompanionController>();
             if (companion != null)
+            {
                 target = companion.transform;
+                if (playArea == null)
+                    playArea = companion.PlayArea;
+            }
         }
 
         private void ReadPanInput()
@@ -194,7 +226,12 @@ namespace CorgiAR
             Vector3 right = rotation * Vector3.right;
             Vector3 forward = rotation * Vector3.forward;
             panOffset += (right * screenDelta.x + forward * screenDelta.y) * dragWorldUnitsPerPixel;
-            panOffset = Vector3.ClampMagnitude(panOffset, maxPanFromPet);
+            if (playArea != null && playArea.IsBoundaryActive)
+            {
+                Vector3 clampedPivot = playArea.ClampCameraPivot(gardenCenter + panOffset);
+                panOffset = clampedPivot - gardenCenter;
+                panOffset.y = 0f;
+            }
         }
     }
 }

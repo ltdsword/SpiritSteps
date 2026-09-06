@@ -56,6 +56,7 @@ namespace ARWalking.UI
         ShopFood,
         LandmarkDetail,
         PetAr,
+        Pet3D,
         JourneyList,
         JourneyDetail,
         ActivityDashboard

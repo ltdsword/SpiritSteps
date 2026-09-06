@@ -189,7 +189,15 @@ namespace CorgiAR
             // movement can send this distance to near-zero or very far, making the held
             // ball visually snap bigger/smaller. Clamp to a plausible arm's-length range.
             if (heldPlane.Raycast(ray, out float distance))
-                return ConstrainHeldPosition(ray.GetPoint(Mathf.Clamp(distance, 0.4f, 2.6f)));
+            {
+                // The meadow uses the same unrestricted screen-to-ground projection
+                // as FoodDragThrowUI. Clamping this ray only for the ball shortened
+                // the measured swipe and made identical gestures land much closer.
+                float resolvedDistance = throwBoundary != null && throwBoundary.IsThrowBoundaryActive
+                    ? distance
+                    : Mathf.Clamp(distance, 0.4f, 2.6f);
+                return ConstrainHeldPosition(ray.GetPoint(resolvedDistance));
+            }
 
             return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, heldDepth)));

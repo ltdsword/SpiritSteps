@@ -27,9 +27,8 @@ namespace CorgiAR.EditorTools
         private const string ScenePath = "Assets/Scenes/SampleScene.unity";
         private const string CompanionPrefabPath = "Assets/CorgiAR/Prefabs/CorgiARCompanion.prefab";
         private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
-        private const string PikminName = "Pik0100_00_Lod0";
-        private const string BootstrapName = "Pikmin Mobile AR";
-        private const string PreviewGroundName = "Pikmin Preview Ground";
+        private const string BootstrapName = "Pet 3D Playground";
+        private const string PreviewGroundName = "Pet Preview Ground";
         private const string MeadowMaterialPath = "Assets/ShibaFeeding/Generated/Playground.mat";
         private const string CompanionName = "Corgi Companion";
         private const string VisualChildName = "Pet Visual";
@@ -72,15 +71,11 @@ namespace CorgiAR.EditorTools
             PopulatePetBindingsOnPrefab();
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CompanionPrefabPath);
 
-            GameObject pikmin = Find(scene, PikminName);
-            if (pikmin != null && pikmin.activeSelf)
-                pikmin.SetActive(false);
-
             GameObject desktopCameraGo = Find(scene, "Main Camera");
             GameObject previewGround = Find(scene, PreviewGroundName);
             StylePreviewMeadow(scene, previewGround);
             GameObject bootstrap = Find(scene, BootstrapName)
-                ?? throw new InvalidOperationException(BootstrapName + " bootstrap not found. Run Pikmin AR setup first.");
+                ?? throw new InvalidOperationException(BootstrapName + " bootstrap not found in SampleScene.");
 
             Transform arSession = bootstrap.transform.Find("AR Session");
             Transform xrOrigin = bootstrap.transform.Find("XR Origin");
@@ -128,26 +123,39 @@ namespace CorgiAR.EditorTools
             var toyFetch = companionGo.GetComponent<ToyFetchController>();
             var binder = companionGo.GetComponent<PetBinder>();
             var aligner = companionGo.GetComponent<DogGroundAligner>();
+            MeadowPlayArea meadowPlayArea = previewGround != null
+                ? GetOrAdd<MeadowPlayArea>(previewGround)
+                : null;
+
+            if (meadowPlayArea != null)
+            {
+                Set(meadowPlayArea,
+                    ("halfExtents", new Vector2(3.2f, 2.6f)),
+                    ("hardFallbackHalfExtents", new Vector2(10f, 10f)),
+                    ("landingPadding", 0.08f), ("heldEdgeSoftness", 0.45f),
+                    ("viewportSafeRect", new Rect(0.08f, 0.12f, 0.84f, 0.80f)),
+                    ("cameraFollowRect", new Rect(0.12f, 0.16f, 0.76f, 0.66f)),
+                    ("viewportEdgeSoftness", 0.06f));
+            }
 
             if (desktopCamera != null)
             {
                 BoundedMeadowCamera meadowCamera = GetOrAdd<BoundedMeadowCamera>(desktopCamera.gameObject);
                 Set(meadowCamera,
-                    ("target", companionGo.transform),
+                    ("target", companionGo.transform), ("playArea", meadowPlayArea),
                     ("yaw", 180f), ("pitch", 36f), ("distance", 4.1f),
                     ("targetHeight", 0.42f), ("fieldOfView", 50f),
-                    ("zoomLimits", new Vector2(1f, 5.2f)),
+                    ("zoomLimits", new Vector2(1f, 4.8f)),
                     ("wheelZoomSensitivity", 0.34f),
-                    ("pinchZoomSensitivity", 0.006f), ("zoomSharpness", 15f),
-                    ("worldHalfExtents", new Vector2(4.4f, 3.6f)),
-                    ("maxPanFromPet", 1.65f));
+                    ("pinchZoomSensitivity", 0.006f), ("zoomSharpness", 15f));
             }
 
             RemoveComponentByName(bootstrap, "PikminARPlacementController");
             RemoveComponentByName(bootstrap, "PikminARModeController");
 
             var placement = GetOrAdd<DogARPlacementController>(bootstrap);
-            var modeController = GetOrAdd<DogARModeController>(bootstrap);
+            RemoveComponentByName(bootstrap, "DogARModeController");
+            var modeController = GetOrAdd<Pet3DModeController>(bootstrap);
 
             Set(placement,
                 ("raycastManager", raycastManager), ("planeManager", planeManager), ("arCamera", arCamera),
@@ -158,8 +166,9 @@ namespace CorgiAR.EditorTools
                 ("arSessionObject", arSession.gameObject), ("xrOriginObject", xrOrigin.gameObject),
                 ("arCamera", arCamera), ("placementController", placement),
                 ("desktopCamera", desktopCamera), ("previewGround", previewGround),
+                ("meadowPlayArea", meadowPlayArea),
                 ("dogRoot", companionGo), ("companion", companion), ("interaction", interaction),
-                ("groundAligner", aligner), ("forceARInEditor", false));
+                ("groundAligner", aligner));
 
             arSession.gameObject.SetActive(false);
             xrOrigin.gameObject.SetActive(false);
@@ -196,7 +205,7 @@ namespace CorgiAR.EditorTools
                 renderer.sharedMaterial = meadow;
 
             Vector3 scale = previewGround.transform.localScale;
-            previewGround.transform.localScale = new Vector3(24f, scale.y, 24f);
+            previewGround.transform.localScale = new Vector3(48f, scale.y, 48f);
 
             // The Shiba reference scene has two decorative green spheres. They
             // are intentionally omitted from SampleScene's cleaner meadow.
@@ -257,15 +266,18 @@ namespace CorgiAR.EditorTools
                 Set(aligner, ("visual", visual.transform), ("groundClearance", 0.004f));
                 Set(animatorAdapter, ("animator", visualAnimator));
                 Set(controller,
-                    ("inputActions", actions), ("animatorAdapter", animatorAdapter),
-                    ("movementHalfExtents", new Vector2(4.4f, 3.6f)));
+                    ("inputActions", actions), ("animatorAdapter", animatorAdapter));
                 Set(interaction, ("companion", controller), ("dogRoot", root.transform));
-                Set(feeding, ("companion", controller), ("animatorAdapter", animatorAdapter));
+                Set(feeding, ("companion", controller), ("animatorAdapter", animatorAdapter),
+                    ("foodAwarenessRadius", 5.5f), ("foodReachDistance", 0.38f),
+                    ("approachStallTimeout", 1.5f));
                 if (mouth != null)
                     Set(feeding, ("mouthBone", mouth));
                 Set(mood, ("companion", controller), ("feeding", feeding));
                 Set(headLook, ("companion", controller));
-                Set(toyFetch, ("companion", controller), ("feeding", feeding));
+                Set(toyFetch, ("companion", controller), ("feeding", feeding),
+                    ("toyAwarenessRadius", 5.5f), ("approachStallTimeout", 1.5f),
+                    ("returnFacingTolerance", 12f));
                 if (mouth != null)
                     Set(toyFetch, ("carryBone", mouth));
                 Material petMat = AssignUrpMaterial(visual);

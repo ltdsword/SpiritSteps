@@ -516,6 +516,8 @@ namespace ARWalking.UI
             actions.Add(ActionWithIcon("camera", _assets != null ? _assets.iconCamera : null, pickingForPhoto ? "Choose" : "AR Photo",
                 () => _runtime.EnterPetAr(definition.id, true), "blossom-action", "half-action"));
             growth.Add(actions);
+            growth.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null, "Pet",
+                () => _runtime.EnterPet3D(definition.id), "primary-action"));
             var details = Action("View companion details", () => { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); }, "text-action");
             growth.Add(details);
             card.Add(growth);
