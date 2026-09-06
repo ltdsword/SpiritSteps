@@ -36,6 +36,7 @@ namespace CorgiAR.UI
         [SerializeField] private GameObject ballPrefab;
         [SerializeField] private Sprite foodIconSprite;
         [SerializeField] private Sprite ballIconSprite;
+        [SerializeField] private Sprite whistleIconSprite;
 
         private static readonly Color White = Color.white;
 
@@ -219,13 +220,29 @@ namespace CorgiAR.UI
             panel.Add(row);
 
             comeCircle = BuildCircleItem(row, "GỌI VỀ", asButton: true, onClick: () => companion?.ComeHere());
-            comeCircle.Add(Icon("whistle", "ar-interaction-icon", White));
+            if (whistleIconSprite != null)
+            {
+                var whistleIcon = new UiImage
+                {
+                    sprite = whistleIconSprite,
+                    scaleMode = ScaleMode.ScaleToFit,
+                    pickingMode = PickingMode.Ignore
+                };
+                whistleIcon.AddToClassList("ar-interaction-icon-food");
+                whistleIcon.style.width = 100;
+                whistleIcon.style.height = 100;
+                comeCircle.Add(whistleIcon);
+            }
+            else
+            {
+                comeCircle.Add(Icon("whistle", "ar-interaction-icon", White));
+            }
 
             foodCircle = BuildCircleItem(row, "CHO ĂN", asButton: false);
             var foodIcon = new UiImage { sprite = foodIconSprite, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            foodIcon.AddToClassList("ar-interaction-icon");
-            foodIcon.style.width = 64;
-            foodIcon.style.height = 64;
+            foodIcon.AddToClassList("ar-interaction-icon-food");
+            foodIcon.style.width = 100;
+            foodIcon.style.height = 100;
             foodCircle.Add(foodIcon);
 
             ballCircle = BuildCircleItem(row, "NÉM BÓNG", asButton: false);
@@ -235,9 +252,9 @@ namespace CorgiAR.UI
                 scaleMode = ScaleMode.ScaleToFit,
                 pickingMode = PickingMode.Ignore
             };
-            ballIcon.AddToClassList("ar-interaction-icon");
-            ballIcon.style.width = 64;
-            ballIcon.style.height = 64;
+            ballIcon.AddToClassList("ar-interaction-icon-food");
+            ballIcon.style.width = 100;
+            ballIcon.style.height = 100;
             ballCircle.Add(ballIcon);
 
             if (feeding != null && foodPrefab != null)
@@ -281,11 +298,18 @@ namespace CorgiAR.UI
 
             var gallery = new UiButton(OpenPhotoViewer);
             gallery.AddToClassList("ar-gallery-button");
+            // The photo thumbnail must stay clipped to the circular button, but the fallback
+            // "no photos yet" icon should be free to render larger than the button itself - so
+            // only the thumbnail sits inside a clipped wrapper; the icon is a free sibling.
+            var galleryClip = Element(null, "ar-gallery-clip");
             var galleryImg = new UiImage { scaleMode = ScaleMode.ScaleAndCrop };
             galleryImg.AddToClassList("ar-gallery-thumb");
-            gallery.Add(galleryImg);
+            galleryClip.Add(galleryImg);
+            gallery.Add(galleryClip);
             galleryThumb = galleryImg;
             galleryIconElement = Icon("gallery", "ar-gallery-icon", White);
+            galleryIconElement.style.width = 98;
+            galleryIconElement.style.height = 98;
             gallery.Add(galleryIconElement);
             VisualElement badge = Element(null, "ar-gallery-badge");
             var badgeLabel = new Label("0");

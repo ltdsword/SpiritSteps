@@ -107,7 +107,7 @@ namespace ARWalking.UI
             _safeRoot.Add(page);
 
             var top = Element("ar-top-bar", "ar-top-bar");
-            var exit = IconButton("x", _runtime.Assets.iconClose, ExitToHome, "ar-exit", "dark-round-control");
+            var exit = IconButton("chevron-left", _runtime.Assets.iconBack, ExitToHome, "ar-exit", "dark-round-control");
             top.Add(exit);
             page.Add(top);
             if (HasLandmarkMemory) BuildLandmarkAr(page, top);

@@ -552,31 +552,37 @@
    rgba() + border + large radius "glass" illusion, same technique as the rest of this file
    (Unity UI Toolkit has no real backdrop-filter/blur). */
 .font-display { -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-VariableFont_wght.ttf"); -unity-font-style: bold; }
-.ar-top-stack { position: absolute; left: 24px; right: 24px; top: 56px; flex-direction: column; align-items: flex-start; }
-.ar-status-row { align-items: center; align-self: stretch; margin-bottom: 12px; margin-left: 16px; margin-right: 16px; }
+.ar-top-stack { position: absolute; left: 24px; right: 24px; top: 52px; flex-direction: column; align-items: flex-start; }
+/* Same row as WalkUiController's back button (left:32,top:28, 82x82 - a separate UIDocument
+   this panel can't share a flex row with), so clear it with a left margin plus a min-height
+   matching the button's own height, rather than absolute pixel juggling that breaks the moment
+   the status text wraps to another line. */
+.ar-status-row { align-items: center; align-self: stretch; margin-bottom: 22px; margin-left: 92px; min-height: 82px; }
 .ar-status-pill { min-height: 60px; flex-direction: row; align-items: center; padding: 12px 24px; border-radius: 30px; background-color: rgba(0, 0, 0, 0.46); border-width: 1px; border-color: rgba(255, 255, 255, 0.22); }
 .ar-status-label { color: white; font-size: 21px; -unity-text-align: middle-center; white-space: normal; }
-.ar-change-pet-card { flex-direction: row; align-items: center; border-radius: 99px; padding: 6px 16px 6px 6px; background-color: rgba(0, 0, 0, 0.46); border-width: 1px; border-color: rgba(255, 255, 255, 0.22); }
-.ar-change-pet-thumb { width: 46px; height: 46px; border-radius: 23px; border-width: 2px; border-color: rgba(255, 255, 255, 0.55); margin-right: 11px; overflow: hidden; }
-.ar-change-pet-kicker { font-size: 14px; color: rgba(255, 255, 255, 0.6); letter-spacing: 1px; }
-.ar-change-pet-title { font-size: 22px; color: white; margin-top: 2px; }
-.ar-change-pet-swap { width: 20px; height: 20px; margin-left: 8px; }
-.ar-interaction-row { position: absolute; left: 0; right: 0; bottom: 200px; flex-direction: row; justify-content: center; }
-.ar-interaction-item { flex-direction: column; align-items: center; margin-left: 18px; margin-right: 18px; }
-.ar-interaction-circle { width: 104px; height: 104px; border-radius: 52px; background-color: rgba(28, 25, 22, 0.82); border-width: 1px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
-.ar-interaction-icon { width: 44px; height: 44px; }
-.ar-interaction-label { color: white; font-size: 18px; margin-top: 9px; -unity-text-align: middle-center; }
-.ar-cam-cluster { position: absolute; left: 26px; right: 26px; bottom: 36px; height: 140px; border-radius: 70px; background-color: rgba(22, 20, 18, 0.42); border-width: 1px; border-color: rgba(255, 255, 255, 0.12); flex-direction: row; align-items: center; justify-content: space-between; padding-left: 20px; padding-right: 20px; }
-.ar-cam-flip { width: 78px; height: 78px; border-radius: 39px; background-color: rgba(255, 255, 255, 0.1); border-width: 1px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
-.ar-cam-flip-icon { width: 34px; height: 34px; }
-.ar-shutter-outer { width: 112px; height: 112px; border-radius: 56px; border-width: 5px; border-color: rgba(255, 255, 255, 0.95); background-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
-.ar-shutter-inner { width: 84px; height: 84px; border-radius: 42px; background-color: white; align-items: center; justify-content: center; }
-.ar-shutter-icon { width: 40px; height: 40px; }
-.ar-gallery-button { width: 78px; height: 78px; border-radius: 39px; border-width: 1px; border-color: rgba(255, 255, 255, 0.16); overflow: hidden; align-items: center; justify-content: center; background-color: rgba(255, 255, 255, 0.1); }
-.ar-gallery-icon { width: 34px; height: 34px; }
+.ar-change-pet-card { flex-direction: row; align-items: center; border-radius: 24px; padding: 10px 26px 10px 10px; background-color: rgba(0, 0, 0, 0.46); border-width: 1px; border-color: rgba(255, 255, 255, 0.22); }
+.ar-change-pet-thumb { width: 92px; height: 92px; border-radius: 46px; border-width: 3px; border-color: rgba(255, 255, 255, 0.55); margin-right: 18px; overflow: hidden; }
+.ar-change-pet-kicker { font-size: 22px; color: rgba(255, 255, 255, 0.6); letter-spacing: 1px; }
+.ar-change-pet-title { font-size: 36px; color: white; margin-top: 3px; }
+.ar-change-pet-swap { width: 36px; height: 36px; margin-left: 14px; }
+.ar-interaction-row { position: absolute; left: 0; right: 0; bottom: 210px; flex-direction: row; justify-content: center; }
+.ar-interaction-item { flex-direction: column; align-items: center; margin-left: 14px; margin-right: 14px; }
+.ar-interaction-circle { width: 124px; height: 124px; border-radius: 62px; background-color: rgba(28, 25, 22, 0.82); border-width: 2px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-interaction-icon { width: 52px; height: 52px; }
+.ar-interaction-icon-food { width: 100px; height: 100px; }
+.ar-interaction-label { color: white; font-size: 26px; margin-top: 10px; -unity-text-align: middle-center; }
+.ar-cam-cluster { position: absolute; left: 16px; right: 16px; bottom: 22px; border-radius: 30px; background-color: rgba(22, 20, 18, 0.42); border-width: 1px; border-color: rgba(255, 255, 255, 0.12); flex-direction: row; align-items: center; justify-content: space-between; padding: 14px 22px; }
+.ar-cam-flip { width: 96px; height: 96px; border-radius: 48px; background-color: rgba(255, 255, 255, 0.1); border-width: 2px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-cam-flip-icon { width: 46px; height: 46px; }
+.ar-shutter-outer { width: 140px; height: 140px; border-radius: 70px; border-width: 6px; border-color: rgba(255, 255, 255, 0.95); background-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
+.ar-shutter-inner { width: 106px; height: 106px; border-radius: 53px; background-color: white; align-items: center; justify-content: center; }
+.ar-shutter-icon { width: 50px; height: 50px; }
+.ar-gallery-button { width: 96px; height: 96px; border-radius: 48px; border-width: 2px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; background-color: rgba(255, 255, 255, 0.1); }
+.ar-gallery-clip { position: absolute; left: 0; top: 0; width: 96px; height: 96px; border-radius: 48px; overflow: hidden; align-items: center; justify-content: center; }
+.ar-gallery-icon { width: 98px; height: 98px; }
 .ar-gallery-thumb { width: 100%; height: 100%; }
-.ar-gallery-badge { position: absolute; right: -4px; bottom: -4px; min-width: 32px; height: 32px; border-radius: 16px; background-color: rgb(84, 190, 107); align-items: center; justify-content: center; padding-left: 5px; padding-right: 5px; }
-.ar-gallery-badge-label { color: white; font-size: 16px; -unity-text-align: middle-center; }
+.ar-gallery-badge { position: absolute; right: -4px; bottom: -4px; min-width: 40px; height: 40px; border-radius: 20px; background-color: rgb(84, 190, 107); align-items: center; justify-content: center; padding-left: 8px; padding-right: 8px; }
+.ar-gallery-badge-label { color: white; font-size: 20px; -unity-text-align: middle-center; }
 .ar-photo-viewer { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.94); align-items: center; }
 .ar-photo-viewer-close { position: absolute; right: 24px; top: 40px; width: 66px; height: 66px; border-radius: 33px; background-color: rgba(255, 255, 255, 0.14); align-items: center; justify-content: center; }
 .ar-photo-viewer-close-icon { width: 30px; height: 30px; }

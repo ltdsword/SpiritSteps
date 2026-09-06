@@ -27,6 +27,8 @@ namespace CorgiAR.EditorTools
         private const string BallModelPath = "Assets/CorgiAR/Models/Ball/Ball.fbx";
         private const string BallIconPath = "Assets/CorgiAR/Resources/UI/Icons/ball.png";
         private const float BallDiameter = 0.12f;
+        private const string WhistleModelPath = "Assets/CorgiAR/ExternalAssets/Whistle00.fbx";
+        private const string WhistleIconPath = "Assets/CorgiAR/Resources/UI/Icons/whistle3d.png";
 
         [MenuItem("Tools/Corgi/Configure PetAr HUD")]
         public static void Configure()
@@ -75,7 +77,11 @@ namespace CorgiAR.EditorTools
             EnsureFolder("Assets/CorgiAR/Resources/UI/Icons");
 
             GameObject ballPrefab = EnsurePlayBallPrefab();
-            RenderBallIcon(ballPrefab);
+            RenderModelIcon(ballPrefab, BallIconPath);
+
+            GameObject whistleModel = AssetDatabase.LoadAssetAtPath<GameObject>(WhistleModelPath);
+            if (whistleModel != null)
+                RenderModelIcon(whistleModel, WhistleIconPath, OverrideWhistleMaterial);
 
             GameObject old = Find(scene, HudName);
             if (old != null)
@@ -88,13 +94,15 @@ namespace CorgiAR.EditorTools
             GameObject foodPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(FoodPrefabPath);
             Sprite foodIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FoodIconPath);
             Sprite ballIcon = AssetDatabase.LoadAssetAtPath<Sprite>(BallIconPath);
+            Sprite whistleIcon = AssetDatabase.LoadAssetAtPath<Sprite>(WhistleIconPath);
 
             Set(hud,
                 ("placement", placement), ("companion", companion), ("feeding", feeding),
                 ("mood", mood), ("toyFetch", toyFetch), ("binder", binder),
                 ("photo", photo), ("hudCamera", hudCamera),
                 ("foodPrefab", foodPrefab), ("ballPrefab", ballPrefab),
-                ("foodIconSprite", foodIcon), ("ballIconSprite", ballIcon));
+                ("foodIconSprite", foodIcon), ("ballIconSprite", ballIcon),
+                ("whistleIconSprite", whistleIcon));
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene))
@@ -199,9 +207,66 @@ namespace CorgiAR.EditorTools
             return mat;
         }
 
-        /// <summary>Renders the real throwable-ball prefab to a transparent PNG icon under a
-        /// Resources folder, so the runtime HUD can <c>Resources.Load</c> it with zero wiring.</summary>
-        private static void RenderBallIcon(GameObject model)
+        /// <summary>The imported Whistle00.fbx renders with speckled magenta/green noise (bad
+        /// normals or overlapping geometry in the source mesh, not a shader/pipeline mismatch -
+        /// its material already targets URP/Lit) - swap in a plain plastic-look material instead
+        /// of trying to fix the source mesh.</summary>
+        /// <summary>Whistle00.fbx's mesh is skinned (SkinnedMeshRenderer, no blend shapes, no
+        /// visible rig purpose) - instantiating it outside an Animator context left its bone
+        /// matrices unresolved, corrupting vertex positions into the speckled noise seen in the
+        /// render. Baking each SkinnedMeshRenderer into a static mesh at its current pose and
+        /// swapping in a plain MeshRenderer sidesteps the skinning entirely.</summary>
+        private static void BakeSkinnedMeshes(GameObject inst)
+        {
+            foreach (SkinnedMeshRenderer skinned in inst.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                var baked = new Mesh();
+                skinned.BakeMesh(baked, true);
+                GameObject go = skinned.gameObject;
+                Material[] mats = skinned.sharedMaterials;
+                UnityEngine.Object.DestroyImmediate(skinned);
+                go.AddComponent<MeshFilter>().sharedMesh = baked;
+                go.AddComponent<MeshRenderer>().sharedMaterials = mats;
+            }
+        }
+
+        private static void OverrideWhistleMaterial(GameObject inst)
+        {
+            BakeSkinnedMeshes(inst);
+            EnsureFolder("Assets/CorgiAR/Materials");
+            const string path = "Assets/CorgiAR/Materials/Whistle.mat";
+            Material mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            Color color = new Color(1f, 0.78f, 0.2f);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+            mat.color = color;
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.08f);
+            if (mat.HasProperty("_SpecColor")) mat.SetColor("_SpecColor", Color.black);
+            if (mat.HasProperty("_SpecularHighlights"))
+            {
+                mat.SetFloat("_SpecularHighlights", 0f);
+                mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            }
+            EditorUtility.SetDirty(mat);
+
+            foreach (Renderer r in inst.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                    mats[i] = mat;
+                r.sharedMaterials = mats;
+            }
+        }
+
+        /// <summary>Renders a model (a prefab or an imported FBX's root GameObject) to a
+        /// transparent PNG icon under a Resources folder, so the runtime HUD can
+        /// <c>Resources.Load</c> it with zero wiring.</summary>
+        private static void RenderModelIcon(GameObject model, string outputPath, Action<GameObject> beforeRender = null)
         {
             const int size = 256;
             const int iconLayer = 31;
@@ -212,6 +277,7 @@ namespace CorgiAR.EditorTools
             cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
             cam.fieldOfView = 30f;
             cam.nearClipPlane = 0.01f;
+            cam.farClipPlane = 5f;
             cam.cullingMask = 1 << iconLayer;
             cam.targetTexture = rt;
 
@@ -231,6 +297,7 @@ namespace CorgiAR.EditorTools
                     t.gameObject.layer = iconLayer;
                 foreach (TrailRenderer trail in inst.GetComponentsInChildren<TrailRenderer>(true))
                     trail.enabled = false;
+                beforeRender?.Invoke(inst);
 
                 Bounds b = RendererWorldBounds(inst);
                 float radius = Mathf.Max(0.1f, b.extents.magnitude);
@@ -246,7 +313,7 @@ namespace CorgiAR.EditorTools
                 tex.Apply();
                 RenderTexture.active = null;
 
-                System.IO.File.WriteAllBytes(BallIconPath, tex.EncodeToPNG());
+                System.IO.File.WriteAllBytes(outputPath, tex.EncodeToPNG());
                 UnityEngine.Object.DestroyImmediate(tex);
             }
             finally
@@ -259,8 +326,8 @@ namespace CorgiAR.EditorTools
                 UnityEngine.Object.DestroyImmediate(rt);
             }
 
-            AssetDatabase.ImportAsset(BallIconPath, ImportAssetOptions.ForceSynchronousImport);
-            if (AssetImporter.GetAtPath(BallIconPath) is TextureImporter importer)
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceSynchronousImport);
+            if (AssetImporter.GetAtPath(outputPath) is TextureImporter importer)
             {
                 importer.textureType = TextureImporterType.Sprite;
                 importer.spriteImportMode = SpriteImportMode.Single;
