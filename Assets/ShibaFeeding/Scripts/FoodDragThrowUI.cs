@@ -73,6 +73,9 @@ namespace ShibaFeeding
         public string SelectedFoodName => HasFoodChoices
             ? foodChoices[selectedFoodIndex].DisplayName
             : "G\u00C0";
+        public Sprite SelectedFoodIcon => HasFoodChoices ? SelectedChoice().Icon : null;
+        public int SelectedFoodQuantity => HasFoodChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+        public event System.Action FoodVisualChanged;
         private bool HasFoodChoices => foodChoices != null && foodChoices.Length > 0;
 
         private void Update()
@@ -197,6 +200,10 @@ namespace ShibaFeeding
         /// <summary>Re-point at the live AR/preview camera (the one baked in at HUD
         /// generation time gets disabled when the app switches into real AR).</summary>
         public void SetCamera(Camera camera) => worldCamera = camera;
+
+        public void BeginExternalDrag(Vector2 screenPosition) => BeginHold(screenPosition);
+        public void ContinueExternalDrag(Vector2 screenPosition) => MoveHeldFood(screenPosition);
+        public void EndExternalDrag(Vector2 screenPosition) => ReleaseFood(screenPosition);
 
         private void BeginHold(Vector2 screenPosition)
         {
@@ -459,6 +466,7 @@ namespace ShibaFeeding
 
             if (foodIconImage != null)
                 foodIconImage.color = quantity > 0 ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+            FoodVisualChanged?.Invoke();
         }
 
         private void ResolveFoodIconIfNeeded()

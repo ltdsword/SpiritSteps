@@ -341,6 +341,40 @@ namespace ARWalking.Tests.PlayMode
                     .Any(component => component.gameObject.scene.IsValid() &&
                                       component.GetType().Name == "Pet3DModeController"), Is.True,
                 "The meadow must use its own non-AR mode controller instead of modifying the PetAr controller.");
+            GameObject bridge = GameObject.Find("Pet 3D App Bridge");
+            var meadowDocument = bridge.GetComponent<UIDocument>();
+            var meadowRoot = meadowDocument.rootVisualElement;
+            Assert.That(meadowRoot.Q("pet-3d-glass-hud"), Is.Not.Null,
+                "The meadow must render through UI Toolkit instead of the legacy uGUI HUD.");
+            Assert.That(meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-exit"), Is.Not.Null);
+            var changePet = meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-change-pet");
+            Assert.That(changePet, Is.Not.Null);
+            Assert.That(changePet.ClassListContains("ar-change-pet-card"), Is.True,
+                "The meadow change-pet control must share the AR component class.");
+            Assert.That(changePet.resolvedStyle.width, Is.EqualTo(440f).Within(0.5f));
+
+            var interactionCircles = meadowRoot.Query<VisualElement>(className: "ar-interaction-circle").ToList();
+            Assert.That(interactionCircles.Count, Is.EqualTo(3));
+            foreach (VisualElement circle in interactionCircles)
+                Assert.That(circle.resolvedStyle.width, Is.EqualTo(152f).Within(0.5f),
+                    "The meadow actions should be slightly larger than the shared AR base size.");
+            Assert.That(meadowRoot.Q("pet-3d-food-quantity"), Is.Not.Null);
+            Assert.That(meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-switch-food"), Is.Not.Null);
+            Assert.That(meadowRoot.Q("pet-3d-pet-picker"), Is.Not.Null);
+
+            var legacyCanvas = GameObject.Find("Corgi AR HUD").GetComponent<Canvas>();
+            Assert.That(legacyCanvas.enabled, Is.False,
+                "The old uGUI HUD must not render underneath the UI Toolkit meadow HUD.");
+            var foodDriver = Resources.FindObjectsOfTypeAll<MonoBehaviour>()
+                .Single(component => component.gameObject.scene.IsValid() &&
+                                     component.GetType().Name == "FoodDragThrowUI");
+            var toolkitFoodIcon = meadowRoot.Q<VisualElement>(className: "pet3d-food-circle")
+                .Q<UnityEngine.UIElements.Image>(className: "ar-interaction-icon-food");
+            Sprite previousFoodIcon = toolkitFoodIcon.sprite;
+            foodDriver.GetType().GetMethod("SelectNextFood")?.Invoke(foodDriver, null);
+            yield return null;
+            Assert.That(toolkitFoodIcon.sprite, Is.Not.SameAs(previousFoodIcon),
+                "The UI Toolkit food action must follow the original food-selection logic.");
             var arSession = Resources.FindObjectsOfTypeAll<GameObject>()
                 .First(candidate => candidate.scene.IsValid() && candidate.name == "AR Session");
             Assert.That(arSession.activeInHierarchy, Is.False,
