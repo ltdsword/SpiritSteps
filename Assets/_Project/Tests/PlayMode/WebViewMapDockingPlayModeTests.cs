@@ -16,6 +16,8 @@ namespace ARWalking.Tests.PlayMode
             public int LeftMargin, TopMargin, RightMargin, BottomMargin;
             public bool Visible = true;
             public string LastMessageHandlerProbe;
+            public string LastEvaluatedJs;
+            public int EvaluateJsCallCount;
             Action<string> _onMessage;
 
             public bool IsInitialized => true;
@@ -30,7 +32,7 @@ namespace ARWalking.Tests.PlayMode
             }
             public void SetVisibility(bool visible) => Visible = visible;
             public void LoadURL(string url) { }
-            public void EvaluateJS(string js) { }
+            public void EvaluateJS(string js) { LastEvaluatedJs = js; EvaluateJsCallCount++; }
             public void SimulateMarkerTap(string landmarkId) => _onMessage?.Invoke("marker," + landmarkId);
         }
 
@@ -126,6 +128,26 @@ namespace ARWalking.Tests.PlayMode
             UiPrototypeRuntime.Instance.Navigator.CloseOverlay();
             yield return null;
             Assert.That(_bridge.Visible, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator MapPushes_AreSkippedWhenNothingChanged_ButRepushOnWalkStartWithATrail()
+        {
+            var home = CreateProfile();
+            yield return null; yield return null; yield return null;
+
+            var idleCallCount = _bridge.EvaluateJsCallCount;
+            yield return null; yield return null; yield return null;
+            Assert.That(_bridge.EvaluateJsCallCount, Is.EqualTo(idleCallCount),
+                "player fix and walking state are both unchanged across these frames, so no redundant JS pushes");
+
+            home.BeginWalk();
+            yield return null;
+
+            Assert.That(_bridge.EvaluateJsCallCount, Is.GreaterThan(idleCallCount),
+                "starting a walk flips walking state even before the GPS fix itself moves, and must still push");
+            // LastEvaluatedJs is a JS string literal wrapping the JSON payload, so its quotes are backslash-escaped.
+            Assert.That(_bridge.LastEvaluatedJs, Does.Contain("\\\"trail\\\":[["), "the walk's starting point seeds the trail");
         }
 
         [UnityTest]

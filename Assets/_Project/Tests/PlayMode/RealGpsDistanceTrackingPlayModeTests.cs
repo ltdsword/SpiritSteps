@@ -110,6 +110,40 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator HoldingUpArrow_DuringAWalk_BuildsATrailThatResetsOnTheNextWalk()
+        {
+            var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            Assert.That(home.CompleteSetup("Real Trail Test"), Is.True);
+            yield return null;
+
+            var runtime = UiPrototypeRuntime.Instance;
+            runtime.LocationService.Activate();
+            yield return null;
+
+            home.BeginWalk();
+            yield return null;
+            var atStart = runtime.WalkProvider.GetLiveMetrics();
+            Assert.That(atStart.trail, Has.Length.EqualTo(1), "the walk's starting fix must seed the trail");
+
+            const int heldFrames = 20;
+            PressUpArrow();
+            for (var i = 0; i < heldFrames; i++) yield return null;
+            ReleaseArrowKeys();
+            yield return null;
+
+            var afterWalking = runtime.WalkProvider.GetLiveMetrics();
+            Assert.That(afterWalking.trail.Length, Is.GreaterThan(1),
+                "movement well past the 3m spacing filter (~8m/frame) must add trail points");
+            Assert.That(afterWalking.trail[0], Is.EqualTo(atStart.trail[0]), "earlier trail points are never rewritten");
+
+            home.FinishWalk();
+            home.BeginWalk();
+            yield return null;
+            var newWalk = runtime.WalkProvider.GetLiveMetrics();
+            Assert.That(newWalk.trail, Has.Length.EqualTo(1), "a fresh walk must start with a fresh trail, not the previous walk's");
+        }
+
+        [UnityTest]
         public IEnumerator TappingSpace_DuringAWalk_IncrementsRealStepCount_AndTicksTheUiLive()
         {
             var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();

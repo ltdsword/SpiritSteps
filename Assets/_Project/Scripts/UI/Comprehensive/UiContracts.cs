@@ -156,6 +156,10 @@ namespace ARWalking.UI
         public bool hasSteps;
         [Min(0)] public int steps;
         [Min(0f)] public float elapsedSeconds;
+
+        /// <summary>The walked path so far this session, in walk order. Empty (never null) when not walking.
+        /// Display-only: progression rewards are computed from <see cref="distanceKilometres"/>, not this.</summary>
+        public GeoPoint[] trail = Array.Empty<GeoPoint>();
     }
 
     [Serializable]

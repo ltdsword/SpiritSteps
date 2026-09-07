@@ -28,6 +28,8 @@
   //   JS  -> native: Unity.call("marker," + landmarkId)     (a landmark pin was tapped)
   //   JS  -> native: Unity.call("debug," + message)         (page-side error - see below)
   //   native -> JS : window.mapBridge.update(jsonString)    (WebViewMapView.Render, via EvaluateJS)
+  // state.trail is [[lon,lat], ...] in walk order, already GeoJSON-ordered by the native side - empty
+  // (never missing) whenever no walk is in progress.
 
   // The native bridge's err/httpErr callbacks only cover the WebView's own page-load failures, not errors
   // happening inside this page's JS (a failed CDN script, a blocked fetch, a MapLibre runtime error) - so a
@@ -58,8 +60,20 @@
 
   map.on('load', () => {
     mapLoaded = true;
+    map.addSource('trail', { type: 'geojson', data: trailFeature([]) });
+    map.addLayer({
+      id: 'trail-line',
+      type: 'line',
+      source: 'trail',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#3399ff', 'line-width': 4, 'line-opacity': 0.7 }
+    });
     if (pendingState) { applyState(pendingState); pendingState = null; }
   });
+
+  function trailFeature(coordinates) {
+    return { type: 'Feature', geometry: { type: 'LineString', coordinates: coordinates } };
+  }
 
   document.getElementById('recenter-btn').addEventListener('click', () => {
     if (lastState) map.flyTo({ center: [lastState.player.lon, lastState.player.lat], zoom: 17 });
@@ -96,6 +110,9 @@
         landmarkMarkers[marker.id].setLngLat([marker.lon, marker.lat]);
       }
     });
+
+    const trailSource = map.getSource('trail');
+    if (trailSource) trailSource.setData(trailFeature(state.trail || []));
   }
 
   window.mapBridge = {

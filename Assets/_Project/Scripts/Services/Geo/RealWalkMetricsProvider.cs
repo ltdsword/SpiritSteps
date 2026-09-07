@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ARWalking.UI
@@ -10,8 +11,13 @@ namespace ARWalking.UI
     /// </summary>
     public sealed class RealWalkMetricsProvider : IWalkMetricsProvider
     {
+        // Keeps the displayed trail sparse - a real GPS fix already arrives at most every few seconds, but the
+        // Editor simulation fires on every frame a movement key is held, which would otherwise flood the trail.
+        const double MinTrailPointSpacingMeters = 3.0;
+
         readonly DeviceLocationService _location;
         readonly DeviceStepCounterService _stepCounter;
+        readonly List<GeoPoint> _trail = new List<GeoPoint>();
 
         double _distanceMeters;
         GeoPoint? _lastFix;
@@ -33,6 +39,8 @@ namespace ARWalking.UI
             _lastFix = _location.HasFix ? _location.Current : (GeoPoint?)null;
             _startedAtRealtime = Time.realtimeSinceStartup;
             _stepCounter.ResetSession();
+            _trail.Clear();
+            if (_location.HasFix) _trail.Add(_location.Current);
             _location.OnLocationUpdated += OnLocationUpdated;
             IsWalking = true;
         }
@@ -52,6 +60,9 @@ namespace ARWalking.UI
         {
             if (_lastFix.HasValue) _distanceMeters += GeoMath.HaversineMeters(_lastFix.Value, point);
             _lastFix = point;
+
+            var lastTrailPoint = _trail.Count > 0 ? _trail[_trail.Count - 1] : (GeoPoint?)null;
+            if (GeoMath.ShouldAppendTrailPoint(lastTrailPoint, point, MinTrailPointSpacingMeters)) _trail.Add(point);
         }
 
         WalkMetrics Snapshot() => new WalkMetrics
@@ -59,7 +70,8 @@ namespace ARWalking.UI
             distanceKilometres = (float)(_distanceMeters / 1000.0),
             hasSteps = _stepCounter.HasStepCounter,
             steps = _stepCounter.HasStepCounter ? _stepCounter.SessionSteps : 0,
-            elapsedSeconds = Mathf.Max(0f, Time.realtimeSinceStartup - _startedAtRealtime)
+            elapsedSeconds = Mathf.Max(0f, Time.realtimeSinceStartup - _startedAtRealtime),
+            trail = _trail.ToArray()
         };
     }
 }

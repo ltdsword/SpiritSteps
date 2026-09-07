@@ -92,6 +92,37 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Render_WithoutTrail_PushesAnEmptyTrailArray()
+        {
+            _view.Initialize(_bridge);
+            yield return null;
+            _bridge.OnLoaded?.Invoke(null);
+            yield return null;
+
+            var player = new GeoPoint(10.7798, 106.6997);
+            _view.Render(player, new List<WebViewMapMarker>());
+
+            // LastEvaluatedJs is a JS string literal wrapping the JSON payload, so its quotes are backslash-escaped.
+            Assert.That(_bridge.LastEvaluatedJs, Does.Contain("\\\"trail\\\":[]"));
+        }
+
+        [UnityTest]
+        public IEnumerator Render_WithTrail_PushesCoordinatesAsLonLatPairsInWalkOrder()
+        {
+            _view.Initialize(_bridge);
+            yield return null;
+            _bridge.OnLoaded?.Invoke(null);
+            yield return null;
+
+            var player = new GeoPoint(10.7798, 106.6997);
+            var trail = new List<GeoPoint> { new GeoPoint(10.0001, 106.0001), new GeoPoint(10.0002, 106.0002) };
+            _view.Render(player, new List<WebViewMapMarker>(), trail);
+
+            Assert.That(_bridge.LastEvaluatedJs,
+                Does.Contain("\\\"trail\\\":[[106.000100,10.000100],[106.000200,10.000200]]"));
+        }
+
+        [UnityTest]
         public IEnumerator SetMargins_ForwardsDirectlyToTheBridge()
         {
             _view.Initialize(_bridge);

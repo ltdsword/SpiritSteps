@@ -40,6 +40,28 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
+        public void ShouldAppendTrailPoint_NoPriorPoint_AlwaysTrue()
+        {
+            Assert.That(GeoMath.ShouldAppendTrailPoint(null, new GeoPoint(10.0, 106.0), 3.0), Is.True);
+        }
+
+        [Test]
+        public void ShouldAppendTrailPoint_WithinMinSpacing_IsFalse()
+        {
+            var last = new GeoPoint(10.0, 106.0);
+            var candidate = new GeoPoint(10.0, 106.0); // 0m away
+            Assert.That(GeoMath.ShouldAppendTrailPoint(last, candidate, 3.0), Is.False);
+        }
+
+        [Test]
+        public void ShouldAppendTrailPoint_BeyondMinSpacing_IsTrue()
+        {
+            var last = new GeoPoint(10.0, 106.0);
+            var candidate = new GeoPoint(10.001, 106.0); // ~111m away
+            Assert.That(GeoMath.ShouldAppendTrailPoint(last, candidate, 3.0), Is.True);
+        }
+
+        [Test]
         public void GeoToMapProjection_RoundTripsItsOwnCalibrationAnchors()
         {
             var geo0 = new GeoPoint(10.777498, 106.695347);

@@ -34,9 +34,9 @@ namespace ARWalking.UI
         public void SetMargins(int left, int top, int right, int bottom) => _bridge?.SetMargins(left, top, right, bottom);
         public void SetActive(bool active) => _bridge?.SetVisibility(active);
 
-        public void Render(GeoPoint player, IReadOnlyList<WebViewMapMarker> markers)
+        public void Render(GeoPoint player, IReadOnlyList<WebViewMapMarker> markers, IReadOnlyList<GeoPoint> trail = null)
         {
-            var json = BuildStateJson(player, markers);
+            var json = BuildStateJson(player, markers, trail);
             if (!_pageReady) { _pendingStateJson = json; return; }
             PushState(json);
         }
@@ -116,7 +116,7 @@ namespace ARWalking.UI
 
         void PushState(string json) => _bridge.EvaluateJS("window.mapBridge && window.mapBridge.update(" + JsStringLiteral(json) + ");");
 
-        static string BuildStateJson(GeoPoint player, IReadOnlyList<WebViewMapMarker> markers)
+        static string BuildStateJson(GeoPoint player, IReadOnlyList<WebViewMapMarker> markers, IReadOnlyList<GeoPoint> trail)
         {
             var sb = new StringBuilder();
             sb.Append("{\"player\":{\"lat\":").Append(player.lat.ToString("F6", CultureInfo.InvariantCulture))
@@ -128,6 +128,17 @@ namespace ARWalking.UI
                 sb.Append("{\"id\":\"").Append(Escape(marker.id)).Append("\",\"label\":\"").Append(Escape(marker.label))
                   .Append("\",\"lat\":").Append(marker.location.lat.ToString("F6", CultureInfo.InvariantCulture))
                   .Append(",\"lon\":").Append(marker.location.lon.ToString("F6", CultureInfo.InvariantCulture)).Append('}');
+            }
+            sb.Append("],\"trail\":[");
+            if (trail != null)
+            {
+                for (int i = 0; i < trail.Count; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    // [lon, lat] order to match GeoJSON coordinates, which is what the trail feeds directly into.
+                    sb.Append('[').Append(trail[i].lon.ToString("F6", CultureInfo.InvariantCulture))
+                      .Append(',').Append(trail[i].lat.ToString("F6", CultureInfo.InvariantCulture)).Append(']');
+                }
             }
             sb.Append("]}");
             return sb.ToString();

@@ -30,7 +30,8 @@ namespace ARWalking.UI
             distanceKilometres = value.distanceKilometres,
             hasSteps = value.hasSteps,
             steps = value.steps,
-            elapsedSeconds = value.elapsedSeconds
+            elapsedSeconds = value.elapsedSeconds,
+            trail = value.trail
         };
     }
 
@@ -68,7 +69,7 @@ namespace ARWalking.UI
         public static bool IsValid(WalkMetrics metrics)
         {
             return metrics != null && metrics.distanceKilometres >= 0f && metrics.elapsedSeconds >= 0f &&
-                   (!metrics.hasSteps || metrics.steps >= 0);
+                   (!metrics.hasSteps || metrics.steps >= 0) && metrics.trail != null;
         }
 
         public static bool IsValid(LandmarkMapState state)

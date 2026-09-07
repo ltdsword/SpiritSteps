@@ -34,6 +34,8 @@ namespace ARWalking.UI
         IMapDataProvider _mapData;
         Rect _lastSafeArea;
         Vector2Int _lastScreenSize;
+        GeoPoint? _lastRenderedMapFix;
+        bool _lastRenderedMapIsWalking;
         int _setupStep;
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
@@ -263,9 +265,19 @@ namespace ARWalking.UI
             _runtime.MapView.SetMargins(left, top, right, bottom);
         }
 
+        // Called every frame while a map route is showing (see Update()). Pushing a full state - player,
+        // landmarks, and a growing walk trail - through EvaluateJS on every one of those frames regardless of
+        // whether anything changed would scale badly as a walk gets longer, so this only pushes again once the
+        // player's fix or the walking on/off state actually differs from what was last pushed.
         void RenderRealMapMarkers()
         {
             if (!_runtime.LocationService.HasFix) return;
+            var current = _runtime.LocationService.Current;
+            var isWalking = _runtime.WalkProvider.IsWalking;
+            if (_lastRenderedMapFix.HasValue && _lastRenderedMapFix.Value.Equals(current) && _lastRenderedMapIsWalking == isWalking) return;
+            _lastRenderedMapFix = current;
+            _lastRenderedMapIsWalking = isWalking;
+
             var markers = new List<WebViewMapMarker>();
             foreach (var marker in _mapData.Markers)
             {
@@ -274,7 +286,8 @@ namespace ARWalking.UI
                 if (landmark == null) continue;
                 markers.Add(new WebViewMapMarker(marker.targetId, marker.label, landmark.Location));
             }
-            _runtime.MapView.Render(_runtime.LocationService.Current, markers);
+            var trail = isWalking ? _runtime.WalkProvider.GetLiveMetrics().trail : Array.Empty<GeoPoint>();
+            _runtime.MapView.Render(current, markers, trail);
         }
 
         void OnRealMapMarkerTapped(string landmarkId)

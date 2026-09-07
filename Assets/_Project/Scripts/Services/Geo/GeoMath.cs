@@ -31,5 +31,12 @@ namespace ARWalking.UI
             double bearing = Math.Atan2(y, x) * 180.0 / Math.PI;
             return (bearing + 360.0) % 360.0;
         }
+
+        /// <summary>Whether <paramref name="candidate"/> is far enough from <paramref name="lastTrailPoint"/> to be
+        /// worth recording as a new trail vertex - keeps a walked-path trail sparse regardless of how often the
+        /// location source fires (a real GPS is already throttled, but the Editor simulation fires every frame a
+        /// key is held).</summary>
+        public static bool ShouldAppendTrailPoint(GeoPoint? lastTrailPoint, GeoPoint candidate, double minSpacingMeters)
+            => !lastTrailPoint.HasValue || HaversineMeters(lastTrailPoint.Value, candidate) >= minSpacingMeters;
     }
 }
