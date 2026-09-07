@@ -574,14 +574,13 @@
 
 /* 3D meadow uses the same AR HUD components, with more room at the bottom because
    it intentionally has no camera/gallery cluster. */
-.pet3d-change-pet-card { width: 440px; min-height: 126px; }
 .pet3d-status-row-no-back { margin-left: 0; }
 .pet3d-interaction-row { bottom: 82px; }
 .pet3d-interaction-row .ar-interaction-item { margin-left: 18px; margin-right: 18px; }
 .pet3d-interaction-row .ar-interaction-circle { width: 152px; height: 152px; border-radius: 76px; }
 .pet3d-interaction-row .ar-interaction-icon-food { width: 120px; height: 120px; }
 .pet3d-food-circle { position: relative; }
-.pet3d-food-quantity { position: absolute; left: 52px; bottom: -13px; min-width: 48px; height: 48px; padding-left: 8px; padding-right: 8px; border-radius: 24px; background-color: white; align-items: center; justify-content: center; }
+.pet3d-food-quantity { position: absolute; left: -14px; top: -10px; min-width: 54px; height: 54px; padding-left: 8px; padding-right: 8px; border-radius: 27px; border-width: 2px; border-color: rgba(42, 63, 49, 0.14); background-color: white; align-items: center; justify-content: center; }
 .pet3d-food-quantity-label { color: rgb(42, 63, 49); font-size: 24px; -unity-font-style: bold; -unity-text-align: middle-center; }
 .pet3d-switch-food { position: absolute; right: -14px; top: -10px; width: 54px; height: 54px; min-width: 54px; min-height: 54px; padding: 0; border-radius: 27px; border-width: 2px; border-color: rgba(42, 63, 49, 0.14); background-color: white; align-items: center; justify-content: center; }
 .pet3d-switch-food-icon { width: 31px; height: 31px; }

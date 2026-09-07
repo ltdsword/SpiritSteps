@@ -20,10 +20,20 @@ namespace CorgiAR
 
         static void InstallMeadowHud(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name != Pet3DSceneContext.SceneName ||
-                FindFirstObjectByType<Pet3DGlassHud>() != null)
+            if (scene.name != Pet3DSceneContext.SceneName)
                 return;
 
+            Pet3DGlassHud existingHud = FindFirstObjectByType<Pet3DGlassHud>();
+            if (existingHud != null)
+            {
+                if (Pet3DSceneContext.IsActive &&
+                    FindFirstObjectByType<Pet3DSceneController>() == null)
+                    existingHud.gameObject.AddComponent<Pet3DSceneController>();
+                return;
+            }
+
+            // Backwards-compatible fallback for an older SampleScene. Current scenes serialize
+            // this bridge and its PanelSettings so UI scale is established before OnEnable.
             var bridge = new GameObject("Pet 3D App Bridge");
             bridge.AddComponent<UIDocument>();
             if (Pet3DSceneContext.IsActive)
