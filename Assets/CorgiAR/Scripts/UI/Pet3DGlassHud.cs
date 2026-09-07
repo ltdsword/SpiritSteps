@@ -47,6 +47,7 @@ namespace CorgiAR.UI
         private CorgiArHud legacyHud;
         private Camera worldCamera;
         private bool isReturningToApp;
+        private bool isSwitchingToAr;
 
         private Rect lastSafeArea;
         private Vector2Int lastScreenSize;
@@ -160,6 +161,16 @@ namespace CorgiAR.UI
                 back.AddToClassList("dark-round-control");
                 back.Add(Icon("chevron-left", "icon-image", Color.white));
                 topBar.Add(back);
+
+                var openAr = new UiButton(SwitchToAr) { name = "pet-3d-open-ar" };
+                openAr.AddToClassList("icon-button");
+                openAr.AddToClassList("dark-round-control");
+                openAr.AddToClassList("pet3d-ar-mode-button");
+                var arLabel = new Label("AR") { pickingMode = PickingMode.Ignore };
+                arLabel.AddToClassList("pet3d-ar-mode-label");
+                arLabel.AddToClassList("font-display");
+                openAr.Add(arLabel);
+                topBar.Add(openAr);
                 navigationPage.Add(topBar);
                 safeRoot.Add(navigationPage);
             }
@@ -171,7 +182,9 @@ namespace CorgiAR.UI
             topStack.pickingMode = PickingMode.Ignore;
             VisualElement statusRow = Element(null, "ar-status-row");
             statusRow.pickingMode = PickingMode.Ignore;
-            if (!Pet3DSceneContext.IsActive)
+            if (Pet3DSceneContext.IsActive)
+                statusRow.AddToClassList("pet3d-status-row-with-mode-switch");
+            else
                 statusRow.AddToClassList("pet3d-status-row-no-back");
             VisualElement statusPill = Element(null, "ar-status-pill");
             statusPill.pickingMode = PickingMode.Ignore;
@@ -396,6 +409,19 @@ namespace CorgiAR.UI
             // runtime has finished initializing. A Back tap must never silently do nothing.
             Pet3DSceneContext.Clear();
             SceneManager.LoadScene("Home");
+        }
+
+        private void SwitchToAr()
+        {
+            if (isSwitchingToAr || isReturningToApp) return;
+            UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+            if (runtime == null) return;
+
+            string selectedPetId = binder != null ? binder.CurrentId : Pet3DSceneContext.PetId;
+            if (string.IsNullOrEmpty(selectedPetId)) return;
+
+            isSwitchingToAr = true;
+            runtime.SwitchPet3DToAr(selectedPetId);
         }
 
         private void ApplySafeArea()

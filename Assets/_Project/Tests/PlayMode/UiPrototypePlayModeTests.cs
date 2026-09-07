@@ -370,6 +370,16 @@ namespace ARWalking.Tests.PlayMode
             var meadowTopBar = meadowRoot.Q("pet-3d-top-bar");
             Assert.That(meadowTopBar.resolvedStyle.left, Is.EqualTo(32f).Within(1f));
             Assert.That(meadowTopBar.resolvedStyle.top, Is.EqualTo(28f).Within(1f));
+            var openAr = meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-open-ar");
+            Assert.That(openAr, Is.Not.Null);
+            Assert.That(openAr.text, Is.EqualTo(string.Empty));
+            Assert.That(openAr.Q<Label>(className: "pet3d-ar-mode-label")?.text, Is.EqualTo("AR"));
+            Assert.That(openAr.resolvedStyle.width, Is.EqualTo(82f).Within(1f));
+            Assert.That(openAr.worldBound.xMax, Is.EqualTo(meadowTopBar.worldBound.xMax).Within(5f),
+                "The AR mode switch must stay at the top-right edge of the shared top bar.");
+            var meadowStatusRow = meadowRoot.Q<VisualElement>(className: "pet3d-status-row-with-mode-switch");
+            Assert.That(meadowStatusRow.worldBound.xMax, Is.LessThanOrEqualTo(openAr.worldBound.xMin + 1f),
+                "The status pill must reserve enough right-side space for the AR switch.");
 
             var interactionCircles = meadowRoot.Query<VisualElement>(className: "ar-interaction-circle").ToList();
             Assert.That(interactionCircles.Count, Is.EqualTo(3));
@@ -397,6 +407,25 @@ namespace ARWalking.Tests.PlayMode
                 .First(candidate => candidate.scene.IsValid() && candidate.name == "AR Session");
             Assert.That(arSession.activeInHierarchy, Is.False,
                 "The phone playground entry must use the meadow and must not start AR.");
+
+            MonoBehaviour meadowBinder = Resources.FindObjectsOfTypeAll<MonoBehaviour>()
+                .Single(component => component.gameObject.scene.IsValid() &&
+                                     component.GetType().Name == "PetBinder");
+            string selectedMeadowPet = meadowBinder.GetType().GetProperty("CurrentId")
+                ?.GetValue(meadowBinder) as string;
+            UiPrototypeRuntime.Instance.SwitchPet3DToAr(selectedMeadowPet);
+            yield return WaitForScene("PetAr");
+            Assert.That(Pet3DSceneContext.IsActive, Is.False);
+            Assert.That(PetArSceneContext.PetId, Is.EqualTo(selectedMeadowPet),
+                "Switching modes must carry the currently bound meadow pet into AR.");
+            Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentRoute, Is.EqualTo(UiRoute.PetAr));
+
+            UiPrototypeRuntime.Instance.ReturnFromPetAr();
+            yield return WaitForScene(Pet3DSceneContext.SceneName);
+            Assert.That(Pet3DSceneContext.IsActive, Is.True);
+            Assert.That(Pet3DSceneContext.PetId, Is.EqualTo(selectedMeadowPet));
+            Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentRoute, Is.EqualTo(UiRoute.Pet3D),
+                "Back from AR must restore the meadow route it was opened from.");
 
             UiPrototypeRuntime.Instance.ReturnFromPet3D();
             yield return WaitForScene("Home");
