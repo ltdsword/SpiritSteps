@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ARWalking.UI;
 using UnityEngine;
 
 namespace CorgiAR
@@ -41,8 +42,21 @@ namespace CorgiAR
         [SerializeField] private Material dogKitMaterial;
         [SerializeField] private string visualChildName = "Pet Visual";
 
+        private Transform currentVisual;
+
         public event Action<string> PetChanged;
         public string CurrentId { get; private set; }
+        /// <summary>The runtime "Pet Visual" root, cached so <see cref="PetGrowthController"/>
+        /// can scale it without re-walking the hierarchy every meal.</summary>
+        public Transform CurrentVisual
+        {
+            get
+            {
+                if (currentVisual == null)
+                    currentVisual = transform.Find(visualChildName);
+                return currentVisual;
+            }
+        }
         public IReadOnlyList<Binding> Bindings => bindings;
 
 #if UNITY_EDITOR
@@ -56,6 +70,7 @@ namespace CorgiAR
 
         private void Awake()
         {
+            currentVisual = transform.Find(visualChildName);
             if (animatorAdapter == null) animatorAdapter = GetComponent<DogAnimatorAdapter>();
             if (groundAligner == null) groundAligner = GetComponent<DogGroundAligner>();
             if (feeding == null) feeding = GetComponent<DogFeedingController>();
@@ -71,6 +86,34 @@ namespace CorgiAR
 
         public bool Has(string id) => TryFind(id, out _);
 
+        /// <summary>Switch to the next unlocked companion in roster order (wraps around). Used by
+        /// the "Đổi thú" HUD card - a no-modal replacement for the old Pet Menu sheet.</summary>
+        public void CycleNext()
+        {
+            if (bindings.Length == 0)
+                return;
+
+            int startIndex = Array.FindIndex(bindings, b => b.Id == CurrentId);
+            if (startIndex < 0) startIndex = 0;
+
+            for (int step = 1; step <= bindings.Length; step++)
+            {
+                string candidateId = bindings[(startIndex + step) % bindings.Length].Id;
+                if (IsUnlocked(candidateId))
+                {
+                    Bind(candidateId);
+                    return;
+                }
+            }
+        }
+
+        private static bool IsUnlocked(string id)
+        {
+            UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+            CompanionProgressData progress = runtime != null ? runtime.Companion(id) : null;
+            return progress != null && progress.unlocked;
+        }
+
         public void Bind(string id)
         {
             if (!CanSwap)
@@ -78,7 +121,7 @@ namespace CorgiAR
             if (!TryFind(id, out Binding binding) || binding.Prefab == null)
                 return;
 
-            Transform old = transform.Find(visualChildName);
+            Transform old = CurrentVisual;
             if (old != null)
             {
                 if (Application.isPlaying) Destroy(old.gameObject);
@@ -87,6 +130,7 @@ namespace CorgiAR
 
             GameObject visual = Instantiate(binding.Prefab, transform);
             visual.name = visualChildName;
+            currentVisual = visual.transform;
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             // Start from the model's authored (native) scale, then apply the per-family

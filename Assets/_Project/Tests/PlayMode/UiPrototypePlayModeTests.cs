@@ -90,6 +90,32 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator WalkResultWithFullRosterKeepsEveryRewardScrollable()
+        {
+            var home = CreateProfile();
+            foreach (var companion in UiPrototypeRuntime.Instance.SaveData.companions)
+                companion.unlocked = true;
+
+            home.BeginWalk();
+            var result = home.FinishWalk();
+            yield return null;
+            yield return null;
+
+            Assert.That(result.rewardedCompanionIds.Count, Is.EqualTo(CompanionRoster.Entries.Length));
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var scroll = root.Q<ScrollView>("walk-result-scroll");
+            Assert.That(scroll, Is.Not.Null, "A large reward roster must scroll instead of being clipped by the page.");
+            Assert.That(root.Query(className: "growth-reward-row").ToList().Count,
+                Is.EqualTo(CompanionRoster.Entries.Length));
+            Assert.That(scroll.contentContainer.Q<UnityEngine.UIElements.Button>("collect-&-continue"), Is.Not.Null,
+                "The collect action must remain reachable at the end of the scrollable summary.");
+            Assert.That(scroll.contentContainer.layout.height, Is.GreaterThan(scroll.contentViewport.layout.height),
+                "The full-roster fixture should exercise real vertical overflow.");
+            Assert.That(scroll.verticalScroller.highValue, Is.GreaterThan(0f),
+                "The overflowing result must expose a usable vertical scroll range.");
+        }
+
+        [UnityTest]
         public IEnumerator NavigationAndHeaderControlsUseV0VectorIconsAndProfileAvatar()
         {
             var home = CreateProfile();

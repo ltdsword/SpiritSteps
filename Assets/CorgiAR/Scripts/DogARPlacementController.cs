@@ -53,6 +53,11 @@ namespace CorgiAR
 
         public bool IsPlaced => isPlaced;
         public CompanionControlMode Mode => controlMode;
+        /// <summary>The camera currently driving AR interactions - the real AR camera in AR
+        /// mode, or the desktop-preview camera once <see cref="ConfigureForPreview"/> runs.
+        /// Single source of truth for anything (e.g. <see cref="CorgiAR.UI.CorgiArGlassHud"/>'s
+        /// drag-throw controllers) that needs "whichever camera is live right now".</summary>
+        public Camera ArCamera => arCamera;
         /// <summary>True while the screen-centre raycast is currently hitting a detected plane
         /// (the orange ring reticle is visible) - i.e. it's safe to tap to place the pet.</summary>
         public bool HasDetectedPlane => hasReticleHit;

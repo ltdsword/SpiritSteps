@@ -89,6 +89,25 @@ namespace CorgiAR
                 animator.speed = Mathf.Clamp(speed, 0.1f, 3f);
         }
 
+        /// <summary>
+        /// Starts the eating state from its first frame even if another Animator
+        /// transition was already in flight when the treat was reached.
+        /// </summary>
+        public void RestartEatingAnimation()
+        {
+            if (animator == null)
+                return;
+
+            CurrentState = DogAnimationState.Eating;
+            animator.SetInteger(AnimationId, DogAnimationMap.GetAnimationId(DogAnimationState.Eating));
+
+            int dogKitState = Animator.StringToHash("Base Layer.EatingStart");
+            int uaaState = Animator.StringToHash("Base Layer.Eat");
+            int state = animator.HasState(0, dogKitState) ? dogKitState : uaaState;
+            if (animator.HasState(0, state))
+                animator.CrossFadeInFixedTime(state, 0.12f, 0, 0f);
+        }
+
         public void Play(DogAnimationState state)
         {
             if (animator == null || CurrentState == state)
