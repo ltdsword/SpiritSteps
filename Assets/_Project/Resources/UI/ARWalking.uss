@@ -575,6 +575,9 @@
 /* 3D meadow uses the same AR HUD components, with more room at the bottom because
    it intentionally has no camera/gallery cluster. */
 .pet3d-status-row-no-back { margin-left: 0; }
+.pet3d-status-row-with-mode-switch { margin-left: 100px; margin-right: 100px; }
+.pet3d-ar-mode-button { margin-left: 0; }
+.pet3d-ar-mode-label { color: white; font-size: 29px; -unity-font-style: bold; -unity-text-align: middle-center; }
 .pet3d-interaction-row { bottom: 82px; }
 .pet3d-interaction-row .ar-interaction-item { margin-left: 18px; margin-right: 18px; }
 .pet3d-interaction-row .ar-interaction-circle { width: 152px; height: 152px; border-radius: 76px; }

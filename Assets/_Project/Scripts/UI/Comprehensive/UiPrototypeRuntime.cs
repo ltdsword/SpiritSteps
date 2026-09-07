@@ -36,6 +36,7 @@ namespace ARWalking.UI
         LocalPlayerSaveStore _saveStore;
         CompanionProgressionService _progression;
         List<string> _walkEligibleCompanionIds;
+        string _pet3DReturnPetId;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void InitializeBeforeScene() => EnsureExists();
@@ -325,6 +326,7 @@ namespace ARWalking.UI
             PendingPetInteraction interaction = PendingPetInteraction.None, string landmarkId = null)
         {
             RequireProfile();
+            _pet3DReturnPetId = null;
             Pet3DSceneContext.Clear();
             PetArSceneContext.PetId = petId;
             PetArSceneContext.IsPhotoMode = isPhotoMode;
@@ -350,14 +352,38 @@ namespace ARWalking.UI
 
         public void ReturnFromPet3D()
         {
+            _pet3DReturnPetId = null;
             Pet3DSceneContext.Clear();
             if (Navigator.CurrentRoute == UiRoute.Pet3D) Navigator.Back();
             SceneManager.LoadScene("Home");
         }
 
+        /// <summary>Temporarily opens AR above the meadow. Returning from AR restores the meadow
+        /// with the same bound companion instead of dropping back to the Companion tab.</summary>
+        public void SwitchPet3DToAr(string petId)
+        {
+            RequireProfile();
+            if (string.IsNullOrEmpty(petId)) petId = Pet3DSceneContext.PetId;
+            if (string.IsNullOrEmpty(petId)) petId = PrimaryCompanionId();
+            EnterPetAr(petId, false);
+            _pet3DReturnPetId = petId;
+        }
+
         public void ReturnFromPetAr()
         {
             if (Navigator.CurrentRoute == UiRoute.PetAr) Navigator.Back();
+            if (Navigator.CurrentRoute == UiRoute.Pet3D && !string.IsNullOrEmpty(_pet3DReturnPetId))
+            {
+                string petId = _pet3DReturnPetId;
+                _pet3DReturnPetId = null;
+                Pet3DSceneContext.Begin(petId, Navigator.CurrentRoot);
+                PlayerPrefs.SetString(Pet3DSceneContext.PetPreferenceKey, petId);
+                PlayerPrefs.Save();
+                SceneManager.LoadScene(Pet3DSceneContext.SceneName);
+                return;
+            }
+
+            _pet3DReturnPetId = null;
             SceneManager.LoadScene("Home");
         }
 
