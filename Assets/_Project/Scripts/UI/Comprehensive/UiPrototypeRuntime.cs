@@ -325,6 +325,7 @@ namespace ARWalking.UI
             PendingPetInteraction interaction = PendingPetInteraction.None, string landmarkId = null)
         {
             RequireProfile();
+            Pet3DSceneContext.Clear();
             PetArSceneContext.PetId = petId;
             PetArSceneContext.IsPhotoMode = isPhotoMode;
             PetArSceneContext.Interaction = interaction;
@@ -332,6 +333,26 @@ namespace ARWalking.UI
             PetArSceneContext.ReturnRoot = Navigator.CurrentRoot;
             Navigator.Push(UiRoute.PetAr);
             SceneManager.LoadScene("PetAr");
+        }
+
+        /// <summary>Opens the non-AR meadow playground used for walking, feeding and fetch.
+        /// On Android/iOS this context explicitly keeps SampleScene in desktop-meadow mode,
+        /// so entering it never starts an AR session.</summary>
+        public void EnterPet3D(string petId)
+        {
+            RequireProfile();
+            Pet3DSceneContext.Begin(petId, Navigator.CurrentRoot);
+            PlayerPrefs.SetString(Pet3DSceneContext.PetPreferenceKey, petId);
+            PlayerPrefs.Save();
+            Navigator.Push(UiRoute.Pet3D);
+            SceneManager.LoadScene(Pet3DSceneContext.SceneName);
+        }
+
+        public void ReturnFromPet3D()
+        {
+            Pet3DSceneContext.Clear();
+            if (Navigator.CurrentRoute == UiRoute.Pet3D) Navigator.Back();
+            SceneManager.LoadScene("Home");
         }
 
         public void ReturnFromPetAr()
@@ -355,6 +376,7 @@ namespace ARWalking.UI
 
         public void ReturnHome(UiRootTab root = UiRootTab.Map)
         {
+            Pet3DSceneContext.Clear();
             Navigator.SwitchRoot(root);
             SceneManager.LoadScene("Home");
         }
@@ -376,6 +398,7 @@ namespace ARWalking.UI
 
         public static void ClearTestOverrides()
         {
+            Pet3DSceneContext.Clear();
             TestSavePathOverride = null;
             TestWalkProviderOverride = null;
             TestMapProviderOverride = null;

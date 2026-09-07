@@ -25,17 +25,18 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
-        public void RouteCatalogContainsTwelveScreensAndFourRoots()
+        public void RouteCatalogContainsThirteenScreensAndFourRoots()
         {
             // The AR migration merged LandmarkArMemory + ArPhoto into one PetAr route;
             // the Activity Dashboard remains a separate Home screen.
-            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(12));
-            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(12));
+            Assert.That(UiRouteCatalog.All.Count, Is.EqualTo(13));
+            Assert.That(UiRouteCatalog.All.Distinct().Count(), Is.EqualTo(13));
             Assert.That(Enum.GetValues(typeof(UiRootTab)).Length, Is.EqualTo(4));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Map), Is.EqualTo(UiRoute.HomeMap));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Companions), Is.EqualTo(UiRoute.CompanionCollection));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Shop), Is.EqualTo(UiRoute.ShopFood));
             Assert.That(UiRouteCatalog.RootRoute(UiRootTab.Journey), Is.EqualTo(UiRoute.JourneyList));
+            Assert.That(UiRouteCatalog.RootFor(UiRoute.Pet3D), Is.EqualTo(UiRootTab.Companions));
         }
 
         [Test]

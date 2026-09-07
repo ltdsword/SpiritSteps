@@ -314,6 +314,44 @@ namespace ARWalking.Tests.PlayMode
             yield return null;
         }
 
+        [UnityTest]
+        public IEnumerator CompanionPetButtonOpensNonArPlaygroundAndReturnsToCompanions()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Companions);
+            yield return null;
+
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("pet"), Is.Not.Null);
+
+            UiPrototypeRuntime.Instance.EnterPet3D(PrototypeIds.Corgi);
+            yield return WaitForScene(Pet3DSceneContext.SceneName);
+
+            Assert.That(Pet3DSceneContext.IsActive, Is.True);
+            Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentRoute, Is.EqualTo(UiRoute.Pet3D));
+            Assert.That(GameObject.Find("Pet 3D App Bridge"), Is.Not.Null);
+            Assert.That(GameObject.Find("Pet Preview Ground"), Is.Not.Null);
+            var companion = GameObject.Find("Corgi Companion");
+            Assert.That(companion, Is.Not.Null);
+            Assert.That(companion.GetComponent("PetGrowthController"), Is.Not.Null,
+                "The meadow pet must receive feeding-driven Baby/Young/Adult growth.");
+            Assert.That(companion.GetComponent("PetGrowthVfx"), Is.Not.Null,
+                "The meadow pet must show a visual effect when its growth stage changes.");
+            Assert.That(Resources.FindObjectsOfTypeAll<MonoBehaviour>()
+                    .Any(component => component.gameObject.scene.IsValid() &&
+                                      component.GetType().Name == "Pet3DModeController"), Is.True,
+                "The meadow must use its own non-AR mode controller instead of modifying the PetAr controller.");
+            var arSession = Resources.FindObjectsOfTypeAll<GameObject>()
+                .First(candidate => candidate.scene.IsValid() && candidate.name == "AR Session");
+            Assert.That(arSession.activeInHierarchy, Is.False,
+                "The phone playground entry must use the meadow and must not start AR.");
+
+            UiPrototypeRuntime.Instance.ReturnFromPet3D();
+            yield return WaitForScene("Home");
+            Assert.That(Pet3DSceneContext.IsActive, Is.False);
+            Assert.That(UiPrototypeRuntime.Instance.Navigator.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
+        }
+
         HomeUiController CreateProfile()
         {
             var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();

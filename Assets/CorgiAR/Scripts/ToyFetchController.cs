@@ -23,9 +23,7 @@ namespace CorgiAR
         [SerializeField] private Vector3 mouthOffset = new(0f, -0.03f, 0.10f);
         [SerializeField, Min(0.1f)] private float reachDistance = 0.4f;
         [SerializeField, Min(0.1f)] private float returnDistance = 0.85f;
-        [Tooltip("The pet reacts only when a landed ball is this close on the ground plane.")]
         [SerializeField, Min(0.1f)] private float toyAwarenessRadius = 5.5f;
-        [Tooltip("Abort only after the pet has made no progress for this long.")]
         [SerializeField, Min(0.5f)] private float approachStallTimeout = 1.5f;
         [Tooltip("The pet keeps turning naturally before it releases the ball.")]
         [SerializeField, Range(1f, 45f)] private float returnFacingTolerance = 12f;
@@ -33,10 +31,14 @@ namespace CorgiAR
         private Coroutine fetchRoutine;
         private Transform returnAnchor;
         private ThrownToy carriedToy;
+        private Vector3 capturedDesktopReturnPoint;
+        private bool hasCapturedDesktopReturnPoint;
 
         public bool IsBusy => fetchRoutine != null;
-        public bool IsThrowBoundaryActive => false;
-        public float ThrowPreviewGroundY => transform.position.y;
+        public bool IsThrowBoundaryActive => companion != null && companion.UsesMovementBounds;
+        public float ThrowPreviewGroundY => IsThrowBoundaryActive
+            ? companion.PlayArea.GroundY
+            : transform.position.y;
 
         public void SetCamera(Camera camera) => playerCamera = camera;
         public void RebindCarry(Transform bone) => carryBone = bone;
@@ -51,18 +53,27 @@ namespace CorgiAR
         public Vector3 GetThrowAnchorPoint() => transform.TransformPoint(throwAnchorOffset);
 
         public Vector3 ConstrainHeldPosition(Camera camera, Vector3 desiredPosition, float footprintRadius) =>
-            desiredPosition;
+            IsThrowBoundaryActive
+                ? companion.PlayArea.ConstrainHeldPosition(camera, desiredPosition, footprintRadius)
+                : desiredPosition;
 
         public Vector3 ConstrainLaunchVelocity(Camera camera, Vector3 origin,
             Vector3 initialVelocity, float landingY, float footprintRadius,
             out Vector3 predictedLanding, out bool wasLimited)
         {
+            if (IsThrowBoundaryActive)
+                return companion.PlayArea.ConstrainLaunchVelocity(camera, origin, initialVelocity,
+                    landingY, footprintRadius, out predictedLanding, out wasLimited);
             predictedLanding = ThrowBallistics.LandingPoint(origin, initialVelocity, landingY);
             wasLimited = false;
             return initialVelocity;
         }
 
-        public void SetThrowAimActive(bool active) { }
+        public void SetThrowAimActive(bool active)
+        {
+            if (IsThrowBoundaryActive)
+                companion.PlayArea.SetThrowAimActive(active);
+        }
 
         /// <summary>Ground height the toy should be thrown along.</summary>
         public float GroundY => transform.position.y;
@@ -87,6 +98,15 @@ namespace CorgiAR
         {
             if (IsBusy || heldToy == null || companion == null)
                 return;
+
+            // Desktop camera follows the pet, so remember the user's position
+            // before the pet starts chasing. The anchor must not be parented to
+            // the pet or it will move along with the fetcher.
+            if (companion.UsesMovementBounds)
+            {
+                capturedDesktopReturnPoint = CameraGround();
+                hasCapturedDesktopReturnPoint = true;
+            }
             companion.ChaseTarget(heldToy, run: false, stopDistance: 0.5f);
         }
 
@@ -103,6 +123,11 @@ namespace CorgiAR
             if (Planar(transform.position, toy.transform.position) > toyAwarenessRadius ||
                 (companion != null && !companion.CanReach(toy.transform.position)))
                 return false;
+            if (companion != null && companion.UsesMovementBounds && !hasCapturedDesktopReturnPoint)
+            {
+                capturedDesktopReturnPoint = CameraGround();
+                hasCapturedDesktopReturnPoint = true;
+            }
             fetchRoutine = StartCoroutine(FetchSequence(toy));
             return true;
         }
@@ -111,9 +136,9 @@ namespace CorgiAR
         {
             // 1. run out to the toy. Chasing itself is clamped to the play-area
             // boundary (DogCompanionController), so a ball thrown beyond it is
-            // never actually reached — abort only after the pet stops making
-            // progress, not on a flat timer, so a distant-but-reachable ball
-            // isn't given up on too early.
+            // never actually reached — if the guard fires without the pet
+            // closing the distance, the ball is out of bounds and stays where
+            // it landed rather than being force-fetched from afar.
             companion?.ChaseTarget(toy.transform, run: true, stopDistance: 0.3f);
             float stallRemaining = approachStallTimeout;
             float bestDistance = Planar(transform.position, toy.transform.position);
@@ -138,6 +163,7 @@ namespace CorgiAR
             {
                 if (toy != null)
                     toy.BeginResting();
+                hasCapturedDesktopReturnPoint = false;
                 fetchRoutine = null;
                 yield break;
             }
@@ -149,15 +175,19 @@ namespace CorgiAR
             companion?.BeginInteraction(0.45f, DogAnimationState.WigglingTail);
             yield return new WaitForSeconds(0.45f);
 
-            // 3. carry it back to the player, who may be moving
-            returnAnchor.position = CameraGround();
+            // 3. In desktop preview return to the position captured before the
+            // follow camera moved. In AR, keep tracking the real camera/player.
+            bool stableReturn = companion != null && companion.UsesMovementBounds &&
+                                hasCapturedDesktopReturnPoint;
+            returnAnchor.position = stableReturn ? capturedDesktopReturnPoint : CameraGround();
             companion?.ChaseTarget(returnAnchor, run: true, stopDistance: returnDistance);
             float guard = 5f;
             while (guard > 0f &&
                    (Planar(transform.position, returnAnchor.position) > returnDistance ||
                     !IsFacing(returnAnchor.position)))
             {
-                returnAnchor.position = CameraGround();
+                if (!stableReturn)
+                    returnAnchor.position = CameraGround();
                 guard -= Time.deltaTime;
                 yield return null;
             }
@@ -166,6 +196,7 @@ namespace CorgiAR
             {
                 carriedToy = null;
                 companion?.BeginInteraction(0.6f, DogAnimationState.WigglingTail);
+                hasCapturedDesktopReturnPoint = false;
                 fetchRoutine = null;
                 yield break;
             }
@@ -179,6 +210,7 @@ namespace CorgiAR
             toy.transform.position = dropPos;
             toy.SetCarried(false);
             companion?.BeginInteraction(1f, DogAnimationState.WigglingTail);
+            hasCapturedDesktopReturnPoint = false;
             fetchRoutine = null;
         }
 

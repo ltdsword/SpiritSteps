@@ -9,7 +9,7 @@ namespace ARWalking.UI
         {
             UiRoute.OnboardingSetup, UiRoute.HomeMap, UiRoute.ActiveWalk, UiRoute.WalkResult,
             UiRoute.CompanionCollection, UiRoute.CompanionDetail, UiRoute.ShopFood,
-            UiRoute.LandmarkDetail, UiRoute.PetAr,
+            UiRoute.LandmarkDetail, UiRoute.PetAr, UiRoute.Pet3D,
             UiRoute.JourneyList, UiRoute.JourneyDetail, UiRoute.ActivityDashboard
         });
 
@@ -30,7 +30,8 @@ namespace ARWalking.UI
             switch (route)
             {
                 case UiRoute.CompanionCollection:
-                case UiRoute.CompanionDetail: return UiRootTab.Companions;
+                case UiRoute.CompanionDetail:
+                case UiRoute.Pet3D: return UiRootTab.Companions;
                 case UiRoute.ShopFood: return UiRootTab.Shop;
                 case UiRoute.JourneyList:
                 case UiRoute.JourneyDetail: return UiRootTab.Journey;

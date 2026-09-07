@@ -39,8 +39,10 @@ namespace CorgiAR
         private Coroutine eatRoutine;
 
         public bool IsEating { get; private set; }
-        public bool IsThrowBoundaryActive => false;
-        public float ThrowPreviewGroundY => transform.position.y;
+        public bool IsThrowBoundaryActive => companion != null && companion.UsesMovementBounds;
+        public float ThrowPreviewGroundY => IsThrowBoundaryActive
+            ? companion.PlayArea.GroundY
+            : transform.position.y;
 
         /// <summary>Raised once the pet finishes a treat (used by <see cref="PetMoodController"/>).</summary>
         public event Action Fed;
@@ -58,18 +60,27 @@ namespace CorgiAR
         public Vector3 GetFoodLandingPoint() => transform.TransformPoint(foodLandingOffset);
 
         public Vector3 ConstrainHeldPosition(Camera camera, Vector3 desiredPosition, float footprintRadius) =>
-            desiredPosition;
+            IsThrowBoundaryActive
+                ? companion.PlayArea.ConstrainHeldPosition(camera, desiredPosition, footprintRadius)
+                : desiredPosition;
 
         public Vector3 ConstrainLaunchVelocity(Camera camera, Vector3 origin,
             Vector3 initialVelocity, float landingY, float footprintRadius,
             out Vector3 predictedLanding, out bool wasLimited)
         {
+            if (IsThrowBoundaryActive)
+                return companion.PlayArea.ConstrainLaunchVelocity(camera, origin, initialVelocity,
+                    landingY, footprintRadius, out predictedLanding, out wasLimited);
             predictedLanding = ThrowBallistics.LandingPoint(origin, initialVelocity, landingY);
             wasLimited = false;
             return initialVelocity;
         }
 
-        public void SetThrowAimActive(bool active) { }
+        public void SetThrowAimActive(bool active)
+        {
+            if (IsThrowBoundaryActive)
+                companion.PlayArea.SetThrowAimActive(active);
+        }
 
         public void BeginFollowingHeldFood(Transform heldFood)
         {

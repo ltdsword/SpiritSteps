@@ -9,7 +9,7 @@ namespace CorgiAR.Tests
     {
         private const string PcRendererPath = "Assets/Settings/PC_Renderer.asset";
         private const string CorgiMaterialPath = "Assets/CorgiAR/Materials/Corgi_URP.mat";
-        private const string GroundMaterialPath = "Assets/PikminTest/Materials/PikminPreviewGround.mat";
+        private const string GroundMaterialPath = "Assets/ShibaFeeding/Generated/Playground.mat";
 
         [Test]
         public void PcRenderer_SsaoFeatureIsDisabled()

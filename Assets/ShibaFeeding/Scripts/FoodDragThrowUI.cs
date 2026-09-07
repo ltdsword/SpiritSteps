@@ -9,6 +9,19 @@ namespace ShibaFeeding
     /// <summary>Drag the food chip out of the HUD and release to throw it to the dog.</summary>
     public sealed class FoodDragThrowUI : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
+        [System.Serializable]
+        public struct FoodChoice
+        {
+            public string DisplayName;
+            public GameObject Prefab;
+            public Sprite Icon;
+            [Min(0)] public int Quantity;
+            [Min(1f)] public float HudIconSize;
+            [Min(0.05f)] public float WorldSize;
+            public Color TrailStart;
+            public Color TrailEnd;
+        }
+
         [Header("References")]
         [SerializeField] private Camera worldCamera;
         [Tooltip("A component implementing IFeedableDog (ShibaFeedingController or CorgiAR DogFeedingController).")]
@@ -16,6 +29,14 @@ namespace ShibaFeeding
         [SerializeField] private GameObject foodPrefab;
         [SerializeField] private Graphic buttonGraphic;
         [SerializeField] private FoodSourceVisualFeedback visualFeedback;
+
+        [Header("Food selection")]
+        [SerializeField] private FoodChoice[] foodChoices = System.Array.Empty<FoodChoice>();
+        [SerializeField, Min(0)] private int selectedFoodIndex;
+        [SerializeField] private Image foodIconImage;
+        [SerializeField] private Text selectedFoodLabel;
+        [SerializeField] private Text foodQuantityLabel;
+        [SerializeField] private Button switchFoodButton;
 
         [Header("World food model")]
         [Tooltip("Largest world-space dimension used to normalize imported food models.")]
@@ -44,7 +65,15 @@ namespace ShibaFeeding
         private Vector3 releaseVelocity;
         private Vector3 safeReleaseVelocity;
         private float heldFootprintRadius = 0.14f;
+        private float heldGroundCenterOffset = 0.15f;
         private ThrowLandingIndicator landingIndicator;
+        private Coroutine iconBounceRoutine;
+
+        public int SelectedFoodIndex => selectedFoodIndex;
+        public string SelectedFoodName => HasFoodChoices
+            ? foodChoices[selectedFoodIndex].DisplayName
+            : "G\u00C0";
+        private bool HasFoodChoices => foodChoices != null && foodChoices.Length > 0;
 
         private void Update()
         {
@@ -100,8 +129,20 @@ namespace ShibaFeeding
                 buttonGraphic = GetComponent<Graphic>();
             if (visualFeedback == null)
                 visualFeedback = GetComponent<FoodSourceVisualFeedback>();
+            normalColor = new Color(0.05f, 0.09f, 0.12f, 0.38f);
+            pressedColor = new Color(0.08f, 0.16f, 0.15f, 0.52f);
             BuildRuntimeButtonVisual();
+            ResolveFoodIconIfNeeded();
+            if (switchFoodButton != null)
+                switchFoodButton.onClick.AddListener(SelectNextFood);
+            ApplyFoodSelection(false);
             SetButtonColor(normalColor);
+        }
+
+        private void OnDestroy()
+        {
+            if (switchFoodButton != null)
+                switchFoodButton.onClick.RemoveListener(SelectNextFood);
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -129,6 +170,30 @@ namespace ShibaFeeding
             buttonGraphic = graphic;
         }
 
+        public void ConfigureFoodChoices(FoodChoice[] choices, int initialIndex,
+            Image iconImage, Text nameLabel, Text quantityLabel, Button switchButton)
+        {
+            foodChoices = choices ?? System.Array.Empty<FoodChoice>();
+            selectedFoodIndex = foodChoices.Length > 0
+                ? Mathf.Clamp(initialIndex, 0, foodChoices.Length - 1)
+                : 0;
+            foodIconImage = iconImage;
+            selectedFoodLabel = nameLabel;
+            foodQuantityLabel = quantityLabel;
+            switchFoodButton = switchButton;
+            ApplyFoodSelection(false);
+        }
+
+        /// <summary>Small HUD cycle button: Chicken -> Onigiri -> Chicken.</summary>
+        public void SelectNextFood()
+        {
+            if (!HasFoodChoices || dragging || heldFood != null || (shiba != null && shiba.IsEating))
+                return;
+
+            selectedFoodIndex = (selectedFoodIndex + 1) % foodChoices.Length;
+            ApplyFoodSelection(true);
+        }
+
         /// <summary>Re-point at the live AR/preview camera (the one baked in at HUD
         /// generation time gets disabled when the app switches into real AR).</summary>
         public void SetCamera(Camera camera) => worldCamera = camera;
@@ -138,13 +203,21 @@ namespace ShibaFeeding
             if (heldFood != null || shiba == null || shiba.IsEating)
                 return;
 
+            if (HasFoodChoices && SelectedChoice().Quantity <= 0)
+                return;
+
             dragging = true;
             Vector3 spawnPosition = ScreenToHeldWorld(screenPosition);
-            GameObject foodObject = foodPrefab != null
-                ? Instantiate(foodPrefab, spawnPosition, Quaternion.identity)
+            FoodChoice selected = SelectedChoice();
+            GameObject selectedPrefab = selected.Prefab != null ? selected.Prefab : foodPrefab;
+            GameObject foodObject = selectedPrefab != null
+                ? Instantiate(selectedPrefab, spawnPosition, Quaternion.identity)
                 : CreateRuntimeFood(spawnPosition);
-            foodObject.name = "Low Poly Treat (Held)";
-            heldFood = PrepareWorldFood(foodObject);
+            foodObject.name = (string.IsNullOrWhiteSpace(selected.DisplayName)
+                ? "Low Poly Treat" : selected.DisplayName) + " (Held)";
+            float selectedWorldSize = selected.WorldSize >= 0.05f
+                ? selected.WorldSize : worldFoodSize;
+            heldFood = PrepareWorldFood(foodObject, selectedWorldSize);
             if (heldFood == null)
             {
                 Destroy(foodObject);
@@ -153,6 +226,7 @@ namespace ShibaFeeding
                     visualFeedback.SetHeld(false);
                 return;
             }
+            ConsumeSelectedFood();
             heldFood.SetHeld(true);
             heldFootprintRadius = ThrowLandingIndicator.MeasureFootprint(heldFood.transform, 0.14f);
             heldFood.transform.position = ConstrainHeldPosition(heldFood.transform.position);
@@ -169,7 +243,7 @@ namespace ShibaFeeding
             UpdateThrowPreview();
         }
 
-        private ThrownFood PrepareWorldFood(GameObject foodObject)
+        private ThrownFood PrepareWorldFood(GameObject foodObject, float targetWorldSize)
         {
             // Imported FBX assets are deliberately kept free of gameplay components.
             // Add the same lightweight wrapper used by the generated food at runtime,
@@ -187,11 +261,14 @@ namespace ShibaFeeding
                 float largestDimension = Mathf.Max(renderBounds.size.x, renderBounds.size.y, renderBounds.size.z);
                 if (largestDimension > 0.0001f)
                 {
-                    float scaleMultiplier = worldFoodSize / largestDimension;
+                    float scaleMultiplier = targetWorldSize / largestDimension;
                     foodObject.transform.localScale *= scaleMultiplier;
                     Physics.SyncTransforms();
                     TryGetRenderBounds(foodObject, out renderBounds);
                 }
+
+                heldGroundCenterOffset = Mathf.Max(0.008f,
+                    foodObject.transform.position.y - renderBounds.min.y + 0.008f);
 
                 if (foodObject.GetComponentInChildren<Collider>() == null)
                 {
@@ -223,8 +300,10 @@ namespace ShibaFeeding
                 trail.time = 0.18f;
                 trail.startWidth = 0.045f;
                 trail.endWidth = 0f;
-                trail.startColor = new Color(1f, 0.82f, 0.28f, 0.55f);
-                trail.endColor = new Color(1f, 0.35f, 0.05f, 0f);
+                FoodChoice selected = SelectedChoice();
+                trail.startColor = selected.TrailStart.a > 0f
+                    ? selected.TrailStart : new Color(1f, 0.82f, 0.28f, 0.55f);
+                trail.endColor = selected.TrailEnd;
                 if (modelRenderer != null)
                     trail.sharedMaterial = modelRenderer.sharedMaterial;
             }
@@ -292,7 +371,7 @@ namespace ShibaFeeding
             throwBoundary?.SetThrowAimActive(false);
             ThrowLandingIndicator.HideIfAlive(ref landingIndicator);
 
-            float groundY = shiba.GetFoodLandingPoint().y;
+            float groundY = CurrentFoodGroundY();
             releasedFood.Launch(safeReleaseVelocity, shiba, groundY, boundedThrow);
             if (visualFeedback != null)
                 visualFeedback.MarkInteractionUsed();
@@ -300,8 +379,113 @@ namespace ShibaFeeding
 
         private bool IsInsideButton(Vector2 screenPosition)
         {
+            RectTransform switchRect = switchFoodButton != null
+                ? switchFoodButton.transform as RectTransform : null;
+            if (switchRect != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(switchRect, screenPosition, null))
+                return false;
             RectTransform rect = transform as RectTransform;
             return rect != null && RectTransformUtility.RectangleContainsScreenPoint(rect, screenPosition, null);
+        }
+
+        private float CurrentFoodGroundY()
+        {
+            if (throwBoundary != null)
+                return throwBoundary.ThrowPreviewGroundY + heldGroundCenterOffset;
+            return shiba != null ? shiba.GetFoodLandingPoint().y : heldGroundCenterOffset;
+        }
+
+        private FoodChoice SelectedChoice()
+        {
+            if (!HasFoodChoices)
+            {
+                return new FoodChoice
+                {
+                    DisplayName = "G\u00C0",
+                    Prefab = foodPrefab,
+                    TrailStart = new Color(1f, 0.82f, 0.28f, 0.55f),
+                    TrailEnd = new Color(1f, 0.35f, 0.05f, 0f)
+                };
+            }
+            selectedFoodIndex = Mathf.Clamp(selectedFoodIndex, 0, foodChoices.Length - 1);
+            return foodChoices[selectedFoodIndex];
+        }
+
+        private void ApplyFoodSelection(bool animateIcon)
+        {
+            if (!HasFoodChoices)
+                return;
+
+            FoodChoice selected = SelectedChoice();
+            foodPrefab = selected.Prefab;
+            ResolveFoodIconIfNeeded();
+            if (foodIconImage != null)
+            {
+                foodIconImage.sprite = selected.Icon;
+                foodIconImage.enabled = selected.Icon != null;
+                foodIconImage.preserveAspect = true;
+                float iconSize = selected.HudIconSize > 1f ? selected.HudIconSize : 285f;
+                foodIconImage.rectTransform.sizeDelta = new Vector2(iconSize, iconSize);
+            }
+            if (selectedFoodLabel != null)
+                selectedFoodLabel.text = selected.DisplayName;
+            RefreshQuantityVisual();
+
+            if (animateIcon && foodIconImage != null && isActiveAndEnabled)
+            {
+                if (iconBounceRoutine != null)
+                    StopCoroutine(iconBounceRoutine);
+                iconBounceRoutine = StartCoroutine(BounceFoodIcon());
+            }
+        }
+
+        private void ConsumeSelectedFood()
+        {
+            if (!HasFoodChoices)
+                return;
+
+            selectedFoodIndex = Mathf.Clamp(selectedFoodIndex, 0, foodChoices.Length - 1);
+            FoodChoice selected = foodChoices[selectedFoodIndex];
+            selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
+            foodChoices[selectedFoodIndex] = selected;
+            RefreshQuantityVisual();
+        }
+
+        private void RefreshQuantityVisual()
+        {
+            int quantity = HasFoodChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+            if (foodQuantityLabel != null)
+                foodQuantityLabel.text = quantity.ToString();
+
+            if (foodIconImage != null)
+                foodIconImage.color = quantity > 0 ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+        }
+
+        private void ResolveFoodIconIfNeeded()
+        {
+            if (foodIconImage != null)
+                return;
+            Transform icon = transform.Find("Food Icon") ?? transform.Find("Drumstick Icon");
+            if (icon != null)
+                foodIconImage = icon.GetComponent<Image>();
+        }
+
+        private System.Collections.IEnumerator BounceFoodIcon()
+        {
+            RectTransform rect = foodIconImage.rectTransform;
+            Vector3 original = rect.localScale;
+            float elapsed = 0f;
+            const float bounceDuration = 0.2f;
+            while (elapsed < bounceDuration && rect != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / bounceDuration);
+                float pulse = 1f + Mathf.Sin(t * Mathf.PI) * 0.14f;
+                rect.localScale = original * pulse;
+                yield return null;
+            }
+            if (rect != null) rect.localScale = original;
+            iconBounceRoutine = null;
         }
 
         private static GameObject CreateRuntimeFood(Vector3 position)
@@ -422,14 +606,16 @@ namespace ShibaFeeding
             // Map the pointer to a stable plane above the meadow. A fixed camera
             // depth changes meaning whenever the user zooms, which made identical
             // gestures land at wildly different world positions.
-            float groundY = shiba != null ? shiba.GetFoodLandingPoint().y : 0f;
+            // Use the same ground reference as the ball throw UI. The dog's food
+            // landing point already includes a small vertical offset for resting
+            // food, so adding heldHeight to it made held food start above the ball.
+            float groundY = throwBoundary != null
+                ? throwBoundary.ThrowPreviewGroundY
+                : shiba != null ? shiba.GetFoodLandingPoint().y : 0f;
             Plane heldPlane = new Plane(Vector3.up, new Vector3(0f, groundY + heldHeight, 0f));
             Ray ray = worldCamera.ScreenPointToRay(screenPosition);
-            // At grazing angles (camera nearly level with the held plane) a tiny finger
-            // movement can send this distance to near-zero or very far, making the held
-            // food visually snap bigger/smaller. Clamp to a plausible arm's-length range.
             if (heldPlane.Raycast(ray, out float distance))
-                return ConstrainHeldPosition(ray.GetPoint(Mathf.Clamp(distance, 0.4f, 2.6f)));
+                return ConstrainHeldPosition(ray.GetPoint(distance));
 
             return ConstrainHeldPosition(worldCamera.ScreenToWorldPoint(
                 new Vector3(screenPosition.x, screenPosition.y, heldDepth)));
@@ -451,7 +637,7 @@ namespace ShibaFeeding
                 return;
             }
 
-            float groundY = shiba.GetFoodLandingPoint().y;
+            float groundY = CurrentFoodGroundY();
             safeReleaseVelocity = throwBoundary.ConstrainLaunchVelocity(worldCamera,
                 heldFood.transform.position, releaseVelocity, groundY, heldFootprintRadius,
                 out Vector3 landing, out bool limited);
@@ -476,14 +662,27 @@ namespace ShibaFeeding
         private void BuildRuntimeButtonVisual()
         {
             RectTransform buttonRect = transform as RectTransform;
-            if (buttonRect == null || transform.Find("Runtime Drumstick Icon") != null)
+            if (buttonRect == null)
                 return;
 
             // Respect the layout authored by each scene. SampleScene aligns this
             // source with its joystick, while the feeding demo uses a higher
             // mobile-safe anchor of its own.
-            Transform oldIcon = transform.Find("Food Icon");
-            if (oldIcon != null) oldIcon.gameObject.SetActive(false);
+            Transform foodIcon = transform.Find("Food Icon");
+            Transform runtimeIcon = transform.Find("Runtime Drumstick Icon");
+            if (foodIcon != null)
+            {
+                foodIcon.gameObject.SetActive(true);
+                Graphic authoredGraphic = foodIcon.GetComponent<Graphic>();
+                if (authoredGraphic != null)
+                    authoredGraphic.raycastTarget = false;
+
+                // Older versions generated a procedural chicken at runtime. Keep
+                // it hidden when the scene owns a sprite icon so food switching
+                // always updates the only visible visual.
+                if (runtimeIcon != null)
+                    runtimeIcon.gameObject.SetActive(false);
+            }
 
             Transform hintTransform = transform.parent != null ? transform.parent.Find("Hint") : null;
             if (hintTransform != null)
@@ -515,7 +714,7 @@ namespace ShibaFeeding
 
             // The generated frameless hierarchy already owns its icon, quantity and tutorial.
             // Keeping the hit target separate prevents a duplicate runtime icon from appearing.
-            if (transform.Find("Food Item Visual") != null)
+            if (foodIcon != null || transform.Find("Food Item Visual") != null)
                 return;
 
             Transform generatedIcon = transform.Find("Drumstick Icon");
@@ -533,6 +732,12 @@ namespace ShibaFeeding
                     generatedRect.anchorMax = Vector2.one;
                     generatedRect.offsetMin = generatedRect.offsetMax = Vector2.zero;
                 }
+                return;
+            }
+
+            if (runtimeIcon != null)
+            {
+                runtimeIcon.gameObject.SetActive(true);
                 return;
             }
 
