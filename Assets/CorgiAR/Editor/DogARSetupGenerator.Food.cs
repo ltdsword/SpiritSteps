@@ -1,4 +1,5 @@
 using System;
+using CorgiAR.UI;
 using ShibaFeeding;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -10,6 +11,7 @@ namespace CorgiAR.EditorTools
 {
     public static partial class DogARSetupGenerator
     {
+        private const string ArScenePath = "Assets/_Project/Scenes/PetAr.unity";
         private const string OnigiriModelPath = "Assets/CorgiAR/onigiri/source/rice.fbx";
         private const string OnigiriIconPath = "Assets/CorgiAR/onigiri/onigiri.png";
         private const string ChangeIconPath = "Assets/CorgiAR/icon/change_icon.png";
@@ -45,6 +47,73 @@ namespace CorgiAR.EditorTools
                 throw new InvalidOperationException("Could not save the upgraded food selector in SampleScene.");
             AssetDatabase.SaveAssets();
             Debug.Log("FOOD SELECTOR UPGRADED: Chicken + Onigiri.", foodButton);
+        }
+
+        /// <summary>
+        /// Wires the same Chicken + Onigiri selection used by SampleScene's uGUI food button
+        /// into the AR glass HUD's <see cref="CorgiArGlassHud"/> (a lightweight UI Toolkit
+        /// controller with no uGUI Food Button of its own - see <see cref="ArFoodDragController"/>).
+        /// </summary>
+        [MenuItem("Tools/Corgi/Upgrade AR Food Selector")]
+        public static void UpgradeArFoodSelectorMenu()
+        {
+            Scene scene = EditorSceneManager.GetActiveScene();
+            if (scene.path != ArScenePath)
+                throw new InvalidOperationException("Open " + ArScenePath + " before upgrading the AR food selector.");
+
+            CorgiArGlassHud hud = UnityEngine.Object.FindFirstObjectByType<CorgiArGlassHud>(FindObjectsInactive.Include);
+            if (hud == null)
+                throw new InvalidOperationException("CorgiArGlassHud was not found in " + ArScenePath + ".");
+
+            GameObject chickenPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(FoodPrefabPath);
+            GameObject onigiriPrefab = EnsureOnigiriFoodPrefab();
+            ConfigureIconImporter(FoodIconPath);
+            ConfigureIconImporter(OnigiriIconPath);
+            Sprite chickenIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FoodIconPath);
+            Sprite onigiriIcon = AssetDatabase.LoadAssetAtPath<Sprite>(OnigiriIconPath);
+            if (chickenPrefab == null || onigiriPrefab == null || chickenIcon == null || onigiriIcon == null)
+                throw new InvalidOperationException("One or more AR food assets could not be loaded.");
+
+            var choices = new[]
+            {
+                new FoodDragThrowUI.FoodChoice
+                {
+                    DisplayName = "GÀ",
+                    Prefab = chickenPrefab,
+                    Icon = chickenIcon,
+                    Quantity = 20,
+                    WorldSize = 0.28f
+                },
+                new FoodDragThrowUI.FoodChoice
+                {
+                    DisplayName = "CƠM NẮM",
+                    Prefab = onigiriPrefab,
+                    Icon = onigiriIcon,
+                    Quantity = 20,
+                    WorldSize = 0.16f
+                }
+            };
+
+            var serialized = new SerializedObject(hud);
+            SerializedProperty choicesProperty = serialized.FindProperty("foodChoices");
+            choicesProperty.arraySize = choices.Length;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                SerializedProperty element = choicesProperty.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("DisplayName").stringValue = choices[i].DisplayName;
+                element.FindPropertyRelative("Prefab").objectReferenceValue = choices[i].Prefab;
+                element.FindPropertyRelative("Icon").objectReferenceValue = choices[i].Icon;
+                element.FindPropertyRelative("Quantity").intValue = choices[i].Quantity;
+                element.FindPropertyRelative("WorldSize").floatValue = choices[i].WorldSize;
+            }
+            serialized.ApplyModifiedProperties();
+            EditorUtility.SetDirty(hud);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene))
+                throw new InvalidOperationException("Could not save " + ArScenePath + " after upgrading the AR food selector.");
+            AssetDatabase.SaveAssets();
+            Debug.Log("AR FOOD SELECTOR UPGRADED: Chicken + Onigiri.", hud);
         }
 
         private static void ConfigureFoodSelector(GameObject foodButton,

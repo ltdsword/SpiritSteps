@@ -409,9 +409,24 @@ MonoBehaviour:
   binder: {fileID: 1396218329}
   photo: {fileID: 649302017}
   hudCamera: {fileID: 326211655}
-  foodPrefab: {fileID: 8535146860524967466, guid: 56b49ec6f72e03346926330d3e7f9bb4, type: 3}
+  foodChoices:
+  - DisplayName: "G\xC0"
+    Prefab: {fileID: 8535146860524967466, guid: 56b49ec6f72e03346926330d3e7f9bb4, type: 3}
+    Icon: {fileID: 21300000, guid: 16e42be08bea5a049b903a6b515c78e5, type: 3}
+    Quantity: 20
+    HudIconSize: 0
+    WorldSize: 0.28
+    TrailStart: {r: 0, g: 0, b: 0, a: 0}
+    TrailEnd: {r: 0, g: 0, b: 0, a: 0}
+  - DisplayName: "C\u01A0M N\u1EAEM"
+    Prefab: {fileID: 1903220313250272109, guid: 42c9a6cd30aef764193a8fa1f0a46727, type: 3}
+    Icon: {fileID: 21300000, guid: 1436fd7a5c993d94bbd1f2181da0a198, type: 3}
+    Quantity: 20
+    HudIconSize: 0
+    WorldSize: 0.16
+    TrailStart: {r: 0, g: 0, b: 0, a: 0}
+    TrailEnd: {r: 0, g: 0, b: 0, a: 0}
   ballPrefab: {fileID: 4857890221100132873, guid: 5e3d0c42b7b8c28428d514fc13f2325f, type: 3}
-  foodIconSprite: {fileID: 21300000, guid: 16e42be08bea5a049b903a6b515c78e5, type: 3}
   ballIconSprite: {fileID: 21300000, guid: 988cfe7f6afc4844ca17a06fd36b21cb, type: 3}
   whistleIconSprite: {fileID: 21300000, guid: be0ad0447ad98f142be1cd7eb852a41c, type: 3}
 --- !u!114 &649302017

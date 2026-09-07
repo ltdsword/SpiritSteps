@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -12,6 +13,8 @@ namespace CorgiAR.UI
     /// only the input plumbing changes from uGUI's IPointerDownHandler/EventSystem to UI
     /// Toolkit's pointer events + explicit pointer capture. Kept separate from the original so
     /// the ShibaFeeding demo (still uGUI) is untouched.
+    /// Also mirrors FoodDragThrowUI's multi-food selection (choices with quantity, switching,
+    /// bounds-based world-size normalization) so the AR food row matches the Pet3D HUD.
     /// </summary>
     public sealed class ArFoodDragController
     {
@@ -19,14 +22,16 @@ namespace CorgiAR.UI
         private readonly Camera worldCamera;
         private readonly IFeedableDog shiba;
         private readonly IThrowBoundary throwBoundary;
-        private readonly GameObject foodPrefab;
+        private readonly FoodDragThrowUI.FoodChoice[] choices;
 
         private const float HeldHeight = 0.65f;
         private const float MaxThrowSpeed = 4f;
         private const float VelocitySmoothing = 18f;
         private const float MinHeldDistance = 0.4f;
         private const float MaxHeldDistance = 2.6f;
+        private const float DefaultWorldSize = 0.28f;
 
+        private int selectedIndex;
         private ThrownFood heldFood;
         private bool dragging;
         private int activePointerId = -1;
@@ -37,13 +42,19 @@ namespace CorgiAR.UI
         private float heldFootprintRadius = 0.14f;
         private ThrowLandingIndicator landingIndicator;
 
-        public ArFoodDragController(VisualElement element, Camera worldCamera, IFeedableDog shiba, GameObject foodPrefab)
+        public event Action FoodVisualChanged;
+        private bool HasChoices => choices != null && choices.Length > 0;
+        public Sprite SelectedFoodIcon => HasChoices ? SelectedChoice().Icon : null;
+        public int SelectedFoodQuantity => HasChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+
+        public ArFoodDragController(VisualElement element, Camera worldCamera, IFeedableDog shiba,
+            FoodDragThrowUI.FoodChoice[] choices)
         {
             this.element = element;
             this.worldCamera = worldCamera;
             this.shiba = shiba;
             this.throwBoundary = shiba as IThrowBoundary;
-            this.foodPrefab = foodPrefab;
+            this.choices = choices ?? Array.Empty<FoodDragThrowUI.FoodChoice>();
 
             element.RegisterCallback<PointerDownEvent>(OnPointerDown);
             element.RegisterCallback<PointerMoveEvent>(OnPointerMove);
@@ -51,9 +62,31 @@ namespace CorgiAR.UI
             element.RegisterCallback<PointerCaptureOutEvent>(_ => CancelDrag());
         }
 
+        /// <summary>Small HUD cycle button: Chicken -> Onigiri -> Chicken.</summary>
+        public void SelectNextFood()
+        {
+            if (!HasChoices || dragging || heldFood != null || (shiba != null && shiba.IsEating))
+                return;
+            selectedIndex = (selectedIndex + 1) % choices.Length;
+            FoodVisualChanged?.Invoke();
+        }
+
+        private FoodDragThrowUI.FoodChoice SelectedChoice()
+        {
+            selectedIndex = Mathf.Clamp(selectedIndex, 0, choices.Length - 1);
+            return choices[selectedIndex];
+        }
+
         private void OnPointerDown(PointerDownEvent evt)
         {
             if (heldFood != null || shiba == null || shiba.IsEating)
+                return;
+            if (HasChoices && SelectedChoice().Quantity <= 0)
+                return;
+
+            FoodDragThrowUI.FoodChoice selected = SelectedChoice();
+            GameObject foodPrefab = selected.Prefab;
+            if (foodPrefab == null)
                 return;
 
             activePointerId = evt.pointerId;
@@ -61,11 +94,17 @@ namespace CorgiAR.UI
             dragging = true;
 
             Vector3 spawnPosition = ScreenToHeldWorld(PointerScreenPosition());
-            GameObject foodObject = Object.Instantiate(foodPrefab, spawnPosition, Quaternion.identity);
-            foodObject.name = "Low Poly Treat (Held)";
+            GameObject foodObject = UnityEngine.Object.Instantiate(foodPrefab, spawnPosition, Quaternion.identity);
+            foodObject.name = (string.IsNullOrWhiteSpace(selected.DisplayName)
+                ? "Low Poly Treat" : selected.DisplayName) + " (Held)";
+            float targetWorldSize = selected.WorldSize >= 0.05f ? selected.WorldSize : DefaultWorldSize;
+            NormalizeWorldSize(foodObject, targetWorldSize);
+
             heldFood = foodObject.GetComponent<ThrownFood>();
             if (heldFood == null)
                 heldFood = foodObject.AddComponent<ThrownFood>();
+
+            ConsumeSelectedFood();
 
             heldFood.SetHeld(true);
             heldFootprintRadius = ThrowLandingIndicator.MeasureFootprint(heldFood.transform, 0.14f);
@@ -127,6 +166,49 @@ namespace CorgiAR.UI
 
             float groundY = shiba.GetFoodLandingPoint().y;
             releasedFood.Launch(safeReleaseVelocity, shiba, groundY, boundedThrow);
+        }
+
+        private void ConsumeSelectedFood()
+        {
+            if (!HasChoices)
+                return;
+            selectedIndex = Mathf.Clamp(selectedIndex, 0, choices.Length - 1);
+            FoodDragThrowUI.FoodChoice selected = choices[selectedIndex];
+            selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
+            choices[selectedIndex] = selected;
+            FoodVisualChanged?.Invoke();
+        }
+
+        private static void NormalizeWorldSize(GameObject foodObject, float targetWorldSize)
+        {
+            if (!TryGetRenderBounds(foodObject, out Bounds bounds))
+                return;
+            float largestDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            if (largestDimension > 0.0001f)
+                foodObject.transform.localScale *= targetWorldSize / largestDimension;
+        }
+
+        private static bool TryGetRenderBounds(GameObject root, out Bounds bounds)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            bool found = false;
+            bounds = new Bounds(root.transform.position, Vector3.zero);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] is TrailRenderer || !renderers[i].enabled ||
+                    !renderers[i].gameObject.activeInHierarchy)
+                    continue;
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+            return found;
         }
 
         private static Vector2 PointerScreenPosition() =>
