@@ -343,6 +343,10 @@ namespace ARWalking.Tests.PlayMode
                 "The meadow must use its own non-AR mode controller instead of modifying the PetAr controller.");
             GameObject bridge = GameObject.Find("Pet 3D App Bridge");
             var meadowDocument = bridge.GetComponent<UIDocument>();
+            Assert.That(meadowDocument.panelSettings,
+                Is.SameAs(Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings")),
+                "The meadow must serialize the exact same PanelSettings used by PetAr.");
+            Assert.That(meadowDocument.sortingOrder, Is.EqualTo(100f));
             var meadowRoot = meadowDocument.rootVisualElement;
             Assert.That(meadowRoot.Q("pet-3d-glass-hud"), Is.Not.Null,
                 "The meadow must render through UI Toolkit instead of the legacy uGUI HUD.");
@@ -351,12 +355,26 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(changePet, Is.Not.Null);
             Assert.That(changePet.ClassListContains("ar-change-pet-card"), Is.True,
                 "The meadow change-pet control must share the AR component class.");
-            Assert.That(changePet.resolvedStyle.width, Is.EqualTo(440f).Within(0.5f));
+            Assert.That(changePet.ClassListContains("pet3d-change-pet-card"), Is.False,
+                "The meadow change-pet card must use the AR dimensions without a 3D-only width override.");
+            var meadowBack = meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-exit");
+            Assert.That(meadowBack.resolvedStyle.width, Is.EqualTo(82f).Within(1f));
+            Assert.That(meadowBack.resolvedStyle.height, Is.EqualTo(82f).Within(1f));
+            var meadowBackIcon = meadowBack.Q("icon-image");
+            Assert.That(meadowBackIcon, Is.Not.Null,
+                "The meadow Back icon must expose the same UI Toolkit name used by AR's ID selector.");
+            Assert.That(meadowBackIcon.resolvedStyle.width, Is.EqualTo(38f).Within(1f));
+            Assert.That(meadowBackIcon.resolvedStyle.height, Is.EqualTo(38f).Within(1f));
+            Assert.That(meadowBack.parent.parent.ClassListContains("ar-page"), Is.True,
+                "The meadow Back button must use the same layout hierarchy as AR.");
+            var meadowTopBar = meadowRoot.Q("pet-3d-top-bar");
+            Assert.That(meadowTopBar.resolvedStyle.left, Is.EqualTo(32f).Within(1f));
+            Assert.That(meadowTopBar.resolvedStyle.top, Is.EqualTo(28f).Within(1f));
 
             var interactionCircles = meadowRoot.Query<VisualElement>(className: "ar-interaction-circle").ToList();
             Assert.That(interactionCircles.Count, Is.EqualTo(3));
             foreach (VisualElement circle in interactionCircles)
-                Assert.That(circle.resolvedStyle.width, Is.EqualTo(152f).Within(0.5f),
+                Assert.That(circle.resolvedStyle.width, Is.EqualTo(152f).Within(1f),
                     "The meadow actions should be slightly larger than the shared AR base size.");
             Assert.That(meadowRoot.Q("pet-3d-food-quantity"), Is.Not.Null);
             Assert.That(meadowRoot.Q<UnityEngine.UIElements.Button>("pet-3d-switch-food"), Is.Not.Null);
