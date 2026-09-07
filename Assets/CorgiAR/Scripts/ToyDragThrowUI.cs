@@ -54,6 +54,10 @@ namespace CorgiAR
         /// generation time gets disabled when the app switches into real AR).</summary>
         public void SetCamera(Camera camera) => worldCamera = camera;
 
+        public void BeginExternalDrag(Vector2 screenPosition) => BeginHold(screenPosition);
+        public void ContinueExternalDrag(Vector2 screenPosition) => MoveHeld(screenPosition);
+        public void EndExternalDrag(Vector2 screenPosition) => Release(screenPosition);
+
         private void Awake()
         {
             ResolveTarget();

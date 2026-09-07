@@ -571,6 +571,29 @@
 .ar-interaction-icon { width: 52px; height: 52px; }
 .ar-interaction-icon-food { width: 100px; height: 100px; }
 .ar-interaction-label { color: white; font-size: 26px; margin-top: 10px; -unity-text-align: middle-center; }
+
+/* 3D meadow uses the same AR HUD components, with more room at the bottom because
+   it intentionally has no camera/gallery cluster. */
+.pet3d-change-pet-card { width: 440px; min-height: 126px; }
+.pet3d-status-row-no-back { margin-left: 0; }
+.pet3d-interaction-row { bottom: 82px; }
+.pet3d-interaction-row .ar-interaction-item { margin-left: 18px; margin-right: 18px; }
+.pet3d-interaction-row .ar-interaction-circle { width: 152px; height: 152px; border-radius: 76px; }
+.pet3d-interaction-row .ar-interaction-icon-food { width: 120px; height: 120px; }
+.pet3d-food-circle { position: relative; }
+.pet3d-food-quantity { position: absolute; left: 52px; bottom: -13px; min-width: 48px; height: 48px; padding-left: 8px; padding-right: 8px; border-radius: 24px; background-color: white; align-items: center; justify-content: center; }
+.pet3d-food-quantity-label { color: rgb(42, 63, 49); font-size: 24px; -unity-font-style: bold; -unity-text-align: middle-center; }
+.pet3d-switch-food { position: absolute; right: -14px; top: -10px; width: 54px; height: 54px; min-width: 54px; min-height: 54px; padding: 0; border-radius: 27px; border-width: 2px; border-color: rgba(42, 63, 49, 0.14); background-color: white; align-items: center; justify-content: center; }
+.pet3d-switch-food-icon { width: 31px; height: 31px; }
+.pet3d-picker-scrim { padding: 28px; }
+.pet3d-picker-card { width: 100%; max-width: 680px; max-height: 1280px; padding: 30px; border-radius: 48px; border-width: 2px; border-color: rgba(75, 91, 79, 0.18); background-color: rgb(255, 253, 247); }
+.pet3d-picker-header { min-height: 82px; flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.pet3d-picker-title { color: rgb(42, 63, 49); font-size: 42px; }
+.pet3d-picker-scroll { flex-grow: 1; min-height: 0; }
+.pet3d-picker-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.pet3d-picker-choice { width: 31.5%; min-height: 220px; margin-bottom: 16px; padding: 10px; border-radius: 30px; border-width: 2px; border-color: rgba(105, 120, 109, 0.18); background-color: rgb(240, 249, 236); align-items: center; }
+.pet3d-picker-thumb { width: 100%; height: 156px; border-radius: 24px; }
+.pet3d-picker-name { margin-top: 8px; color: rgb(42, 63, 49); font-size: 21px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal; }
 .ar-cam-cluster { position: absolute; left: 16px; right: 16px; bottom: 22px; border-radius: 30px; background-color: rgba(22, 20, 18, 0.42); border-width: 1px; border-color: rgba(255, 255, 255, 0.12); flex-direction: row; align-items: center; justify-content: space-between; padding: 14px 22px; }
 .ar-cam-flip { width: 96px; height: 96px; border-radius: 48px; background-color: rgba(255, 255, 255, 0.1); border-width: 2px; border-color: rgba(255, 255, 255, 0.16); align-items: center; justify-content: center; }
 .ar-cam-flip-icon { width: 46px; height: 46px; }
