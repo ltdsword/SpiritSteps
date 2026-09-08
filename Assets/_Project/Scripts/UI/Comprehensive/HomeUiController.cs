@@ -23,6 +23,8 @@ namespace ARWalking.UI
         static readonly Color SunInk = Rgb(123, 91, 20);
         static readonly Color SkyInk = Rgb(54, 103, 126);
         static readonly Color White = Color.white;
+        static readonly Color ActivityDeepGreen = Rgb(74, 150, 90);
+        static readonly ActivityPeriod[] PeriodTabs = { ActivityPeriod.Week, ActivityPeriod.Month, ActivityPeriod.Year };
 
         UIDocument _document;
         UiPrototypeRuntime _runtime;
@@ -41,6 +43,8 @@ namespace ARWalking.UI
         string _pendingDisplayName = string.Empty;
         bool _accountResetConfirming;
         int _viewerPhotoIndex;
+        ActivityPeriod _activityPeriod;
+        int _activityOffset;
         Label _walkDistanceValueLabel;
         Label _walkCoinsValueLabel;
         Label _walkStepsValueLabel;
@@ -120,6 +124,8 @@ namespace ARWalking.UI
         public void ShowPetDetail(int index) => ShowPetDetailModal(index);
         /// <summary>Claims the Map's current Mission Card reward, if any is claimable (test/entry-point hook).</summary>
         public bool ClaimCurrentMission() { var claimed = _runtime.ClaimCurrentMission(); if (claimed) Render(); return claimed; }
+        /// <summary>Switches the Activity Dashboard's Week/Month/Year tab (test/entry-point hook) - mirrors tapping a period tab, resetting to the current period's offset.</summary>
+        public void SetActivityPeriod(ActivityPeriod period) { _activityPeriod = period; _activityOffset = 0; Render(); }
 
         void BuildRoot()
         {
@@ -775,7 +781,7 @@ namespace ARWalking.UI
             // after the hero instead so it's the later (topmost-painted) sibling.
             var modal = ShowCenteredModal("pet-detail-modal", false);
             var hero = Element(null, "pet-detail-hero", "accent-surface-" + (index % 4));
-            hero.Add(Image(_assets != null ? _assets.Companion(index) : null, "pet-detail-hero-image", ScaleMode.ScaleToFit));
+            hero.Add(Image(_assets != null ? _assets.Companion(index) : null, "pet-detail-hero-image", ScaleMode.ScaleAndCrop));
             hero.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant(), "pet-detail-rarity-badge"));
             modal.Add(hero);
             modal.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "pet-detail-close", "small-round-control"));
@@ -799,13 +805,13 @@ namespace ARWalking.UI
             var statGrid = Row("pet-detail-stats");
             var incomeStat = Element(null, "pet-detail-stat", "pet-detail-income-stat");
             incomeStat.Add(Label("WALKING INCOME", "pet-detail-stat-label"));
-            incomeStat.Add(Label(entry.BaseIncomePerHundredMetres.ToString("0.0") + " /100m", "pet-detail-stat-value"));
-            incomeStat.Add(Label("Adult " + (entry.BaseIncomePerHundredMetres * 1.30f).ToString("0.0") + " /100m", "pet-detail-stat-sub"));
+            incomeStat.Add(Label("Young " + entry.BaseIncomePerHundredMetres.ToString("0.0") + " /100m", "pet-detail-stat-value"));
+            incomeStat.Add(Label("Adult " + (entry.BaseIncomePerHundredMetres * 1.30f).ToString("0.0") + " /100m", "pet-detail-stat-value"));
             statGrid.Add(incomeStat);
-            var expStat = Element(null, "pet-detail-stat");
+            var expStat = Element(null, "pet-detail-stat", "pet-detail-exp-stat");
             expStat.Add(Label("GROWTH EXP", "pet-detail-stat-label"));
             expStat.Add(Label("Young " + entry.YoungExp, "pet-detail-stat-value"));
-            expStat.Add(Label("Adult " + entry.AdultExp, "pet-detail-stat-sub"));
+            expStat.Add(Label("Adult " + entry.AdultExp, "pet-detail-stat-value"));
             statGrid.Add(expStat);
             modal.Add(statGrid);
 
@@ -1045,53 +1051,104 @@ namespace ARWalking.UI
 
         void BuildActivityDashboard()
         {
-            var weekly = _runtime.GetWeeklyActivity();
-            var scroll = ScreenWithHeader("Activity Records", DateTime.Now.ToString("ddd, MMM d"), true);
+            var page = Page("content-page", false);
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "screen-scroll" };
+            scroll.AddToClassList("screen-scroll");
+            page.Add(scroll);
+
+            var header = Row("activity-dashboard-header");
+            var iconWell = Element(null, "activity-dashboard-icon-well");
+            iconWell.Add(IconView("hub", "icon-image", ActivityDeepGreen));
+            header.Add(iconWell);
+            var headerCopy = Column("screen-header-copy");
+            headerCopy.Add(Title("Activity Records"));
+            headerCopy.Add(Body(CompanionProgressionService.LocalNow(DateTime.UtcNow).ToString("ddd, MMM d")));
+            header.Add(headerCopy);
+            header.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", () => HandleBack(), "activity-dashboard-close", "small-round-control"));
+            scroll.Add(header);
+
+            var weekTotal = _runtime.GetActivityPeriod(ActivityPeriod.Week, 0);
+            var yearTotal = _runtime.GetActivityPeriod(ActivityPeriod.Year, 0);
+            var totalsRow = Row("activity-totals-row");
+            var weekCard = Column("activity-total-card");
+            weekCard.Add(Eyebrow("THIS WEEK"));
+            weekCard.Add(Label(weekTotal.totalKilometres.ToString("0.0") + " km", "activity-total-value"));
+            totalsRow.Add(weekCard);
+            var yearCard = Column("activity-total-card");
+            yearCard.Add(Eyebrow("THIS YEAR"));
+            var yearValue = Label(yearTotal.totalKilometres.ToString("0.0") + " km", "activity-total-value");
+            yearValue.AddToClassList("activity-total-value-year");
+            yearCard.Add(yearValue);
+            totalsRow.Add(yearCard);
+            scroll.Add(totalsRow);
+
             var record = Card("activity-record-card", "elevated-card");
-            record.Add(Title("Walking Record"));
-            var ring = new ActivityRing(DailyGoalRatio(weekly.todayDistanceKilometres, weekly.dailyGoalKilometres));
+
+            var tabs = Row("activity-period-tabs");
+            foreach (var period in PeriodTabs)
+            {
+                var capturedPeriod = period;
+                var tab = new UiButton(() => { _activityPeriod = capturedPeriod; _activityOffset = 0; Render(); }) { name = "activity-period-" + period.ToString().ToLowerInvariant() };
+                tab.AddToClassList("activity-period-tab");
+                if (_activityPeriod == period) tab.AddToClassList("activity-period-tab-selected");
+                tab.Add(Label(period.ToString(), "activity-period-tab-label"));
+                tabs.Add(tab);
+            }
+            record.Add(tabs);
+
+            var data = _runtime.GetActivityPeriod(_activityPeriod, _activityOffset);
+
+            var nav = Row("activity-period-nav");
+            nav.Add(IconAction("chevron-left", null, "<", () => { _activityOffset -= 1; Render(); }, "activity-period-prev", "small-round-control"));
+            nav.Add(Label(data.periodLabel, "activity-period-label"));
+            var nextButton = IconAction("chevron-right", null, ">", () => { if (data.canGoNext) { _activityOffset += 1; Render(); } }, "activity-period-next", "small-round-control");
+            if (!data.canGoNext) nextButton.AddToClassList("activity-period-next-disabled");
+            nav.Add(nextButton);
+            record.Add(nav);
+
+            var ring = new ActivityRing(DailyGoalRatio(data.totalKilometres, data.targetKilometres));
             ring.name = "daily-activity-ring";
-            ring.Add(Label(weekly.todayHasSteps ? weekly.todaySteps.ToString("N0") : weekly.todayDistanceKilometres.ToString("0.0"), "activity-ring-value"));
-            ring.Add(Label(weekly.todayHasSteps ? "STEPS" : "KILOMETRES", "activity-ring-label"));
-            ring.Add(Pill(weekly.todayDistanceKilometres.ToString("0.0") + " / " + weekly.dailyGoalKilometres.ToString("0") + " km", "activity-goal-pill"));
+            ring.Add(IconView("footprints", "activity-ring-icon", Primary));
+            ring.Add(Label(data.hasSteps ? data.totalSteps.ToString("N0") : data.totalKilometres.ToString("0.0"), "activity-ring-value"));
+            ring.Add(Label(data.hasSteps ? "STEPS" : "KILOMETRES", "activity-ring-label"));
+            ring.Add(Pill(data.totalKilometres.ToString("0.0") + " / " + data.targetKilometres.ToString("0") + " km", "activity-goal-pill"));
             record.Add(ring);
 
+            var refRow = Row("activity-chart-reference-row");
+            refRow.Add(Label(data.referenceLabel, "activity-chart-reference-label"));
+            record.Add(refRow);
+
             var chart = Element("weekly-activity-chart", "weekly-chart");
-            foreach (var day in weekly.days)
+            var perBarTarget = data.bars.Length > 0 ? data.targetKilometres / data.bars.Length : 0f;
+            foreach (var bar in data.bars)
             {
                 var column = Element(null, "weekly-chart-column");
+                column.style.width = Length.Percent(100f / data.bars.Length);
                 var barTrack = Element(null, "weekly-chart-bar-track");
                 var barFill = Element(null, "weekly-chart-bar-fill");
-                if (day.isFuture) barFill.AddToClassList("weekly-chart-bar-fill-future");
-                else if (day.isToday) barFill.AddToClassList("weekly-chart-bar-fill-today");
-                var ratio = DailyGoalRatio(day.distanceKilometres, weekly.dailyGoalKilometres);
-                barFill.style.height = Length.Percent(day.isFuture ? 0f : Mathf.Max(ratio * 100f, day.distanceKilometres > 0 ? 5f : 1.5f));
+                if (bar.isFuture) barFill.AddToClassList("weekly-chart-bar-fill-future");
+                else if (bar.isCurrent) barFill.AddToClassList("weekly-chart-bar-fill-today");
+                var ratio = DailyGoalRatio(bar.distanceKilometres, perBarTarget);
+                barFill.style.height = Length.Percent(bar.isFuture ? 0f : Mathf.Max(ratio * 100f, bar.distanceKilometres > 0 ? 5f : 1.5f));
                 barTrack.Add(barFill);
                 column.Add(barTrack);
-                var dayLabel = Label(day.date.ToString("ddd"), "weekly-chart-day-label");
-                var dateLabel = Label(day.date.Day.ToString(), "weekly-chart-date-label");
-                if (day.isToday) { dayLabel.AddToClassList("weekly-chart-today-label"); dateLabel.AddToClassList("weekly-chart-today-label"); }
-                column.Add(dayLabel);
-                column.Add(dateLabel);
+                var topLabel = Label(bar.topLabel, "weekly-chart-day-label");
+                if (data.bars.Length > 7) topLabel.AddToClassList("weekly-chart-day-label-compact");
+                if (bar.isCurrent) topLabel.AddToClassList("weekly-chart-today-label");
+                column.Add(topLabel);
+                if (!string.IsNullOrEmpty(bar.subLabel))
+                {
+                    var subLabel = Label(bar.subLabel, "weekly-chart-date-label");
+                    if (bar.isCurrent) subLabel.AddToClassList("weekly-chart-today-label");
+                    column.Add(subLabel);
+                }
                 chart.Add(column);
             }
             record.Add(chart);
-            var average = Pill("Weekly average  " + weekly.weeklyAverageKilometres.ToString("0.0") + " km", "average-pill");
+
+            var average = Pill(data.averageLabel + "  " + data.averageKilometres.ToString("0.0") + " km", "average-pill");
             record.Add(average);
             scroll.Add(record);
-
-            var summary = Row("activity-summary-row");
-            summary.Add(Metric(weekly.todayDistanceKilometres.ToString("0.0") + " km", "today", "activity-summary-card"));
-            summary.Add(Metric(weekly.todayHasSteps ? weekly.todaySteps.ToString("N0") : "--", "steps", "activity-summary-card"));
-            summary.Add(Metric(Mathf.RoundToInt(DailyGoalRatio(weekly.todayDistanceKilometres, weekly.dailyGoalKilometres) * 100f) + "%", "goal", "activity-summary-card"));
-            scroll.Add(summary);
-            var friends = Card("activity-friends-card");
-            friends.Add(IconView("paw-print", "activity-friends-icon", Primary));
-            var friendCopy = Column();
-            friendCopy.Add(Subtitle("" + UnlockedCompanionCount() + " companions discovered"));
-            friendCopy.Add(Body("Every completed kilometre helps your unlocked friends grow."));
-            friends.Add(friendCopy);
-            scroll.Add(friends);
         }
 
         void BeginArPhotoPick() => _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), true);
@@ -1298,7 +1355,7 @@ namespace ARWalking.UI
             var activity = new UiButton(() => Navigate(UiRoute.ActivityDashboard)) { name = "activity-dashboard-button" };
             activity.AddToClassList("icon-button");
             activity.AddToClassList("top-hub-button");
-            activity.Add(IconView("footprints", "icon-image", White, _assets != null ? _assets.iconSteps : null));
+            activity.Add(IconView("hub", "icon-image", White));
             rightGroup.Add(activity);
 
             var profile = new UiButton(ShowAccountPanel) { name = "settings-button" };

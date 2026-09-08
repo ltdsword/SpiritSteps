@@ -480,6 +480,9 @@ namespace ARWalking.UI
         /// <summary>Today's progress plus the current Monday-Sunday week, for the Activity Dashboard screen.</summary>
         public WeeklyActivityDto GetWeeklyActivity() => _progression != null ? _progression.GetWeeklyActivity(DateTime.UtcNow) : new WeeklyActivityDto();
 
+        /// <summary>One Week/Month/Year page of the Activity Dashboard's period switcher.</summary>
+        public ActivityPeriodDto GetActivityPeriod(ActivityPeriod period, int offset) => _progression != null ? _progression.GetActivityPeriod(period, offset, DateTime.UtcNow) : new ActivityPeriodDto();
+
         /// <summary>The single mission the Map's Mission Card should show right now, or null.</summary>
         public MissionUiState CurrentMission() => _missions?.CurrentMission();
 

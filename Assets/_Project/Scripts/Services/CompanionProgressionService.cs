@@ -13,6 +13,14 @@ namespace ARWalking.UI
         /// <summary>Daily walking-distance goal shown by the Activity Dashboard's progress bar and weekly chart.</summary>
         public const float DailyGoalKilometres = 5f;
 
+        /// <summary>The app displays and buckets daily activity in Sài Gòn's fixed UTC+7 offset,
+        /// regardless of the device's own timezone or DST - "today" must mean the same calendar
+        /// day for every player.</summary>
+        static readonly TimeSpan LocalOffset = TimeSpan.FromHours(7);
+
+        /// <summary>Converts a UTC instant to the app's fixed-UTC+7 local date/time.</summary>
+        public static DateTime LocalNow(DateTime utcNow) => utcNow.ToUniversalTime() + LocalOffset;
+
         readonly PlayerSaveData _save;
         readonly IUiDataProvider _data;
 
@@ -132,7 +140,7 @@ namespace ARWalking.UI
 
         void RecordDailyActivity(float distanceKilometres, bool hasSteps, int steps, DateTime utcNow)
         {
-            var dateKey = utcNow.ToUniversalTime().Date.ToString("yyyy-MM-dd");
+            var dateKey = LocalNow(utcNow).Date.ToString("yyyy-MM-dd");
             var day = _save.dailyActivity.Find(item => item != null && item.dateIso == dateKey);
             if (day == null)
             {
@@ -150,7 +158,7 @@ namespace ARWalking.UI
         /// <summary>Today's progress plus the Monday-Sunday week containing it, for the Activity Dashboard screen.</summary>
         public WeeklyActivityDto GetWeeklyActivity(DateTime utcNow)
         {
-            var today = utcNow.ToUniversalTime().Date;
+            var today = LocalNow(utcNow).Date;
             var mondayOffset = ((int)today.DayOfWeek + 6) % 7; // DayOfWeek.Sunday == 0, so shift to a Monday-first week.
             var monday = today.AddDays(-mondayOffset);
             var result = new WeeklyActivityDto { dailyGoalKilometres = DailyGoalKilometres };
@@ -174,6 +182,150 @@ namespace ARWalking.UI
             result.todayHasSteps = todayEntry?.hasSteps ?? false;
             result.todaySteps = todayEntry?.steps ?? 0;
             return result;
+        }
+
+        /// <summary>One Week/Month/Year page of the Activity Dashboard's period switcher (design
+        /// doc's "This Week/This Year" cards plus period tabs), built from real per-day history
+        /// rather than synthetic placeholder data. <paramref name="offset"/> counts periods back
+        /// from the current one (0 = current, -1 = previous, ...); the caller keeps going forward
+        /// clamped at 0 (today's period) - see <see cref="ActivityPeriodDto.canGoNext"/>.</summary>
+        public ActivityPeriodDto GetActivityPeriod(ActivityPeriod period, int offset, DateTime utcNow)
+        {
+            var today = LocalNow(utcNow).Date;
+            switch (period)
+            {
+                case ActivityPeriod.Month: return BuildMonthActivity(today, offset);
+                case ActivityPeriod.Year: return BuildYearActivity(today, offset);
+                default: return BuildWeekActivity(today, offset);
+            }
+        }
+
+        DailyActivityData FindDay(DateTime date) => _save.dailyActivity.Find(item => item != null && item.dateIso == date.ToString("yyyy-MM-dd"));
+
+        ActivityPeriodDto BuildWeekActivity(DateTime today, int offset)
+        {
+            var mondayOffset = ((int)today.DayOfWeek + 6) % 7;
+            var monday = today.AddDays(-mondayOffset).AddDays(offset * 7);
+            var bars = new ActivityBar[7];
+            var total = 0f;
+            var steps = 0;
+            var hasSteps = false;
+            var daysSoFar = 0;
+            for (var i = 0; i < 7; i++)
+            {
+                var date = monday.AddDays(i);
+                var isFuture = date > today;
+                var entry = isFuture ? null : FindDay(date);
+                var distance = entry?.distanceKilometres ?? 0f;
+                if (entry != null && entry.hasSteps) { steps += entry.steps; hasSteps = true; }
+                bars[i] = new ActivityBar { topLabel = date.ToString("ddd"), subLabel = date.Day.ToString(), distanceKilometres = distance, isFuture = isFuture, isCurrent = date == today };
+                if (!isFuture) { total += distance; daysSoFar++; }
+            }
+            return new ActivityPeriodDto
+            {
+                period = ActivityPeriod.Week, offset = offset, periodLabel = "Week of " + monday.ToString("MMM d"),
+                bars = bars, totalKilometres = total, targetKilometres = DailyGoalKilometres * 7f,
+                totalSteps = steps, hasSteps = hasSteps,
+                referenceLabel = DailyGoalKilometres.ToString("0.#") + " km/day",
+                averageLabel = "Weekly average", averageKilometres = daysSoFar > 0 ? total / daysSoFar : 0f,
+                canGoNext = offset < 0
+            };
+        }
+
+        ActivityPeriodDto BuildMonthActivity(DateTime today, int offset)
+        {
+            var firstOfMonth = new DateTime(today.Year, today.Month, 1).AddMonths(offset);
+            var isCurrentMonth = firstOfMonth.Year == today.Year && firstOfMonth.Month == today.Month;
+            var daysInMonth = DateTime.DaysInMonth(firstOfMonth.Year, firstOfMonth.Month);
+            var lastOfMonth = firstOfMonth.AddDays(daysInMonth - 1);
+
+            // Bucket by real Monday-start calendar weeks, not a fixed split - depending on which
+            // weekday the 1st falls on, a month can span 4, 5, or (rarely, e.g. a 31-day month
+            // starting on a Saturday/Sunday) 6 such weeks. The first/last bucket is a partial week
+            // clipped to the month's own boundaries so distance is never double-counted between
+            // adjacent months.
+            var weekStarts = new List<DateTime>();
+            var weekEnds = new List<DateTime>();
+            var cursor = firstOfMonth;
+            while (cursor <= lastOfMonth)
+            {
+                var mondayOffset = ((int)cursor.DayOfWeek + 6) % 7; // Monday=0..Sunday=6
+                var daysLeftInWeek = 7 - mondayOffset;
+                var daysLeftInMonth = (lastOfMonth - cursor).Days + 1;
+                var weekEnd = cursor.AddDays(Mathf.Min(daysLeftInWeek, daysLeftInMonth) - 1);
+                weekStarts.Add(cursor);
+                weekEnds.Add(weekEnd);
+                cursor = weekEnd.AddDays(1);
+            }
+
+            var bars = new ActivityBar[weekStarts.Count];
+            var total = 0f;
+            var steps = 0;
+            var hasSteps = false;
+            for (var i = 0; i < weekStarts.Count; i++)
+            {
+                var weekStart = weekStarts[i];
+                var weekEnd = weekEnds[i];
+                var isFuture = weekStart > today;
+                var weekTotal = 0f;
+                if (!isFuture)
+                    for (var d = weekStart; d <= weekEnd && d <= today; d = d.AddDays(1))
+                    {
+                        var entry = FindDay(d);
+                        if (entry == null) continue;
+                        weekTotal += entry.distanceKilometres;
+                        if (entry.hasSteps) { steps += entry.steps; hasSteps = true; }
+                    }
+                bars[i] = new ActivityBar { topLabel = "Wk " + (i + 1), distanceKilometres = weekTotal, isFuture = isFuture, isCurrent = isCurrentMonth && today >= weekStart && today <= weekEnd };
+                if (!isFuture) total += weekTotal;
+            }
+            return new ActivityPeriodDto
+            {
+                period = ActivityPeriod.Month, offset = offset, periodLabel = firstOfMonth.ToString("MMMM yyyy"),
+                bars = bars, totalKilometres = total, targetKilometres = DailyGoalKilometres * daysInMonth,
+                totalSteps = steps, hasSteps = hasSteps,
+                referenceLabel = (DailyGoalKilometres * 7f).ToString("0.#") + " km/wk",
+                averageLabel = "Daily average", averageKilometres = total / daysInMonth,
+                canGoNext = offset < 0
+            };
+        }
+
+        ActivityPeriodDto BuildYearActivity(DateTime today, int offset)
+        {
+            var year = today.Year + offset;
+            var bars = new ActivityBar[12];
+            var total = 0f;
+            var steps = 0;
+            var hasSteps = false;
+            for (var m = 1; m <= 12; m++)
+            {
+                var monthStart = new DateTime(year, m, 1);
+                var isFuture = monthStart.Year > today.Year || (monthStart.Year == today.Year && monthStart.Month > today.Month);
+                var daysInMonth = DateTime.DaysInMonth(year, m);
+                var monthTotal = 0f;
+                if (!isFuture)
+                    for (var day = 1; day <= daysInMonth; day++)
+                    {
+                        var date = new DateTime(year, m, day);
+                        if (date > today) break;
+                        var entry = FindDay(date);
+                        if (entry == null) continue;
+                        monthTotal += entry.distanceKilometres;
+                        if (entry.hasSteps) { steps += entry.steps; hasSteps = true; }
+                    }
+                bars[m - 1] = new ActivityBar { topLabel = monthStart.ToString("MMM"), distanceKilometres = monthTotal, isFuture = isFuture, isCurrent = monthStart.Year == today.Year && monthStart.Month == today.Month };
+                if (!isFuture) total += monthTotal;
+            }
+            var daysInYear = DateTime.IsLeapYear(year) ? 366 : 365;
+            return new ActivityPeriodDto
+            {
+                period = ActivityPeriod.Year, offset = offset, periodLabel = year.ToString(),
+                bars = bars, totalKilometres = total, targetKilometres = DailyGoalKilometres * daysInYear,
+                totalSteps = steps, hasSteps = hasSteps,
+                referenceLabel = (DailyGoalKilometres * 30f).ToString("0.#") + " km/mo",
+                averageLabel = "Monthly average", averageKilometres = total / 12f,
+                canGoNext = offset < 0
+            };
         }
 
         FoodUiData FindFood(string foodId)

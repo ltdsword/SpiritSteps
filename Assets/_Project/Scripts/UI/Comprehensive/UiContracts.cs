@@ -288,6 +288,40 @@ namespace ARWalking.UI
         public float dailyGoalKilometres;
     }
 
+    /// <summary>Which page of the Activity Dashboard's period switcher is showing.</summary>
+    public enum ActivityPeriod { Week, Month, Year }
+
+    /// <summary>One bar/column in the Activity Dashboard's chart - a day (Week), a week-of-month
+    /// (Month), or a month (Year), depending on the selected <see cref="ActivityPeriod"/>.</summary>
+    [Serializable]
+    public struct ActivityBar
+    {
+        public string topLabel;
+        public string subLabel;
+        public float distanceKilometres;
+        public bool isFuture;
+        public bool isCurrent;
+    }
+
+    /// <summary>One Week/Month/Year page of the Activity Dashboard's period switcher, built from
+    /// the player's real per-day activity history rather than synthetic data.</summary>
+    [Serializable]
+    public sealed class ActivityPeriodDto
+    {
+        public ActivityPeriod period;
+        public int offset;
+        public string periodLabel;
+        public ActivityBar[] bars = Array.Empty<ActivityBar>();
+        public float totalKilometres;
+        public float targetKilometres;
+        public int totalSteps;
+        public bool hasSteps;
+        public string referenceLabel;
+        public string averageLabel;
+        public float averageKilometres;
+        public bool canGoNext;
+    }
+
     public interface IWalkMetricsProvider
     {
         bool IsWalking { get; }
