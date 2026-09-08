@@ -18,6 +18,16 @@ namespace ARWalking.UI
         [Min(0)] public int growthExperience;
     }
 
+    /// <summary>How many of one food item the player is carrying. A list (not a Dictionary) because
+    /// Unity's JsonUtility cannot serialize dictionaries. Shared with the AR/3D feeding minigames
+    /// (<c>ArFoodDragController</c>/<c>ShibaFeeding.FoodDragThrowUI</c>).</summary>
+    [Serializable]
+    public sealed class FoodInventoryData
+    {
+        public string foodId;
+        [Min(0)] public int quantity;
+    }
+
     [Serializable]
     public sealed class JourneyEntryData
     {
@@ -56,15 +66,6 @@ namespace ARWalking.UI
         [Min(0)] public int steps;
     }
 
-    /// <summary>How many of one food item the player is carrying. A list (not a Dictionary) because
-    /// Unity's JsonUtility cannot serialize dictionaries.</summary>
-    [Serializable]
-    public sealed class FoodInventoryEntry
-    {
-        public string foodId;
-        [Min(0)] public int quantity;
-    }
-
     [Serializable]
     public sealed class PlayerSaveData
     {
@@ -84,9 +85,12 @@ namespace ARWalking.UI
         [Min(0)] public int totalSteps;
         public List<CompanionProgressData> companions = new List<CompanionProgressData>();
         /// <summary>The player's chosen active/lead companion - the only one that earns walking
-        /// income (design doc section 2). Falls back to the starter if unset/invalid.</summary>
-        public string leadCompanionId;
-        public List<FoodInventoryEntry> foodInventory = new List<FoodInventoryEntry>();
+        /// income (design doc section 2), entered by "AR Photo", and kept in sync whenever the
+        /// player swaps companions in AR/3D. <see cref="RepairCollections"/> guarantees this is
+        /// never empty (falls back to the starter), so there is always exactly one lead, on or off
+        /// the app.</summary>
+        public string leadCompanionId = string.Empty;
+        public List<FoodInventoryData> foodInventory = new List<FoodInventoryData>();
         public List<MissionProgressData> missions = new List<MissionProgressData>();
         /// <summary>All tutorial missions have been claimed - once true, the Mission Card moves on
         /// to Walking milestones/Landmark missions and never re-checks the tutorial chain.</summary>
@@ -124,19 +128,20 @@ namespace ARWalking.UI
             return companions?.Find(item => item != null && item.companionId == companionId);
         }
 
-        public int FoodQuantity(string foodId)
+        public FoodInventoryData FindFood(string foodId)
         {
-            var entry = foodInventory?.Find(item => item != null && item.foodId == foodId);
-            return entry?.quantity ?? 0;
+            return foodInventory?.Find(item => item != null && item.foodId == foodId);
         }
+
+        public int FoodQuantity(string foodId) => FindFood(foodId)?.quantity ?? 0;
 
         public void AddFood(string foodId, int amount)
         {
             if (amount == 0) return;
-            var entry = foodInventory.Find(item => item != null && item.foodId == foodId);
+            var entry = FindFood(foodId);
             if (entry == null)
             {
-                entry = new FoodInventoryEntry { foodId = foodId, quantity = 0 };
+                entry = new FoodInventoryData { foodId = foodId, quantity = 0 };
                 foodInventory.Add(entry);
             }
             entry.quantity = Mathf.Max(0, entry.quantity + amount);
@@ -146,7 +151,7 @@ namespace ARWalking.UI
         /// effects if the player doesn't have enough.</summary>
         public bool TryConsumeFood(string foodId, int amount)
         {
-            var entry = foodInventory.Find(item => item != null && item.foodId == foodId);
+            var entry = FindFood(foodId);
             if (entry == null || entry.quantity < amount) return false;
             entry.quantity -= amount;
             return true;
@@ -157,7 +162,8 @@ namespace ARWalking.UI
             var isPreOwnedSplitSave = schemaVersion < 3;
 
             companions = companions ?? new List<CompanionProgressData>();
-            foodInventory = foodInventory ?? new List<FoodInventoryEntry>();
+            leadCompanionId = leadCompanionId ?? string.Empty;
+            foodInventory = foodInventory ?? new List<FoodInventoryData>();
             missions = missions ?? new List<MissionProgressData>();
             stamps = stamps ?? new List<StampData>();
             completedLandmarkIds = completedLandmarkIds ?? new List<string>();
@@ -170,6 +176,8 @@ namespace ARWalking.UI
             var validIds = new HashSet<string>();
             foreach (var entry in CompanionRoster.Entries) validIds.Add(entry.Id);
             companions.RemoveAll(item => item == null || !validIds.Contains(item.companionId));
+            if (!string.IsNullOrEmpty(leadCompanionId) && !validIds.Contains(leadCompanionId))
+                leadCompanionId = string.Empty;
 
             foreach (var entry in CompanionRoster.Entries)
             {
@@ -185,15 +193,27 @@ namespace ARWalking.UI
                     if (companion.unlocked) companion.owned = true;
             }
 
+            // Always have exactly one lead companion, and it must actually be owned - falls back to
+            // the starter (always owned) if unset or invalid.
             var lead = string.IsNullOrEmpty(leadCompanionId) ? null : FindCompanion(leadCompanionId);
             if (lead == null || !lead.owned)
                 leadCompanionId = CompanionRoster.Entries[0].Id;
+
+            // A few starter treats so a fresh save can try AR/3D feeding right away.
+            EnsureFood(FoodCatalogIds.RiceBall, 5);
+            EnsureFood(FoodCatalogIds.ChickenLeg, 2);
         }
 
         void EnsureCompanion(string id, bool unlocked, bool owned, int experience)
         {
             if (FindCompanion(id) != null) return;
             companions.Add(new CompanionProgressData { companionId = id, unlocked = unlocked, owned = owned, growthExperience = experience });
+        }
+
+        void EnsureFood(string id, int startingQuantity)
+        {
+            if (FindFood(id) != null) return;
+            foodInventory.Add(new FoodInventoryData { foodId = id, quantity = startingQuantity });
         }
     }
 }

@@ -249,6 +249,31 @@ namespace ARWalking.UI
             return true;
         }
 
+        /// <summary>Owned quantity of a food item, shared with the AR/3D feeding minigames
+        /// (see <c>UiPrototypeRuntime.FoodQuantity</c>). Never negative.</summary>
+        public int FoodQuantity(string foodId) => _save.FoodQuantity(foodId);
+
+        /// <summary>Adds food to inventory outside of a Shop purchase (e.g. a Mission/Landmark reward).</summary>
+        public void AddFood(string foodId, int amount) => _save.AddFood(foodId, amount);
+
+        /// <summary>Spends one unit of a food item (an AR/3D throw actually picked up). Returns
+        /// false when none are left, so the caller can decline the drag instead of going negative.</summary>
+        public bool ConsumeFood(string foodId) => _save.TryConsumeFood(foodId, 1);
+
+        /// <summary>Display-only coin rate for a flat Baby/Young/Adult stage, kept for any AR/3D
+        /// surface that only knows the stage and not the specific companion. UI that knows the
+        /// companion should prefer <see cref="IncomeOf"/>, which reflects that companion's real
+        /// rarity-based income and is what <see cref="CompleteWalk"/> actually pays out.</summary>
+        public static float WalkingIncomePer100m(GrowthStage stage)
+        {
+            switch (stage)
+            {
+                case GrowthStage.Baby: return 3.0f;
+                case GrowthStage.Young: return 5.2f;
+                default: return 8.0f;
+            }
+        }
+
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId, string companionRewardId, DateTime utcNow)
         {
             var result = new LandmarkRewardDto { landmarkId = landmarkId };

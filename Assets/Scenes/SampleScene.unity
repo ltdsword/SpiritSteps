@@ -919,17 +919,19 @@ MonoBehaviour:
   visualFeedback: {fileID: 0}
   foodChoices:
   - DisplayName: "G\xC0"
+    FoodId: chicken-leg
     Prefab: {fileID: 8535146860524967466, guid: 56b49ec6f72e03346926330d3e7f9bb4, type: 3}
     Icon: {fileID: 21300000, guid: 16e42be08bea5a049b903a6b515c78e5, type: 3}
-    Quantity: 20
+    Quantity: 2
     HudIconSize: 285
     WorldSize: 0.28
     TrailStart: {r: 1, g: 0.82, b: 0.28, a: 0.58}
     TrailEnd: {r: 1, g: 0.35, b: 0.05, a: 0}
   - DisplayName: "C\u01A0M N\u1EAEM"
+    FoodId: rice-ball
     Prefab: {fileID: 1903220313250272109, guid: 42c9a6cd30aef764193a8fa1f0a46727, type: 3}
     Icon: {fileID: 21300000, guid: 1436fd7a5c993d94bbd1f2181da0a198, type: 3}
-    Quantity: 20
+    Quantity: 5
     HudIconSize: 190
     WorldSize: 0.16
     TrailStart: {r: 1, g: 0.96, b: 0.76, a: 0.62}
@@ -939,7 +941,6 @@ MonoBehaviour:
   selectedFoodLabel: {fileID: 2110419978}
   foodQuantityLabel: {fileID: 934688386}
   switchFoodButton: {fileID: 1827909025}
-  hudIconSizeOverride: 0
   worldFoodSize: 0.28
   heldDepth: 2.4
   heldHeight: 0.65
@@ -2326,7 +2327,6 @@ MonoBehaviour:
   feeding: {fileID: 100282620}
   mood: {fileID: 100282619}
   photo: {fileID: 605663667}
-  binder: {fileID: 0}
   statusLabel: {fileID: 1724231118}
   manualButton: {fileID: 1046946646}
   autoButton: {fileID: 1900610010}
@@ -2927,7 +2927,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 20
+  m_Text: 2
 --- !u!222 &934688387
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5508,6 +5508,74 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &2146000100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2146000101}
+  - component: {fileID: 2146000102}
+  - component: {fileID: 2146000103}
+  m_Layer: 0
+  m_Name: Pet 3D App Bridge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2146000101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146000100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2146000102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: 7b25d4bd8f7930941ad1f802b0a5a2dc, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 0}
+  m_SortingOrder: 100
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!114 &2146000103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2146000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d36f08db5d04c8298f5efdf36b0a2c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CorgiAR.UI.Pet3DGlassHud
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -5520,3 +5588,4 @@ SceneRoots:
   - {fileID: 547791209}
   - {fileID: 100282613}
   - {fileID: 605663671}
+  - {fileID: 2146000101}

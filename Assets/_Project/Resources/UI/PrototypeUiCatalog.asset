@@ -121,12 +121,13 @@ MonoBehaviour:
     name: Rice Ball
     coinCost: 20
     growthExperience: 15
-    description: Basic food - a steady growth boost.
+    description: A light onigiri snack any unlocked companion can carry into AR or
+      the meadow.
   - id: chicken-leg
     name: Chicken Leg
     coinCost: 50
     growthExperience: 40
-    description: A hearty meal for faster growth.
+    description: A hearty drumstick treat for any unlocked companion.
   landmarks:
   - id: independence-palace
     name: Independence Palace

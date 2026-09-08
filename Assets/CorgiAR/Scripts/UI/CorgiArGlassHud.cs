@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ARWalking.UI;
 using Unity.AppUI.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -32,9 +33,8 @@ namespace CorgiAR.UI
         [SerializeField] private PetBinder binder;
         [SerializeField] private ArPhotoCapture photo;
         [SerializeField] private Camera hudCamera;
-        [SerializeField] private GameObject foodPrefab;
+        [SerializeField] private FoodDragThrowUI.FoodChoice[] foodChoices = Array.Empty<FoodDragThrowUI.FoodChoice>();
         [SerializeField] private GameObject ballPrefab;
-        [SerializeField] private Sprite foodIconSprite;
         [SerializeField] private Sprite ballIconSprite;
         [SerializeField] private Sprite whistleIconSprite;
 
@@ -47,6 +47,9 @@ namespace CorgiAR.UI
         private VisualElement comeCircle;
         private VisualElement foodCircle;
         private VisualElement ballCircle;
+        private UiImage foodIconImage;
+        private Label foodQuantityLabel;
+        private VisualElement petPicker;
         private UiImage galleryThumb;
         private VisualElement galleryIconElement;
         private VisualElement galleryBadge;
@@ -106,6 +109,7 @@ namespace CorgiAR.UI
             BuildInteractionRow();
             BuildCamCluster();
             BuildPhotoViewer();
+            BuildPetPicker();
 
             if (binder != null) binder.PetChanged += OnPetChanged;
             if (photo != null)
@@ -115,8 +119,10 @@ namespace CorgiAR.UI
                 photo.FlashRequested += PlayFlash;
                 photo.ToastRequested += ShowToast;
             }
+            if (foodDrag != null) foodDrag.FoodVisualChanged += RefreshFood;
             RefreshChangePetThumb();
             RefreshGallery();
+            RefreshFood();
         }
 
         private void OnDisable()
@@ -128,6 +134,7 @@ namespace CorgiAR.UI
                 photo.FlashRequested -= PlayFlash;
                 photo.ToastRequested -= ShowToast;
             }
+            if (foodDrag != null) foodDrag.FoodVisualChanged -= RefreshFood;
         }
 
         private void Update()
@@ -177,7 +184,7 @@ namespace CorgiAR.UI
 
         private void BuildChangePetCard(VisualElement parent)
         {
-            var card = new UiButton(() => binder?.CycleNext());
+            var card = new UiButton(TogglePetPicker);
             card.AddToClassList("ar-change-pet-card");
             var thumb = new UiImage { name = "change-pet-thumb", scaleMode = ScaleMode.ScaleAndCrop };
             thumb.AddToClassList("ar-change-pet-thumb");
@@ -214,6 +221,82 @@ namespace CorgiAR.UI
             }
         }
 
+        private void RefreshFood()
+        {
+            if (foodIconImage == null || foodDrag == null)
+                return;
+            foodIconImage.sprite = foodDrag.SelectedFoodIcon;
+            foodIconImage.style.opacity = foodDrag.SelectedFoodQuantity > 0 ? 1f : 0.35f;
+            if (foodQuantityLabel != null) foodQuantityLabel.text = foodDrag.SelectedFoodQuantity.ToString();
+        }
+
+        private void BuildPetPicker()
+        {
+            petPicker = Element(null, "overlay-scrim", "pet3d-picker-scrim");
+            petPicker.style.display = DisplayStyle.None;
+            var modal = Element(null, "pet3d-picker-card");
+            var header = Element(null, "pet3d-picker-header");
+            var title = new Label("Chọn thú cưng");
+            title.AddToClassList("pet3d-picker-title");
+            title.AddToClassList("font-display");
+            header.Add(title);
+            var close = new UiButton(ClosePetPicker);
+            close.AddToClassList("icon-button");
+            close.AddToClassList("small-round-control");
+            close.Add(Icon("x", "icon-image", new Color32(42, 63, 49, 255)));
+            header.Add(close);
+            modal.Add(header);
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("pet3d-picker-scroll");
+            VisualElement grid = Element(null, "pet3d-picker-grid");
+            if (binder != null)
+            {
+                UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+                foreach (PetBinder.Binding binding in binder.Bindings)
+                {
+                    CompanionProgressData progress = runtime != null ? runtime.Companion(binding.Id) : null;
+                    // "Owned", not just distance-Unlocked - see PetBinder.IsUnlocked.
+                    if (progress == null || !progress.owned) continue;
+                    PetBinder.Binding captured = binding;
+                    var choice = new UiButton(() => SelectPet(captured.Id));
+                    choice.AddToClassList("pet3d-picker-choice");
+                    var thumb = new UiImage
+                    {
+                        sprite = captured.Thumbnail,
+                        scaleMode = ScaleMode.ScaleAndCrop,
+                        pickingMode = PickingMode.Ignore
+                    };
+                    thumb.AddToClassList("pet3d-picker-thumb");
+                    choice.Add(thumb);
+                    var name = new Label(captured.DisplayName);
+                    name.AddToClassList("pet3d-picker-name");
+                    choice.Add(name);
+                    grid.Add(choice);
+                }
+            }
+            scroll.Add(grid);
+            modal.Add(scroll);
+            petPicker.Add(modal);
+            panel.Add(petPicker);
+        }
+
+        private void TogglePetPicker()
+        {
+            if (binder == null || !binder.CanSwap) return;
+            petPicker.style.display = petPicker.style.display == DisplayStyle.Flex
+                ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private void ClosePetPicker() => petPicker.style.display = DisplayStyle.None;
+
+        private void SelectPet(string id)
+        {
+            binder?.Bind(id);
+            UiPrototypeRuntime.Instance?.SetLeadCompanion(id);
+            ClosePetPicker();
+        }
+
         private void BuildInteractionRow()
         {
             VisualElement row = Element(null, "ar-interaction-row");
@@ -239,11 +322,22 @@ namespace CorgiAR.UI
             }
 
             foodCircle = BuildCircleItem(row, "CHO ĂN", asButton: false);
-            var foodIcon = new UiImage { sprite = foodIconSprite, scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
-            foodIcon.AddToClassList("ar-interaction-icon-food");
-            foodIcon.style.width = 100;
-            foodIcon.style.height = 100;
-            foodCircle.Add(foodIcon);
+            foodCircle.AddToClassList("pet3d-food-circle");
+            foodIconImage = new UiImage { scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
+            foodIconImage.AddToClassList("ar-interaction-icon-food");
+            foodIconImage.style.width = 100;
+            foodIconImage.style.height = 100;
+            foodCircle.Add(foodIconImage);
+            VisualElement foodQuantityBadge = Element(null, "pet3d-food-quantity");
+            foodQuantityLabel = new Label("0");
+            foodQuantityLabel.AddToClassList("pet3d-food-quantity-label");
+            foodQuantityBadge.Add(foodQuantityLabel);
+            foodCircle.Add(foodQuantityBadge);
+            var switchFood = new UiButton(() => foodDrag?.SelectNextFood()) { name = "ar-switch-food" };
+            switchFood.AddToClassList("pet3d-switch-food");
+            switchFood.Add(Icon("swap-horizontal", "pet3d-switch-food-icon", new Color32(42, 63, 49, 255)));
+            switchFood.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
+            foodCircle.Add(switchFood);
 
             ballCircle = BuildCircleItem(row, "NÉM BÓNG", asButton: false);
             var ballIcon = new UiImage
@@ -257,8 +351,8 @@ namespace CorgiAR.UI
             ballIcon.style.height = 100;
             ballCircle.Add(ballIcon);
 
-            if (feeding != null && foodPrefab != null)
-                foodDrag = new ArFoodDragController(foodCircle, hudCamera, feeding, foodPrefab);
+            if (feeding != null)
+                foodDrag = new ArFoodDragController(foodCircle, hudCamera, feeding, foodChoices);
             if (toyFetch != null && ballPrefab != null)
                 ballDrag = new ArBallDragController(ballCircle, hudCamera, toyFetch, ballPrefab);
         }

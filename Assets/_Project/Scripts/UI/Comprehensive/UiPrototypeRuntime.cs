@@ -37,6 +37,7 @@ namespace ARWalking.UI
         CompanionProgressionService _progression;
         MissionService _missions;
         string _walkLeadCompanionId;
+        string _pet3DReturnPetId;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void InitializeBeforeScene() => EnsureExists();
@@ -177,15 +178,6 @@ namespace ARWalking.UI
             return result;
         }
 
-        /// <summary>Feeds one already-owned unit of food to a companion (Companions' Feed sheet).</summary>
-        public FeedResultDto Feed(string foodId, string companionId)
-        {
-            RequireProfile();
-            var result = _progression.FeedCompanion(foodId, companionId);
-            if (result.success) Persist();
-            return result;
-        }
-
         /// <summary>Buys food and immediately feeds it to a companion in one step. Composes
         /// <see cref="PurchaseFood"/> + <see cref="Feed"/> and refunds the purchase if feeding fails
         /// (e.g. an invalid companion id), keeping the combined action atomic for callers that don't
@@ -211,13 +203,35 @@ namespace ARWalking.UI
             return result;
         }
 
-        /// <summary>Sets the player's active/lead companion - the only one that earns walking income.</summary>
+        /// <summary>The player's active/lead companion, or empty when none was picked yet - the
+        /// single source of truth the Companion screen, the Walk HUD, and the AR/3D food selectors
+        /// all read.</summary>
+        public string LeadCompanionId => SaveData?.leadCompanionId ?? string.Empty;
+
+        /// <summary>Sets the player's active/lead companion - the only one that earns walking income.
+        /// Requires the companion to be owned (see <see cref="CompanionProgressionService.SetLeadCompanion"/>).</summary>
         public bool SetLeadCompanion(string companionId)
         {
             RequireProfile();
             var changed = _progression.SetLeadCompanion(companionId);
             if (changed) Persist();
             return changed;
+        }
+
+        /// <summary>Owned quantity of a food item - the single source of truth the Companion
+        /// screen's food chips and the AR/3D food selectors (<c>ArFoodDragController</c>/
+        /// <c>ShibaFeeding.FoodDragThrowUI</c>) all read, so buying or throwing food stays in
+        /// sync everywhere.</summary>
+        public int FoodQuantity(string foodId) => _progression != null ? _progression.FoodQuantity(foodId) : 0;
+
+        /// <summary>Spends one unit of a food item picked up in AR/3D. Returns false (and spends
+        /// nothing) when none are left.</summary>
+        public bool ConsumeFood(string foodId)
+        {
+            if (_progression == null || string.IsNullOrEmpty(foodId)) return false;
+            var consumed = _progression.ConsumeFood(foodId);
+            if (consumed) Persist();
+            return consumed;
         }
 
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId)
@@ -337,14 +351,16 @@ namespace ARWalking.UI
         public CompanionVisualState GetCompanionVisualState(string companionId)
         {
             var progress = Companion(companionId);
-            var unlocked = progress != null && progress.unlocked;
-            var stage = unlocked ? CompanionProgressionService.StageFor(CompanionRoster.Find(companionId), progress.growthExperience) : GrowthStage.Baby;
+            // AR/3D should only render a companion the player actually has - distance-Unlocked alone
+            // isn't enough once it also needs to be bought (see CompanionProgressData.owned).
+            var owned = progress != null && progress.owned;
+            var stage = owned ? CompanionProgressionService.StageFor(CompanionRoster.Find(companionId), progress.growthExperience) : GrowthStage.Baby;
             return new CompanionVisualState
             {
                 companionId = companionId,
-                unlocked = unlocked,
+                unlocked = owned,
                 stage = stage,
-                scale = unlocked ? CompanionProgressionService.PlaceholderScaleFor(stage) : 0f
+                scale = owned ? CompanionProgressionService.PlaceholderScaleFor(stage) : 0f
             };
         }
 
@@ -375,6 +391,7 @@ namespace ARWalking.UI
             PendingPetInteraction interaction = PendingPetInteraction.None, string landmarkId = null)
         {
             RequireProfile();
+            _pet3DReturnPetId = null;
             Pet3DSceneContext.Clear();
             PetArSceneContext.PetId = petId;
             PetArSceneContext.IsPhotoMode = isPhotoMode;
@@ -400,14 +417,38 @@ namespace ARWalking.UI
 
         public void ReturnFromPet3D()
         {
+            _pet3DReturnPetId = null;
             Pet3DSceneContext.Clear();
             if (Navigator.CurrentRoute == UiRoute.Pet3D) Navigator.Back();
             SceneManager.LoadScene("Home");
         }
 
+        /// <summary>Temporarily opens AR above the meadow. Returning from AR restores the meadow
+        /// with the same bound companion instead of dropping back to the Companion tab.</summary>
+        public void SwitchPet3DToAr(string petId)
+        {
+            RequireProfile();
+            if (string.IsNullOrEmpty(petId)) petId = Pet3DSceneContext.PetId;
+            if (string.IsNullOrEmpty(petId)) petId = PrimaryCompanionId();
+            EnterPetAr(petId, false);
+            _pet3DReturnPetId = petId;
+        }
+
         public void ReturnFromPetAr()
         {
             if (Navigator.CurrentRoute == UiRoute.PetAr) Navigator.Back();
+            if (Navigator.CurrentRoute == UiRoute.Pet3D && !string.IsNullOrEmpty(_pet3DReturnPetId))
+            {
+                string petId = _pet3DReturnPetId;
+                _pet3DReturnPetId = null;
+                Pet3DSceneContext.Begin(petId, Navigator.CurrentRoot);
+                PlayerPrefs.SetString(Pet3DSceneContext.PetPreferenceKey, petId);
+                PlayerPrefs.Save();
+                SceneManager.LoadScene(Pet3DSceneContext.SceneName);
+                return;
+            }
+
+            _pet3DReturnPetId = null;
             SceneManager.LoadScene("Home");
         }
 
@@ -416,7 +457,7 @@ namespace ARWalking.UI
         /// companion in roster order, then the starter if somehow none are owned yet.</summary>
         public string PrimaryCompanionId()
         {
-            var lead = SaveData != null ? SaveData.leadCompanionId : null;
+            var lead = LeadCompanionId;
             var leadProgress = string.IsNullOrEmpty(lead) ? null : Companion(lead);
             if (leadProgress != null && leadProgress.owned) return lead;
             foreach (var entry in CompanionRoster.Entries)

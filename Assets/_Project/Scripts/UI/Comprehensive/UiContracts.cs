@@ -43,6 +43,17 @@ namespace ARWalking.UI
         public const string CentralPostOfficeStamp = "central-post-office-stamp";
     }
 
+    /// <summary>
+    /// Food ids match the gameplay food prefabs used by <c>ArFoodDragController</c>/
+    /// <c>ShibaFeeding.FoodDragThrowUI</c> in AR/3D (see <c>FoodDragThrowUI.FoodChoice.FoodId</c>)
+    /// - the same join pattern as <see cref="PrototypeIds"/> for companions.
+    /// </summary>
+    public static class FoodCatalogIds
+    {
+        public const string RiceBall = "rice-ball";
+        public const string ChickenLeg = "chicken-leg";
+    }
+
     public enum UiRootTab { Map, Companions, Shop, Journey }
 
     public enum UiRoute

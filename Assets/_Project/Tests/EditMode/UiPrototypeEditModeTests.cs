@@ -94,7 +94,7 @@ namespace ARWalking.Tests.EditMode
             save.coins = 90; save.totalDistanceKilometres = 2.5f; save.hasTotalSteps = true; save.totalSteps = 3200;
             save.stamps.Add(new StampData { stampId="stamp", landmarkId="landmark" }); save.completedLandmarkIds.Add("landmark"); save.savedPhotoPaths.Add("photo.jpg");
             save.journeys.Add(new JourneyEntryData { id="journey", title="Test" });
-            save.AddFood("rice-ball", 3);
+            save.AddFood(FoodCatalogIds.RiceBall, 3);
             store.Save(save);
             var result = store.Load();
             Assert.That(result.status, Is.EqualTo(SaveLoadStatus.Loaded));
@@ -104,7 +104,8 @@ namespace ARWalking.Tests.EditMode
             Assert.That(result.save.stamps.Single().stampId, Is.EqualTo("stamp"));
             Assert.That(result.save.journeys.Single().id, Is.EqualTo("journey"));
             Assert.That(result.save.savedPhotoPaths.Single(), Is.EqualTo("photo.jpg"));
-            Assert.That(result.save.FoodQuantity("rice-ball"), Is.EqualTo(3));
+            // CreateNew grants 5 starter Rice Balls; this adds 3 more on top of that starting stock.
+            Assert.That(result.save.FoodQuantity(FoodCatalogIds.RiceBall), Is.EqualTo(8));
         }
 
         [Test]
@@ -225,26 +226,27 @@ namespace ARWalking.Tests.EditMode
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var service = NewService(save);
+            save.foodInventory.Clear(); // Isolate this test from the starter-treat grant RepairCollections just applied.
 
-            Assert.That(service.FeedCompanion("rice-ball", PrototypeIds.Husky).error, Is.EqualTo("Choose an owned companion."));
-            Assert.That(service.PurchaseFood("rice-ball", 1).error, Is.EqualTo("Not enough Coins."));
+            Assert.That(service.FeedCompanion(FoodCatalogIds.RiceBall, PrototypeIds.Husky).error, Is.EqualTo("Choose an owned companion."));
+            Assert.That(service.PurchaseFood(FoodCatalogIds.RiceBall, 1).error, Is.EqualTo("Not enough Coins."));
 
             save.coins = 50;
-            var purchase = service.PurchaseFood("chicken-leg", 1);
+            var purchase = service.PurchaseFood(FoodCatalogIds.ChickenLeg, 1);
             Assert.That(purchase.success, Is.True);
             Assert.That(purchase.coinsSpent, Is.EqualTo(50));
             Assert.That(save.coins, Is.Zero);
-            Assert.That(save.FoodQuantity("chicken-leg"), Is.EqualTo(1));
+            Assert.That(save.FoodQuantity(FoodCatalogIds.ChickenLeg), Is.EqualTo(1));
 
-            var feed = service.FeedCompanion("chicken-leg", PrototypeIds.Corgi);
+            var feed = service.FeedCompanion(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi);
             Assert.That(feed.success, Is.True);
             Assert.That(feed.experienceGained, Is.EqualTo(40));
             Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(40));
             Assert.That(feed.StageChanged, Is.True, "Corgi's Young threshold is exactly 40 EXP.");
             Assert.That(feed.currentStage, Is.EqualTo(GrowthStage.Young));
-            Assert.That(save.FoodQuantity("chicken-leg"), Is.Zero, "Feeding consumes the inventory unit.");
+            Assert.That(save.FoodQuantity(FoodCatalogIds.ChickenLeg), Is.Zero, "Feeding consumes the inventory unit.");
 
-            Assert.That(service.FeedCompanion("chicken-leg", PrototypeIds.Corgi).error, Does.StartWith("You're out of"));
+            Assert.That(service.FeedCompanion(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi).error, Does.StartWith("You're out of"));
         }
 
         [Test]

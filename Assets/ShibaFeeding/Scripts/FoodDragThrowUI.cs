@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using ARWalking.UI;
 using CorgiAR;
 
 namespace ShibaFeeding
@@ -13,6 +14,11 @@ namespace ShibaFeeding
         public struct FoodChoice
         {
             public string DisplayName;
+            /// <summary>Catalog id (<see cref="FoodCatalogIds"/>) joining this choice to the
+            /// app's persisted food inventory - see <see cref="UiPrototypeRuntime.FoodQuantity"/>.
+            /// Empty for choices with no app-side counterpart (e.g. the ShibaFeeding demo scene),
+            /// which fall back to the locally-serialized <see cref="Quantity"/> below.</summary>
+            public string FoodId;
             public GameObject Prefab;
             public Sprite Icon;
             [Min(0)] public int Quantity;
@@ -74,7 +80,20 @@ namespace ShibaFeeding
             ? foodChoices[selectedFoodIndex].DisplayName
             : "G\u00C0";
         public Sprite SelectedFoodIcon => HasFoodChoices ? SelectedChoice().Icon : null;
-        public int SelectedFoodQuantity => HasFoodChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+        public int SelectedFoodQuantity => HasFoodChoices ? QuantityOf(SelectedChoice()) : 0;
+
+        /// <summary>Owned quantity for one choice: the app's persisted inventory when the choice
+        /// carries a <see cref="FoodChoice.FoodId"/>, otherwise the locally-serialized fallback
+        /// used by scenes with no app-side counterpart (e.g. the ShibaFeeding demo).</summary>
+        private static int QuantityOf(FoodChoice choice)
+        {
+            if (!string.IsNullOrEmpty(choice.FoodId))
+            {
+                UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+                if (runtime != null) return Mathf.Max(0, runtime.FoodQuantity(choice.FoodId));
+            }
+            return Mathf.Max(0, choice.Quantity);
+        }
         public event System.Action FoodVisualChanged;
         private bool HasFoodChoices => foodChoices != null && foodChoices.Length > 0;
 
@@ -210,7 +229,7 @@ namespace ShibaFeeding
             if (heldFood != null || shiba == null || shiba.IsEating)
                 return;
 
-            if (HasFoodChoices && SelectedChoice().Quantity <= 0)
+            if (HasFoodChoices && QuantityOf(SelectedChoice()) <= 0)
                 return;
 
             dragging = true;
@@ -453,14 +472,22 @@ namespace ShibaFeeding
 
             selectedFoodIndex = Mathf.Clamp(selectedFoodIndex, 0, foodChoices.Length - 1);
             FoodChoice selected = foodChoices[selectedFoodIndex];
-            selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
-            foodChoices[selectedFoodIndex] = selected;
+            if (!string.IsNullOrEmpty(selected.FoodId))
+            {
+                UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+                runtime?.ConsumeFood(selected.FoodId);
+            }
+            else
+            {
+                selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
+                foodChoices[selectedFoodIndex] = selected;
+            }
             RefreshQuantityVisual();
         }
 
         private void RefreshQuantityVisual()
         {
-            int quantity = HasFoodChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+            int quantity = HasFoodChoices ? QuantityOf(SelectedChoice()) : 0;
             if (foodQuantityLabel != null)
                 foodQuantityLabel.text = quantity.ToString();
 

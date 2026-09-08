@@ -5,6 +5,7 @@ using ShibaFeeding;
 using Unity.AppUI.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using Unity.VectorGraphics;
 using AppPanel = Unity.AppUI.UI.Panel;
@@ -45,6 +46,8 @@ namespace CorgiAR.UI
         private UnityEngine.Canvas legacyCanvas;
         private CorgiArHud legacyHud;
         private Camera worldCamera;
+        private bool isReturningToApp;
+        private bool isSwitchingToAr;
 
         private Rect lastSafeArea;
         private Vector2Int lastScreenSize;
@@ -76,8 +79,10 @@ namespace CorgiAR.UI
             if (ballDrag != null) ballDrag.SetCamera(worldCamera);
 
             document = GetComponent<UIDocument>();
-            document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings");
-            document.sortingOrder = 100f;
+            // SampleScene serializes the same PanelSettings as PetAr. Keep this fallback only
+            // for older/generated scenes that do not yet contain the preconfigured document.
+            if (document.panelSettings == null)
+                document.panelSettings = Resources.Load<PanelSettings>("UI/ARWalkingArPanelSettings");
             VisualElement root = document.rootVisualElement;
             root.Clear();
             StyleSheet sheet = Resources.Load<StyleSheet>("UI/ARWalking");
@@ -145,20 +150,44 @@ namespace CorgiAR.UI
         {
             if (Pet3DSceneContext.IsActive)
             {
+                // Match WalkUiController's AR Back hierarchy exactly so the shared USS sizes
+                // and positions this control through the same layout context on every device.
+                VisualElement navigationPage = Element("pet-3d-top-bar-screen", "ar-page");
+                navigationPage.pickingMode = PickingMode.Ignore;
                 VisualElement topBar = Element("pet-3d-top-bar", "ar-top-bar");
+                topBar.pickingMode = PickingMode.Ignore;
                 var back = new UiButton(ReturnToApp) { name = "pet-3d-exit" };
                 back.AddToClassList("icon-button");
                 back.AddToClassList("dark-round-control");
                 back.Add(Icon("chevron-left", "icon-image", Color.white));
                 topBar.Add(back);
-                safeRoot.Add(topBar);
+
+                var openAr = new UiButton(SwitchToAr) { name = "pet-3d-open-ar" };
+                openAr.AddToClassList("icon-button");
+                openAr.AddToClassList("dark-round-control");
+                openAr.AddToClassList("pet3d-ar-mode-button");
+                var arLabel = new Label("AR") { pickingMode = PickingMode.Ignore };
+                arLabel.AddToClassList("pet3d-ar-mode-label");
+                arLabel.AddToClassList("font-display");
+                openAr.Add(arLabel);
+                topBar.Add(openAr);
+                navigationPage.Add(topBar);
+                safeRoot.Add(navigationPage);
             }
 
             VisualElement topStack = Element(null, "ar-top-stack");
+            // This full-width layout overlaps the lower part of the Back button. Only its
+            // interactive children should receive pointer events, otherwise Back needs a tap
+            // in the small uncovered strip at the top.
+            topStack.pickingMode = PickingMode.Ignore;
             VisualElement statusRow = Element(null, "ar-status-row");
-            if (!Pet3DSceneContext.IsActive)
+            statusRow.pickingMode = PickingMode.Ignore;
+            if (Pet3DSceneContext.IsActive)
+                statusRow.AddToClassList("pet3d-status-row-with-mode-switch");
+            else
                 statusRow.AddToClassList("pet3d-status-row-no-back");
             VisualElement statusPill = Element(null, "ar-status-pill");
+            statusPill.pickingMode = PickingMode.Ignore;
             statusLabel = new Label();
             statusLabel.AddToClassList("ar-status-label");
             statusLabel.AddToClassList("font-display");
@@ -168,7 +197,6 @@ namespace CorgiAR.UI
 
             var card = new UiButton(TogglePetPicker) { name = "pet-3d-change-pet" };
             card.AddToClassList("ar-change-pet-card");
-            card.AddToClassList("pet3d-change-pet-card");
             changePetThumb = new UiImage { name = "change-pet-thumb", scaleMode = ScaleMode.ScaleAndCrop };
             changePetThumb.AddToClassList("ar-change-pet-thumb");
             card.Add(changePetThumb);
@@ -259,8 +287,9 @@ namespace CorgiAR.UI
                 {
                     // App entry respects saved unlocks. Direct SampleScene testing has no app
                     // profile, so keep the complete source-project picker available there.
+                    // "Owned", not just distance-Unlocked - see PetBinder.IsUnlocked.
                     CompanionProgressData progress = runtime != null ? runtime.Companion(binding.Id) : null;
-                    if (Pet3DSceneContext.IsActive && (progress == null || !progress.unlocked)) continue;
+                    if (Pet3DSceneContext.IsActive && (progress == null || !progress.owned)) continue;
                     PetBinder.Binding captured = binding;
                     var choice = new UiButton(() => SelectPet(captured.Id));
                     choice.AddToClassList("pet3d-picker-choice");
@@ -355,6 +384,7 @@ namespace CorgiAR.UI
         private void SelectPet(string id)
         {
             binder?.Bind(id);
+            UiPrototypeRuntime.Instance?.SetLeadCompanion(id);
             ClosePetPicker();
         }
 
@@ -368,8 +398,32 @@ namespace CorgiAR.UI
 
         private void ReturnToApp()
         {
+            if (isReturningToApp) return;
+            isReturningToApp = true;
             UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
-            if (runtime != null) runtime.ReturnFromPet3D();
+            if (runtime != null)
+            {
+                runtime.ReturnFromPet3D();
+                return;
+            }
+
+            // Defensive fallback for a scene opened with an active context before the app
+            // runtime has finished initializing. A Back tap must never silently do nothing.
+            Pet3DSceneContext.Clear();
+            SceneManager.LoadScene("Home");
+        }
+
+        private void SwitchToAr()
+        {
+            if (isSwitchingToAr || isReturningToApp) return;
+            UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+            if (runtime == null) return;
+
+            string selectedPetId = binder != null ? binder.CurrentId : Pet3DSceneContext.PetId;
+            if (string.IsNullOrEmpty(selectedPetId)) return;
+
+            isSwitchingToAr = true;
+            runtime.SwitchPet3DToAr(selectedPetId);
         }
 
         private void ApplySafeArea()
@@ -395,6 +449,9 @@ namespace CorgiAR.UI
             }
             var image = new UiImage
             {
+                // Match WalkUiController.Icon(): ARWalking.uss sizes shared controls through
+                // ID selectors such as `.icon-button #icon-image`, not the CSS class alone.
+                name = className,
                 vectorImage = vector,
                 scaleMode = ScaleMode.ScaleToFit,
                 pickingMode = PickingMode.Ignore,
