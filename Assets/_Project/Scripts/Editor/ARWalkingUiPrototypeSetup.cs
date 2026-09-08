@@ -183,8 +183,8 @@ namespace ARWalking.Editor
             }
             catalog.foods = new List<FoodUiData>
             {
-                new FoodUiData { id="basic-food", name="Basic Food", coinCost=20, growthExperience=20, description="A simple snack for any unlocked companion." },
-                new FoodUiData { id="better-food", name="Better Food", coinCost=40, growthExperience=40, description="A larger meal for any unlocked companion." }
+                new FoodUiData { id="rice-ball", name="Rice Ball", coinCost=20, growthExperience=15, description="Basic food - a steady growth boost." },
+                new FoodUiData { id="chicken-leg", name="Chicken Leg", coinCost=50, growthExperience=40, description="A hearty meal for faster growth." }
             };
             catalog.landmarks = new List<LandmarkUiData>
             {

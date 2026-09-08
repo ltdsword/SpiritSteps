@@ -1,25 +1,44 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace ARWalking.UI
 {
+    /// <summary>
+    /// Reward/economy math: walking income, growth EXP, food purchase/feeding, companion purchase,
+    /// and Landmark rewards. Numbers follow docs/AR-Walking-Cultural-Exploration-Game-Progression-Shop-Tutorial-Landmark-Journey-Design.md.
+    /// </summary>
     public sealed class CompanionProgressionService
     {
         /// <summary>Daily walking-distance goal shown by the Activity Dashboard's progress bar and weekly chart.</summary>
         public const float DailyGoalKilometres = 5f;
 
         readonly PlayerSaveData _save;
+        readonly IUiDataProvider _data;
 
-        public CompanionProgressionService(PlayerSaveData save)
+        public CompanionProgressionService(PlayerSaveData save, IUiDataProvider data)
         {
             _save = save ?? throw new ArgumentNullException(nameof(save));
+            _data = data ?? throw new ArgumentNullException(nameof(data));
             _save.RepairCollections();
         }
 
+        /// <summary>Global growth-stage thresholds. Kept for any caller that only has a raw EXP value
+        /// and no companion context. New code that knows which companion should prefer the
+        /// per-companion overload below, since rarer companions need more EXP per stage.</summary>
         public static GrowthStage StageFor(int experience)
         {
             if (experience < 500) return GrowthStage.Baby;
             if (experience < 1500) return GrowthStage.Young;
+            return GrowthStage.Adult;
+        }
+
+        /// <summary>Per-companion growth stage using that companion's own Young/Adult EXP thresholds
+        /// (design doc "Balance 17 Pets" table - rarer companions need more EXP per stage).</summary>
+        public static GrowthStage StageFor(CompanionRoster.Entry entry, int experience)
+        {
+            if (experience < entry.YoungExp) return GrowthStage.Baby;
+            if (experience < entry.AdultExp) return GrowthStage.Young;
             return GrowthStage.Adult;
         }
 
@@ -33,6 +52,23 @@ namespace ARWalking.UI
             }
         }
 
+        /// <summary>Growth multiplier applied to a companion's base walking income (design doc section 4).</summary>
+        public static float GrowthMultiplier(GrowthStage stage)
+        {
+            if (stage == GrowthStage.Adult) return 1.30f;
+            if (stage == GrowthStage.Young) return 1.15f;
+            return 1.00f;
+        }
+
+        /// <summary>Coins earned per 100 metres walked while this companion is the lead/active
+        /// companion, at its current growth stage (design doc section 2).</summary>
+        public static float IncomeOf(CompanionRoster.Entry entry, int experience)
+        {
+            var stage = StageFor(entry, experience);
+            var raw = entry.BaseIncomePerHundredMetres * GrowthMultiplier(stage);
+            return Mathf.Round(raw * 10f) / 10f;
+        }
+
         public List<string> CaptureUnlockedCompanionIds()
         {
             var result = new List<string>();
@@ -41,24 +77,19 @@ namespace ARWalking.UI
             return result;
         }
 
-        public WalkResultDto CompleteWalk(WalkMetrics metrics)
-        {
-            return CompleteWalk(metrics, CaptureUnlockedCompanionIds(), DateTime.UtcNow);
-        }
+        public WalkResultDto CompleteWalk(WalkMetrics metrics) => CompleteWalk(metrics, _save.leadCompanionId, DateTime.UtcNow);
+        public WalkResultDto CompleteWalk(WalkMetrics metrics, string leadCompanionId) => CompleteWalk(metrics, leadCompanionId, DateTime.UtcNow);
 
-        public WalkResultDto CompleteWalk(WalkMetrics metrics, IReadOnlyCollection<string> companionsUnlockedBeforeWalk)
-        {
-            return CompleteWalk(metrics, companionsUnlockedBeforeWalk, DateTime.UtcNow);
-        }
-
-        public WalkResultDto CompleteWalk(WalkMetrics metrics, IReadOnlyCollection<string> companionsUnlockedBeforeWalk, DateTime utcNow)
+        /// <summary>
+        /// Applies one walk's rewards: coins earned by the lead/active companion only (design doc
+        /// section 2 - "only Active Pet earns Coin"), plus any distance-unlock thresholds crossed.
+        /// Walking itself grants no Growth EXP - EXP only comes from feeding (design doc section 4).
+        /// </summary>
+        public WalkResultDto CompleteWalk(WalkMetrics metrics, string leadCompanionId, DateTime utcNow)
         {
             if (metrics == null) throw new ArgumentNullException(nameof(metrics));
-            if (companionsUnlockedBeforeWalk == null) throw new ArgumentNullException(nameof(companionsUnlockedBeforeWalk));
-            var eligibleIds = new HashSet<string>(companionsUnlockedBeforeWalk);
             var distance = Math.Max(0f, metrics.distanceKilometres);
             var wholeKilometres = (int)Math.Floor(distance + 0.00001f);
-            var experience = wholeKilometres * 100;
             var result = new WalkResultDto
             {
                 distanceKilometres = distance,
@@ -66,18 +97,18 @@ namespace ARWalking.UI
                 steps = metrics.hasSteps ? Math.Max(0, metrics.steps) : 0,
                 durationSeconds = Math.Max(0f, metrics.elapsedSeconds),
                 completedKilometres = wholeKilometres,
-                coinsAwarded = wholeKilometres * 30,
-                experiencePerEligibleCompanion = experience
+                leadCompanionId = leadCompanionId
             };
 
-            foreach (var companion in _save.companions)
+            var leadProgress = string.IsNullOrEmpty(leadCompanionId) ? null : _save.FindCompanion(leadCompanionId);
+            var leadEntry = string.IsNullOrEmpty(leadCompanionId) ? default : CompanionRoster.Find(leadCompanionId);
+            if (leadProgress != null && leadProgress.owned && !string.IsNullOrEmpty(leadEntry.Id))
             {
-                if (!companion.unlocked || !eligibleIds.Contains(companion.companionId)) continue;
-                companion.growthExperience += experience;
-                result.rewardedCompanionIds.Add(companion.companionId);
+                var incomePerHundredMetres = IncomeOf(leadEntry, leadProgress.growthExperience);
+                result.coinsAwarded = Mathf.RoundToInt(incomePerHundredMetres * (distance * 1000f / 100f));
+                _save.coins += result.coinsAwarded;
             }
 
-            _save.coins += result.coinsAwarded;
             _save.totalDistanceKilometres += distance;
             if (metrics.hasSteps)
             {
@@ -87,7 +118,7 @@ namespace ARWalking.UI
 
             foreach (var entry in CompanionRoster.Entries)
             {
-                if (float.IsPositiveInfinity(entry.UnlockDistanceKilometres)) continue; // Landmark-reward only
+                if (float.IsPositiveInfinity(entry.UnlockDistanceKilometres)) continue; // Landmark reward only
                 var candidate = _save.FindCompanion(entry.Id);
                 if (candidate == null || candidate.unlocked) continue;
                 if (_save.totalDistanceKilometres < entry.UnlockDistanceKilometres) continue;
@@ -145,30 +176,77 @@ namespace ARWalking.UI
             return result;
         }
 
-        public FeedResultDto PurchaseAndFeed(string foodId, string companionId)
+        FoodUiData FindFood(string foodId)
+        {
+            foreach (var food in _data.Foods) if (food.id == foodId) return food;
+            return null;
+        }
+
+        /// <summary>Buys food into the player's inventory (Shop's Food section). Feeding a companion
+        /// with it is a separate step - see <see cref="FeedCompanion"/> - matching the design doc's
+        /// split between "buy food in Shop" and "feed a companion from Companions".</summary>
+        public FoodPurchaseResultDto PurchaseFood(string foodId, int quantity)
+        {
+            var result = new FoodPurchaseResultDto { foodId = foodId, quantity = quantity };
+            if (quantity <= 0) return Fail(result, "Choose at least one item.");
+            var food = FindFood(foodId);
+            if (food == null) return Fail(result, "Unknown food item.");
+            var cost = food.coinCost * quantity;
+            if (_save.coins < cost) return Fail(result, "Not enough Coins.");
+            _save.coins -= cost;
+            _save.AddFood(foodId, quantity);
+            _save.everPurchasedFood = true;
+            result.success = true;
+            result.coinsSpent = cost;
+            return result;
+        }
+
+        /// <summary>Feeds one unit of an already-purchased food from inventory to an owned companion,
+        /// granting that food's Growth EXP (design doc section 4 - EXP comes only from feeding).</summary>
+        public FeedResultDto FeedCompanion(string foodId, string companionId)
         {
             var result = new FeedResultDto { foodId = foodId, companionId = companionId };
             var companion = _save.FindCompanion(companionId);
-            if (companion == null || !companion.unlocked) return Fail(result, "Choose an unlocked companion.");
+            if (companion == null || !companion.owned) return Fail(result, "Choose an owned companion.");
+            var food = FindFood(foodId);
+            if (food == null) return Fail(result, "Unknown food item.");
+            if (!_save.TryConsumeFood(foodId, 1)) return Fail(result, "You're out of " + food.name + ". Buy more from the Shop.");
 
-            int cost;
-            int experience;
-            switch (foodId)
-            {
-                case "basic-food": cost = 20; experience = 20; break;
-                case "better-food": cost = 40; experience = 40; break;
-                default: return Fail(result, "Unknown food item.");
-            }
-            if (_save.coins < cost) return Fail(result, "Not enough Coins.");
-
-            result.previousStage = StageFor(companion.growthExperience);
-            _save.coins -= cost;
-            companion.growthExperience += experience;
+            var rosterEntry = CompanionRoster.Find(companionId);
+            result.previousStage = StageFor(rosterEntry, companion.growthExperience);
+            companion.growthExperience += food.growthExperience;
+            _save.everFedCompanion = true;
             result.success = true;
-            result.coinsSpent = cost;
-            result.experienceGained = experience;
-            result.currentStage = StageFor(companion.growthExperience);
+            result.experienceGained = food.growthExperience;
+            result.currentStage = StageFor(rosterEntry, companion.growthExperience);
             return result;
+        }
+
+        /// <summary>Buys a distance-unlocked companion with coins (design doc section 13 - a
+        /// companion must be Unlocked before it can be Bought).</summary>
+        public CompanionPurchaseResultDto PurchaseCompanion(string companionId)
+        {
+            var result = new CompanionPurchaseResultDto { companionId = companionId };
+            var companion = _save.FindCompanion(companionId);
+            var entry = CompanionRoster.Find(companionId);
+            if (companion == null || string.IsNullOrEmpty(entry.Id)) return Fail(result, "Unknown companion.");
+            if (companion.owned) return Fail(result, "You already own this companion.");
+            if (!companion.unlocked) return Fail(result, "Walk further to unlock this companion first.");
+            if (_save.coins < entry.PriceCoins) return Fail(result, "Not enough Coins.");
+            _save.coins -= entry.PriceCoins;
+            companion.owned = true;
+            result.success = true;
+            result.coinsSpent = entry.PriceCoins;
+            return result;
+        }
+
+        /// <summary>Sets the player's active/lead companion - the only one that earns walking income.</summary>
+        public bool SetLeadCompanion(string companionId)
+        {
+            var companion = _save.FindCompanion(companionId);
+            if (companion == null || !companion.owned) return false;
+            _save.leadCompanionId = companionId;
+            return true;
         }
 
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId, string companionRewardId, DateTime utcNow)
@@ -185,9 +263,12 @@ namespace ARWalking.UI
             if (!string.IsNullOrWhiteSpace(companionRewardId))
             {
                 var rewardCompanion = _save.FindCompanion(companionRewardId);
-                if (rewardCompanion != null && !rewardCompanion.unlocked)
+                // A Landmark Pet is granted outright (Obtained), not merely distance-Unlocked
+                // (design doc section 28 distinguishes the two events).
+                if (rewardCompanion != null && !rewardCompanion.owned)
                 {
                     rewardCompanion.unlocked = true;
+                    rewardCompanion.owned = true;
                     result.unlockedCompanionId = companionRewardId;
                 }
             }
@@ -205,5 +286,7 @@ namespace ARWalking.UI
         }
 
         static FeedResultDto Fail(FeedResultDto result, string error) { result.error = error; return result; }
+        static FoodPurchaseResultDto Fail(FoodPurchaseResultDto result, string error) { result.error = error; return result; }
+        static CompanionPurchaseResultDto Fail(CompanionPurchaseResultDto result, string error) { result.error = error; return result; }
     }
 }

@@ -171,9 +171,11 @@ namespace ARWalking.UI
         public int steps;
         public float durationSeconds;
         public int completedKilometres;
+        /// <summary>Coins earned this walk by <see cref="leadCompanionId"/> - only the lead/active
+        /// companion earns walking income (design doc section 2). Walking grants no Growth EXP.</summary>
         public int coinsAwarded;
-        public int experiencePerEligibleCompanion;
-        public List<string> rewardedCompanionIds = new List<string>();
+        /// <summary>The companion that earned <see cref="coinsAwarded"/>, or empty if none was owned yet.</summary>
+        public string leadCompanionId;
         public List<string> newlyUnlockedCompanionIds = new List<string>();
     }
 
@@ -184,11 +186,31 @@ namespace ARWalking.UI
         public string error;
         public string companionId;
         public string foodId;
-        public int coinsSpent;
         public int experienceGained;
         public GrowthStage previousStage;
         public GrowthStage currentStage;
         public bool StageChanged => success && previousStage != currentStage;
+    }
+
+    /// <summary>Result of buying food into inventory from Shop (see <see cref="CompanionProgressionService.PurchaseFood"/>).</summary>
+    [Serializable]
+    public sealed class FoodPurchaseResultDto
+    {
+        public bool success;
+        public string error;
+        public string foodId;
+        public int quantity;
+        public int coinsSpent;
+    }
+
+    /// <summary>Result of buying a distance-unlocked companion with coins (see <see cref="CompanionProgressionService.PurchaseCompanion"/>).</summary>
+    [Serializable]
+    public sealed class CompanionPurchaseResultDto
+    {
+        public bool success;
+        public string error;
+        public string companionId;
+        public int coinsSpent;
     }
 
     [Serializable]

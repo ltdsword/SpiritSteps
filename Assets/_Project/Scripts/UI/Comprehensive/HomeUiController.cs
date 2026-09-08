@@ -40,6 +40,11 @@ namespace ARWalking.UI
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
         bool _pickingPetForPhoto;
+        bool _accountResetConfirming;
+        string _feedCompanionId;
+        string _feedFoodId;
+        int _feedAmount = 1;
+        int _viewerPhotoIndex;
         Label _walkDistanceValueLabel;
         Label _walkCoinsValueLabel;
         Label _walkStepsValueLabel;
@@ -94,7 +99,7 @@ namespace ARWalking.UI
             var metrics = _runtime.WalkProvider.GetLiveMetrics();
             var weekly = _runtime.GetWeeklyActivity();
             _walkDistanceValueLabel.text = metrics.distanceKilometres.ToString("0.0");
-            if (_walkCoinsValueLabel != null) _walkCoinsValueLabel.text = "+" + Mathf.FloorToInt(metrics.distanceKilometres * 20f);
+            if (_walkCoinsValueLabel != null) _walkCoinsValueLabel.text = "+" + WalkCoinsPreview(metrics.distanceKilometres);
             if (_walkStepsValueLabel != null) _walkStepsValueLabel.text = metrics.hasSteps ? metrics.steps.ToString("N0") : "--";
             if (_walkProgressFill != null) _walkProgressFill.style.width = Length.Percent(DailyGoalRatio(metrics.distanceKilometres, weekly.dailyGoalKilometres) * 100f);
         }
@@ -109,6 +114,16 @@ namespace ARWalking.UI
         public bool CompleteSetup(string displayName) => _runtime.CompleteSetup(displayName);
         public LandmarkRewardDto CollectSelectedLandmarkStamp() => _runtime.CompleteLandmarkMemory(SelectedLandmark().id);
         public void ConfirmResetLocalProgress() => _runtime.ResetLocalProgress();
+        /// <summary>Opens the floating Landmark sheet for the given landmark id (test/entry-point hook).</summary>
+        public void ShowLandmark(string landmarkId) => ShowLandmarkSheet(landmarkId);
+        /// <summary>Opens the Account panel (test/entry-point hook) - mirrors tapping the top-bar profile button.</summary>
+        public void ShowAccount() => ShowAccountPanel();
+        /// <summary>Closes whichever floating sheet/modal is open, if any (test/entry-point hook).</summary>
+        public void CloseFloatingOverlay() => RemoveTransientOverlay();
+        /// <summary>Opens the Shop's Pet Detail modal for a companion index (test/entry-point hook).</summary>
+        public void ShowPetDetail(int index) => ShowPetDetailModal(index);
+        /// <summary>Claims the Map's current Mission Card reward, if any is claimable (test/entry-point hook).</summary>
+        public bool ClaimCurrentMission() { var claimed = _runtime.ClaimCurrentMission(); if (claimed) Render(); return claimed; }
 
         void BuildRoot()
         {
@@ -130,10 +145,14 @@ namespace ARWalking.UI
             SyncMapViewVisibility();
         }
 
+        // The native WebView map is a separate OS-level surface, not a Unity-rendered element - it
+        // paints over anything docked within its margins regardless of Unity's own z-order. Any
+        // floating sheet/modal (_overlayScrim - Account panel, Feed sheet, Pet Detail, Landmark
+        // sheet, food picker) must hide it while open, not just route-level UiOverlay navigation.
         void SyncMapViewVisibility()
         {
             if (_runtime.MapView == null) return;
-            var onMapWithNoOverlay = IsMapRoute() && _runtime.Navigator.CurrentOverlay == null;
+            var onMapWithNoOverlay = IsMapRoute() && _runtime.Navigator.CurrentOverlay == null && _overlayScrim == null;
             _runtime.MapView.SetActive(onMapWithNoOverlay);
         }
 
@@ -211,7 +230,7 @@ namespace ARWalking.UI
                 var reveal = Element("starter-reveal", "starter-reveal");
                 reveal.Add(Image(_assets != null ? _assets.Companion(0) : null, "reveal-companion", ScaleMode.ScaleAndCrop));
                 sheet.Add(reveal);
-                sheet.Add(Body("Your first companion starts with 450 Growth EXP and grows as you walk."));
+                sheet.Add(Body("Your first companion starts as a Baby. Feed it to help it grow, and walk together to earn Coins."));
                 sheet.Add(ActionWithIcon("sparkles", null, "Walk with " + _data.Companions[0].name, () =>
                 {
                     if (!_runtime.CompleteSetup(_pendingDisplayName)) ShowToast("Check your display name and try again.");
@@ -233,6 +252,15 @@ namespace ARWalking.UI
             top.AddToClassList("map-top-bar");
             page.Add(top);
 
+            // The native WebView surface is a separate OS-level view positioned by SetMargins below,
+            // not a Unity-rendered element - it draws over any UI Toolkit content inside its bounds
+            // regardless of Unity's own z-order. When the Mission Card is showing, its bottom edge
+            // (not just the top bar's) must set the WebView's top margin, or the card gets hidden
+            // behind the map surface.
+            var missionCard = BuildMissionCard(118f);
+            VisualElement topBoundary = top;
+            if (missionCard != null) { page.Add(missionCard); topBoundary = missionCard; }
+
             // BuildWalkControlCard's own "walk-control-card" USS class floats it (position: absolute) for the
             // illustrated-map path; the "map-bottom-bar" modifier (see ARWalking.uss) puts it back in normal
             // document flow so .map-page's justify-content: space-between can push it to the actual bottom
@@ -248,8 +276,8 @@ namespace ARWalking.UI
             _runtime.MapView.OnMarkerTapped -= OnRealMapMarkerTapped; // avoid a duplicate subscription if BuildMap runs again
             _runtime.MapView.OnMarkerTapped += OnRealMapMarkerTapped;
 
-            page.RegisterCallback<GeometryChangedEvent>(_ => ApplyRealMapMargins(top, bottom));
-            ApplyRealMapMargins(top, bottom);
+            page.RegisterCallback<GeometryChangedEvent>(_ => ApplyRealMapMargins(topBoundary, bottom));
+            ApplyRealMapMargins(topBoundary, bottom);
             RenderRealMapMarkers();
         }
 
@@ -290,11 +318,7 @@ namespace ARWalking.UI
             _runtime.MapView.Render(current, markers, trail);
         }
 
-        void OnRealMapMarkerTapped(string landmarkId)
-        {
-            _runtime.SelectedLandmarkIndex = FindLandmarkIndex(landmarkId);
-            Navigate(UiRoute.LandmarkDetail);
-        }
+        void OnRealMapMarkerTapped(string landmarkId) => ShowLandmarkSheet(landmarkId);
 
         void BuildIllustratedMapFallback(VisualElement page)
         {
@@ -351,6 +375,9 @@ namespace ARWalking.UI
             location.Add(Label(_mapData.Map.regionName, "location-pill-label"));
             page.Add(location);
 
+            var missionCard = BuildMissionCard(194f);
+            if (missionCard != null) page.Add(missionCard);
+
             var controls = Element("map-controls", "map-controls");
             controls.Add(IconAction("navigation", _assets != null ? _assets.iconCompass : null, "CTR", manipulator.Recenter, "recenter-button", "map-round-control"));
             controls.Add(IconAction("camera", _assets != null ? _assets.iconCamera : null, "CAM", BeginArPhotoPick, "map-photo-button", "map-round-control", "blossom-control"));
@@ -378,7 +405,7 @@ namespace ARWalking.UI
             distance.Add(Label("km", "walk-distance-unit"));
             main.Add(distance);
             top.Add(main);
-            var coinsMetric = Metric("+" + Mathf.FloorToInt(metrics.distanceKilometres * 20f), "coins", "walk-mini-metric", "sun-value");
+            var coinsMetric = Metric("+" + WalkCoinsPreview(metrics.distanceKilometres), "coins", "walk-mini-metric", "sun-value");
             _walkCoinsValueLabel = coinsMetric.Q<Label>(className: "metric-value");
             top.Add(coinsMetric);
             var stepsMetric = Metric(metrics.hasSteps ? metrics.steps.ToString("N0") : "--", "steps", "walk-mini-metric", "blossom-value");
@@ -399,6 +426,69 @@ namespace ARWalking.UI
             return card;
         }
 
+        /// <summary>Live coin estimate for the Walk HUD while walking - mirrors
+        /// <see cref="CompanionProgressionService.CompleteWalk"/>'s lead-companion-only formula so the
+        /// number shown while walking matches what FinishWalk() will actually award.</summary>
+        int WalkCoinsPreview(float distanceKilometres)
+        {
+            var leadId = _runtime.SaveData?.leadCompanionId;
+            if (string.IsNullOrEmpty(leadId)) return 0;
+            var progress = _runtime.Companion(leadId);
+            if (progress == null || !progress.owned) return 0;
+            var entry = CompanionRoster.Find(leadId);
+            if (string.IsNullOrEmpty(entry.Id)) return 0;
+            var incomePerHundredMetres = CompanionProgressionService.IncomeOf(entry, progress.growthExperience);
+            return Mathf.RoundToInt(incomePerHundredMetres * (distanceKilometres * 1000f / 100f));
+        }
+
+        /// <summary>The floating Mission Card (design doc "one component for all mission types") -
+        /// returns null when there's nothing active to show.</summary>
+        VisualElement BuildMissionCard(float topOffset)
+        {
+            var mission = _runtime.CurrentMission();
+            if (mission == null) return null;
+
+            var card = Card("mission-card", "elevated-card", "floating-surface");
+            card.style.top = topOffset;
+            var header = Row("mission-card-header");
+            var iconWell = Element(null, "mission-icon-well");
+            iconWell.Add(Label(mission.iconKey, "mission-icon-emoji"));
+            header.Add(iconWell);
+            var copy = Column();
+            copy.Add(Label(mission.type.ToString().ToUpperInvariant() + " · MISSION", "mission-kicker"));
+            copy.Add(Label(mission.title, "mission-title"));
+            header.Add(copy);
+            if (mission.type != MissionType.Landmark)
+                header.Add(Label(MissionProgressLabel(mission), "mission-progress-label"));
+            card.Add(header);
+
+            var ratio = mission.targetValue > 0f ? Mathf.Clamp01(mission.currentValue / mission.targetValue) : 1f;
+            card.Add(Progress(ratio, "mission-progress-track"));
+
+            if (mission.status == MissionStatus.Active)
+            {
+                var description = Body(mission.description);
+                description.AddToClassList("mission-description");
+                card.Add(description);
+            }
+            else if (mission.type == MissionType.Landmark)
+                card.Add(ActionWithIcon("map-pin", _assets != null ? _assets.iconMap : null, "Explore " + mission.landmarkName,
+                    () => ShowLandmarkSheet(mission.landmarkId), "primary-action", "mission-claim-button"));
+            else
+                card.Add(ActionWithIcon("sparkles", null, "Mission Complete — Tap to Claim",
+                    () => { if (_runtime.ClaimCurrentMission()) Render(); }, "mission-claim-button", "icon-action-button"));
+            return card;
+        }
+
+        static string MissionProgressLabel(MissionUiState mission)
+        {
+            if (mission.missionId == "tutorial-walk")
+                return Mathf.RoundToInt(mission.currentValue * 1000f) + " / " + Mathf.RoundToInt(mission.targetValue * 1000f) + " m";
+            if (mission.type == MissionType.Walking)
+                return mission.currentValue.ToString("0.0") + " / " + mission.targetValue.ToString("0") + " km";
+            return string.Empty;
+        }
+
         void BuildWalkResult()
         {
             var result = _runtime.LastWalkResult ?? new WalkResultDto();
@@ -417,18 +507,18 @@ namespace ARWalking.UI
             metrics.Add(Metric("+" + result.coinsAwarded, "coins", "result-metric"));
             card.Add(metrics);
             card.Add(Divider());
-            card.Add(Eyebrow("COMPANION GROWTH"));
-            if (result.rewardedCompanionIds.Count == 0)
-                card.Add(Body("Complete a full kilometre to grow your companions."));
-            foreach (var id in result.rewardedCompanionIds)
+            card.Add(Eyebrow("WALKING INCOME"));
+            if (string.IsNullOrEmpty(result.leadCompanionId) || result.coinsAwarded <= 0)
+                card.Add(Body("Set an active companion as your lead to earn Coins while you walk."));
+            else
             {
                 var row = Row("growth-reward-row");
-                row.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(id)) : null, "growth-reward-pet", ScaleMode.ScaleToFit));
+                row.Add(Image(_assets != null ? _assets.Companion(FindCompanionIndex(result.leadCompanionId)) : null, "growth-reward-pet", ScaleMode.ScaleToFit));
                 var copy = Column();
-                copy.Add(Subtitle(CompanionName(id)));
-                copy.Add(Body("Walk reward"));
+                copy.Add(Subtitle(CompanionName(result.leadCompanionId)));
+                copy.Add(Body("Your lead companion"));
                 row.Add(copy);
-                row.Add(Label("+" + result.experiencePerEligibleCompanion + " EXP", "growth-reward-value"));
+                row.Add(Label("+" + result.coinsAwarded + " coins", "growth-reward-value"));
                 card.Add(row);
             }
             foreach (var id in result.newlyUnlockedCompanionIds)
@@ -448,20 +538,21 @@ namespace ARWalking.UI
         {
             var pickingForPhoto = _pickingPetForPhoto;
             _pickingPetForPhoto = false;
-            var scroll = ScreenWithHeader("Companions", pickingForPhoto ? "Choose a friend for your AR photo" : UnlockedCompanionCount() + " friends walking with you", false,
+            var scroll = ScreenWithHeader("Companions", pickingForPhoto ? "Choose a friend for your AR photo" : OwnedCompanionCount() + " friends walking with you", false,
                 "camera", "AR Photo", BeginArPhotoPick, "blossom-chip");
 
             _featuredCompanionIndex = Mathf.Clamp(_featuredCompanionIndex, 0, _data.Companions.Count - 1);
-            if (!IsUnlocked(_featuredCompanionIndex)) _featuredCompanionIndex = FirstUnlockedCompanionIndex();
-            scroll.Add(BuildFeaturedCompanion(_featuredCompanionIndex, pickingForPhoto));
+            if (!IsOwned(_featuredCompanionIndex)) _featuredCompanionIndex = FirstOwnedCompanionIndex();
+            if (OwnedCompanionCount() > 0) scroll.Add(BuildFeaturedCompanion(_featuredCompanionIndex, pickingForPhoto));
 
             var ownedGrid = Element("owned-companion-grid", "owned-companion-grid");
             for (var i = 0; i < _data.Companions.Count; i++)
             {
-                if (!IsUnlocked(i)) continue;
+                if (!IsOwned(i)) continue;
                 var index = i;
                 var definition = _data.Companions[i];
                 var progress = _runtime.Companion(definition.id);
+                var entry = CompanionRoster.Find(definition.id);
                 var button = new UiButton(() =>
                 {
                     if (pickingForPhoto) _runtime.EnterPetAr(definition.id, true);
@@ -473,10 +564,29 @@ namespace ARWalking.UI
                 well.Add(Image(_assets != null ? _assets.Companion(i) : null, "companion-thumb", ScaleMode.ScaleAndCrop));
                 button.Add(well);
                 button.Add(Label(definition.name, "companion-thumb-name"));
-                button.Add(Label(CompanionProgressionService.StageFor(progress.growthExperience).ToString(), "companion-thumb-stage"));
+                button.Add(Label(CompanionProgressionService.StageFor(entry, progress.growthExperience).ToString(), "companion-thumb-stage"));
                 ownedGrid.Add(button);
             }
             scroll.Add(ownedGrid);
+
+            var readyToBuyShown = false;
+            for (var i = 0; i < _data.Companions.Count; i++)
+            {
+                if (!IsUnlocked(i) || IsOwned(i)) continue;
+                if (!readyToBuyShown) { scroll.Add(SectionTitle("Ready to bring home")); readyToBuyShown = true; }
+                var definition = _data.Companions[i];
+                var row = new UiButton(() => SelectRoot(UiRootTab.Shop)) { name = "ready-" + definition.id };
+                row.AddToClassList("card");
+                row.AddToClassList("locked-companion-row");
+                var well = Element(null, "locked-icon-well");
+                well.Add(Image(_assets != null ? _assets.Companion(i) : null, "companion-thumb", ScaleMode.ScaleAndCrop));
+                row.Add(well);
+                var copy = Column();
+                copy.Add(Subtitle(definition.name));
+                copy.Add(Body("Unlocked - buy it in the Shop to bring it home."));
+                row.Add(copy);
+                scroll.Add(row);
+            }
 
             scroll.Add(SectionTitle("Yet to meet"));
             for (var i = 0; i < _data.Companions.Count; i++)
@@ -499,7 +609,9 @@ namespace ARWalking.UI
         {
             var definition = _data.Companions[index];
             var progress = _runtime.Companion(definition.id);
-            var stage = CompanionProgressionService.StageFor(progress.growthExperience);
+            var entry = CompanionRoster.Find(definition.id);
+            var stage = CompanionProgressionService.StageFor(entry, progress.growthExperience);
+            var isLead = _runtime.SaveData.leadCompanionId == definition.id;
             var card = Card("featured-companion", "elevated-card");
             var hero = Row("featured-companion-hero", "accent-surface-" + (index % 4));
             var portrait = Element(null, "featured-portrait-well");
@@ -510,6 +622,7 @@ namespace ARWalking.UI
             nameRow.Add(Title(definition.name));
             nameRow.Add(Pill(stage.ToString(), "stage-pill"));
             copy.Add(nameRow);
+            copy.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant()));
             copy.Add(Body(definition.description));
             copy.Add(StageDots(stage));
             hero.Add(copy);
@@ -521,16 +634,29 @@ namespace ARWalking.UI
             growthLabel.Add(IconView("sparkles", "growth-icon", SunInk));
             growthLabel.Add(Label(stage == GrowthStage.Adult ? "Fully grown" : "Growth", "small-strong-label"));
             growthHeader.Add(growthLabel);
-            growthHeader.Add(Label(GrowthCaption(progress.growthExperience, stage), "small-label"));
+            growthHeader.Add(Label(GrowthCaption(entry, progress.growthExperience, stage), "small-label"));
             growth.Add(growthHeader);
-            growth.Add(Progress(GrowthRatio(progress.growthExperience, stage), "growth-progress"));
+            growth.Add(Progress(GrowthRatio(entry, progress.growthExperience, stage), "growth-progress"));
+
+            var incomeRow = Row("income-row");
+            incomeRow.Add(IconView("coins", "income-icon", SunInk, _assets != null ? _assets.iconShop : null));
+            incomeRow.Add(Label("Walking income", "income-label"));
+            incomeRow.Add(Label(CompanionProgressionService.IncomeOf(entry, progress.growthExperience).ToString("0.0") + " coins/100m", "income-value"));
+            growth.Add(incomeRow);
+
             var actions = Row("featured-actions");
-            actions.Add(ActionWithIcon("sparkles", null, "Feed", () => SelectRoot(UiRootTab.Shop), "secondary-action", "half-action"));
-            actions.Add(ActionWithIcon("camera", _assets != null ? _assets.iconCamera : null, pickingForPhoto ? "Choose" : "AR Photo",
-                () => _runtime.EnterPetAr(definition.id, true), "blossom-action", "half-action"));
+            actions.Add(ActionWithIcon("sparkles", null, "Feed", () => ShowFeedSheet(definition.id), "secondary-action", "half-action"));
+            actions.Add(ActionWithIcon("whistle", null, isLead ? "Leading" : "Set as Lead",
+                () => { if (!isLead) { _runtime.SetLeadCompanion(definition.id); Render(); } }, isLead ? "secondary-action" : "primary-action", "half-action"));
             growth.Add(actions);
-            growth.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null, "Pet",
-                () => _runtime.EnterPet3D(definition.id), "primary-action"));
+
+            var arActions = Row("featured-actions");
+            arActions.Add(ActionWithIcon("camera", _assets != null ? _assets.iconCamera : null, pickingForPhoto ? "Choose" : "AR Photo",
+                () => _runtime.EnterPetAr(definition.id, true), "blossom-action", "half-action"));
+            arActions.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null, "Pet",
+                () => _runtime.EnterPet3D(definition.id), "secondary-action", "half-action"));
+            growth.Add(arActions);
+
             var details = Action("View companion details", () => { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); }, "text-action");
             growth.Add(details);
             card.Add(growth);
@@ -542,30 +668,73 @@ namespace ARWalking.UI
             var index = Mathf.Clamp(_runtime.SelectedCompanionIndex, 0, _data.Companions.Count - 1);
             var definition = _data.Companions[index];
             var progress = _runtime.Companion(definition.id);
-            var unlocked = progress != null && progress.unlocked;
-            var scroll = ScreenWithHeader(definition.name, unlocked ? StageLine(progress) : definition.unlockHint, true);
-            if (!unlocked)
+            var owned = progress != null && progress.owned;
+            var scroll = ScreenWithHeader(definition.name, owned ? StageLine(progress) : definition.unlockHint, true);
+            if (!owned)
             {
                 var locked = Card("companion-detail-locked", "elevated-card");
                 locked.Add(IconView("lock", "detail-lock-icon", MutedInk));
                 locked.Add(Title("A friend you have yet to meet"));
-                locked.Add(Body(definition.unlockHint));
+                locked.Add(Body(progress != null && progress.unlocked ? "Unlocked - buy it in the Shop to bring it home." : definition.unlockHint));
                 scroll.Add(locked);
                 return;
             }
 
             scroll.Add(BuildFeaturedCompanion(index, false));
+            var entry = CompanionRoster.Find(definition.id);
             var story = Card("companion-story-card");
             story.Add(Eyebrow("YOUR COMPANION"));
             story.Add(Subtitle("Grow together, one walk at a time"));
-            story.Add(Body("Baby · under 500 EXP\nYoung · 500–1,499 EXP\nAdult · 1,500+ EXP"));
+            story.Add(Body("Baby · under " + entry.YoungExp + " EXP\nYoung · " + entry.YoungExp + "–" + (entry.AdultExp - 1) + " EXP\nAdult · " + entry.AdultExp + "+ EXP"));
             scroll.Add(story);
             scroll.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null, "View in AR", () => _runtime.EnterPetAr(definition.id, false), "primary-action"));
         }
 
         void BuildShop()
         {
-            var scroll = ScreenWithHeader("Shop", "Treats for your walking companions", false, "coins", _runtime.SaveData.coins.ToString("N0"), null, "sun-chip");
+            var scroll = ScreenWithHeader("Shop", "Spend coins to grow your friends", false, "coins", _runtime.SaveData.coins.ToString("N0"), null, "sun-chip");
+
+            scroll.Add(SectionTitle("Companions"));
+            var petGrid = Element("shop-pet-grid", "shop-pet-grid");
+            for (var i = 0; i < _data.Companions.Count; i++)
+            {
+                var index = i;
+                var definition = _data.Companions[i];
+                var progress = _runtime.Companion(definition.id);
+                var entry = CompanionRoster.Find(definition.id);
+                var owned = progress != null && progress.owned;
+                var unlocked = progress != null && progress.unlocked;
+
+                var card = new UiButton(() => ShowPetDetailModal(index)) { name = "shop-pet-" + definition.id };
+                card.AddToClassList("card");
+                card.AddToClassList("shop-pet-card");
+                if (!unlocked) card.AddToClassList("shop-pet-card-dim");
+
+                var imageWell = Element(null, "shop-pet-image-well", "accent-surface-" + (i % 4));
+                imageWell.Add(Image(_assets != null ? _assets.Companion(i) : null, "shop-pet-image", ScaleMode.ScaleAndCrop));
+                imageWell.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant(), "shop-pet-rarity-badge"));
+                var statusBadge = Element(null, "shop-pet-status-badge");
+                statusBadge.Add(IconView(owned ? "stamp" : unlocked ? "coins" : "lock", "shop-pet-status-icon", owned ? Primary : unlocked ? SunInk : MutedInk));
+                imageWell.Add(statusBadge);
+                card.Add(imageWell);
+
+                card.Add(Label(definition.name, "shop-pet-name"));
+                var reqRatio = entry.UnlockDistanceKilometres > 0f ? Mathf.Clamp01(_runtime.SaveData.totalDistanceKilometres / entry.UnlockDistanceKilometres) : 1f;
+                card.Add(Progress(unlocked ? 1f : reqRatio, "shop-pet-progress"));
+
+                var footer = Row("shop-pet-footer");
+                footer.Add(Label(entry.UnlockDistanceKilometres <= 0f ? "Starter" : unlocked ? "Unlocked" : entry.UnlockDistanceKilometres.ToString("0.#") + " km required", "shop-pet-req-label"));
+                var priceRow = Row("shop-pet-price");
+                priceRow.Add(IconView("coins", "shop-pet-price-icon", SunInk));
+                priceRow.Add(Label(owned ? "Owned" : entry.PriceCoins <= 0 ? "Free" : entry.PriceCoins.ToString("N0"), "shop-pet-price-label"));
+                footer.Add(priceRow);
+                card.Add(footer);
+
+                petGrid.Add(card);
+            }
+            scroll.Add(petGrid);
+
+            scroll.Add(SectionTitle("Companion Food"));
             for (var i = 0; i < _data.Foods.Count; i++)
             {
                 var foodIndex = i;
@@ -582,7 +751,12 @@ namespace ARWalking.UI
                 reward.Add(Label("+" + food.growthExperience + " Growth EXP", "food-reward-label"));
                 copy.Add(reward);
                 card.Add(copy);
-                var buy = new UiButton(() => ShowFoodPicker(_data.Foods[foodIndex])) { name = "buy-" + food.id };
+                var buy = new UiButton(() =>
+                {
+                    var result = _runtime.PurchaseFood(_data.Foods[foodIndex].id, 1);
+                    ShowToast(result.success ? "+1 " + _data.Foods[foodIndex].name : result.error);
+                    if (result.success) Render();
+                }) { name = "buy-" + food.id };
                 buy.AddToClassList("price-pill");
                 buy.Add(IconView("coins", "price-icon", White));
                 buy.Add(Label(food.coinCost.ToString(), "price-label"));
@@ -591,8 +765,78 @@ namespace ARWalking.UI
             }
             var note = Card("shop-note-card");
             note.Add(IconView("paw-print", "shop-note-icon", Primary));
-            note.Add(Body("Food is applied immediately to the companion you choose. Every purchase is saved locally."));
+            note.Add(Body("Earn more coins by walking, discovering landmarks, and completing AR memories."));
             scroll.Add(note);
+        }
+
+        /// <summary>Floating Pet Detail card (design doc "not a new screen") opened from a Shop
+        /// companion card - shows unlock progress, income/growth stats, price, and a state-dependent
+        /// CTA (Locked / Buy / Set as lead / Leading).</summary>
+        void ShowPetDetailModal(int index)
+        {
+            var definition = _data.Companions[index];
+            var progress = _runtime.Companion(definition.id);
+            var entry = CompanionRoster.Find(definition.id);
+            var owned = progress != null && progress.owned;
+            var unlocked = progress != null && progress.unlocked;
+            var isLead = _runtime.SaveData.leadCompanionId == definition.id;
+
+            // withCloseButton:false - the hero image bleeds over the modal's top edge (negative
+            // margin), so a close button added before it would paint underneath it; add our own
+            // after the hero instead so it's the later (topmost-painted) sibling.
+            var modal = ShowCenteredModal("pet-detail-modal", false);
+            var hero = Element(null, "pet-detail-hero", "accent-surface-" + (index % 4));
+            hero.Add(Image(_assets != null ? _assets.Companion(index) : null, "pet-detail-hero-image", ScaleMode.ScaleToFit));
+            hero.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant(), "pet-detail-rarity-badge"));
+            modal.Add(hero);
+            modal.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "pet-detail-close", "small-round-control"));
+
+            var nameRow = Row("pet-detail-name-row");
+            nameRow.Add(Title(definition.name));
+            var stateLabel = Label(owned ? (isLead ? "Active companion" : "Owned") : unlocked ? "Unlocked" : "Locked", "pet-detail-state");
+            stateLabel.style.color = owned ? Primary : unlocked ? SunInk : MutedInk;
+            nameRow.Add(stateLabel);
+            modal.Add(nameRow);
+            modal.Add(Body(definition.description));
+
+            var reqRatio = entry.UnlockDistanceKilometres > 0f ? Mathf.Clamp01(_runtime.SaveData.totalDistanceKilometres / entry.UnlockDistanceKilometres) : 1f;
+            var progressBar = Progress(unlocked ? 1f : reqRatio, "pet-detail-progress");
+            if (unlocked) progressBar.AddToClassList("pet-detail-progress-gold");
+            modal.Add(progressBar);
+            modal.Add(Label(entry.UnlockDistanceKilometres <= 0f ? "Starter companion" : unlocked
+                ? entry.UnlockDistanceKilometres.ToString("0.#") + " / " + entry.UnlockDistanceKilometres.ToString("0.#") + " km"
+                : _runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " / " + entry.UnlockDistanceKilometres.ToString("0.#") + " km", "pet-detail-progress-label"));
+
+            var statGrid = Row("pet-detail-stats");
+            var incomeStat = Element(null, "pet-detail-stat", "pet-detail-income-stat");
+            incomeStat.Add(Label("WALKING INCOME", "pet-detail-stat-label"));
+            incomeStat.Add(Label(entry.BaseIncomePerHundredMetres.ToString("0.0") + " /100m", "pet-detail-stat-value"));
+            incomeStat.Add(Label("Adult " + (entry.BaseIncomePerHundredMetres * 1.30f).ToString("0.0") + " /100m", "pet-detail-stat-sub"));
+            statGrid.Add(incomeStat);
+            var expStat = Element(null, "pet-detail-stat");
+            expStat.Add(Label("GROWTH EXP", "pet-detail-stat-label"));
+            expStat.Add(Label("Young " + entry.YoungExp, "pet-detail-stat-value"));
+            expStat.Add(Label("Adult " + entry.AdultExp, "pet-detail-stat-sub"));
+            statGrid.Add(expStat);
+            modal.Add(statGrid);
+
+            var priceRow = Row("pet-detail-price-row");
+            priceRow.Add(IconView("coins", "pet-detail-price-icon", SunInk));
+            priceRow.Add(Label(entry.PriceCoins <= 0 ? "Free" : entry.PriceCoins.ToString("N0") + " coins", "pet-detail-price-label"));
+            modal.Add(priceRow);
+
+            if (!unlocked)
+                modal.Add(Action("Locked · " + Mathf.Max(0f, entry.UnlockDistanceKilometres - _runtime.SaveData.totalDistanceKilometres).ToString("0.#") + " km to reach", () => { }, "disabled-action"));
+            else if (!owned)
+                modal.Add(Action("Buy · " + (entry.PriceCoins <= 0 ? "Free" : entry.PriceCoins.ToString("N0") + " coins"), () =>
+                {
+                    var result = _runtime.PurchaseCompanion(definition.id);
+                    if (result.success) { RemoveTransientOverlay(); Render(); } else ShowToast(result.error);
+                }, "primary-action"));
+            else if (!isLead)
+                modal.Add(Action("Set as lead", () => { _runtime.SetLeadCompanion(definition.id); RemoveTransientOverlay(); Render(); }, "primary-action"));
+            else
+                modal.Add(Action("Leading", () => { }, "leading-action"));
         }
 
         void BuildLandmarkDetail()
@@ -620,6 +864,47 @@ namespace ARWalking.UI
                 scroll.Add(ActionWithIcon("lock", null, "Walk closer to unlock", () => ShowToast("This Landmark is outside the AR unlock radius."), "disabled-action"));
         }
 
+        /// <summary>Floating Landmark sheet (design doc "not a new screen") shown over whatever
+        /// screen is currently open - the primary way to view a landmark from a Map pin tap or the
+        /// Mission Card. <see cref="BuildLandmarkDetail"/> remains as JourneyDetail's existing
+        /// full-screen "Open Landmark" path.</summary>
+        void ShowLandmarkSheet(string landmarkId)
+        {
+            var index = FindLandmarkIndex(landmarkId);
+            var landmark = _data.Landmarks[index];
+            var proximity = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id);
+
+            RemoveTransientOverlay();
+            _overlayScrim = Element("landmark-sheet-scrim", "tray-scrim");
+            var sheet = Card("landmark-sheet", "landmark-sheet");
+
+            var hero = Element(null, "landmark-sheet-hero");
+            hero.Add(Image(_assets != null ? _assets.Landmark(index) : null, "landmark-sheet-hero-image"));
+            hero.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "landmark-sheet-close", "small-round-control", "dark-round-control"));
+            hero.Add(Pill(proximity.distanceMetres.ToString("0") + " m away", "landmark-sheet-distance"));
+            sheet.Add(hero);
+
+            var body = Element(null, "landmark-sheet-body");
+            body.Add(Label(landmark.localName, "landmark-sheet-local-name"));
+            body.Add(Title(landmark.name));
+            body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
+            body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
+            body.Add(StorySection("Architecture", landmark.architecture, "architecture-card", "map"));
+            body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
+            var collected = IsStampCollected(landmark.id);
+            body.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
+            if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
+                body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
+                    () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
+            else
+                body.Add(ActionWithIcon("lock", null, "Walk closer to unlock", () => ShowToast("This Landmark is outside the AR unlock radius."), "disabled-action"));
+            sheet.Add(body);
+
+            _overlayScrim.Add(sheet);
+            _panel.popupContainer.Add(_overlayScrim);
+            SyncMapViewVisibility();
+        }
+
         void BuildJourneyList()
         {
             var scroll = ScreenWithHeader("Journey", "Your memories across Sài Gòn", false);
@@ -633,10 +918,15 @@ namespace ARWalking.UI
             var passport = Card("passport-card", "elevated-card");
             for (var i = 0; i < _data.Landmarks.Count; i++)
             {
+                var landmarkIndex = i;
                 var landmark = _data.Landmarks[i];
+                var collected = IsStampCollected(landmark.id);
                 var stamp = Element(null, "passport-stamp");
-                if (IsStampCollected(landmark.id)) stamp.AddToClassList("passport-stamp-collected");
-                stamp.Add(IconView(IsStampCollected(landmark.id) ? "stamp" : "lock", "passport-stamp-icon", IsStampCollected(landmark.id) ? Primary : MutedInk));
+                if (collected) stamp.AddToClassList("passport-stamp-collected");
+                if (collected)
+                    stamp.Add(Image(_assets != null ? _assets.Landmark(landmarkIndex) : null, "passport-stamp-image", ScaleMode.ScaleAndCrop));
+                else
+                    stamp.Add(IconView("lock", "passport-stamp-icon", MutedInk));
                 stamp.Add(Label(landmark.name, "passport-stamp-label"));
                 passport.Add(stamp);
             }
@@ -664,6 +954,77 @@ namespace ARWalking.UI
                 button.Add(overlay);
                 scroll.Add(button);
             }
+
+            scroll.Add(SectionTitle("Photos"));
+            scroll.Add(Body("AR photos with your companions"));
+            if (_runtime.SaveData.savedPhotoPaths.Count == 0)
+            {
+                var emptyPhotos = Card("journey-empty-card");
+                emptyPhotos.Add(IconView("gallery", "journey-empty-icon", Primary, _assets != null ? _assets.iconJourney : null));
+                emptyPhotos.Add(Subtitle("No photos yet"));
+                emptyPhotos.Add(Body("Take an AR photo with a companion to see it here."));
+                scroll.Add(emptyPhotos);
+            }
+            else
+            {
+                var photoGrid = Element("journey-photo-grid", "journey-photo-grid");
+                for (var i = _runtime.SaveData.savedPhotoPaths.Count - 1; i >= 0; i--)
+                {
+                    var index = i;
+                    var thumb = new UiButton(() => { _viewerPhotoIndex = index; ShowPhotoViewer(); }) { name = "journey-photo-" + index };
+                    thumb.AddToClassList("journey-photo-thumb");
+                    thumb.Add(Image(LoadPhoto(_runtime.SaveData.savedPhotoPaths[index]), "journey-photo-thumb-image", ScaleMode.ScaleAndCrop));
+                    photoGrid.Add(thumb);
+                }
+                scroll.Add(photoGrid);
+            }
+        }
+
+        /// <summary>Full-screen photo viewer (design doc "Photos" gallery) with a filmstrip to switch
+        /// between every saved AR photo, and a delete action.</summary>
+        void ShowPhotoViewer()
+        {
+            RemoveTransientOverlay();
+            _overlayScrim = Element("journey-photo-viewer-scrim", "journey-photo-viewer");
+            RenderPhotoViewerContent();
+            _panel.popupContainer.Add(_overlayScrim);
+            SyncMapViewVisibility();
+        }
+
+        void RenderPhotoViewerContent()
+        {
+            _overlayScrim.Clear();
+            var photos = _runtime.SaveData.savedPhotoPaths;
+            if (photos.Count == 0) { RemoveTransientOverlay(); return; }
+            _viewerPhotoIndex = Mathf.Clamp(_viewerPhotoIndex, 0, photos.Count - 1);
+            var path = photos[_viewerPhotoIndex];
+
+            var header = Row("journey-photo-viewer-header");
+            header.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "journey-photo-viewer-close", "small-round-control", "dark-round-control"));
+            header.Add(Subtitle("Photo " + (_viewerPhotoIndex + 1) + " of " + photos.Count));
+            _overlayScrim.Add(header);
+
+            _overlayScrim.Add(Image(LoadPhoto(path), "journey-photo-viewer-image", ScaleMode.ScaleToFit));
+
+            _overlayScrim.Add(Action("Delete photo", () =>
+            {
+                photos.RemoveAt(_viewerPhotoIndex);
+                _runtime.Persist();
+                if (photos.Count == 0) { RemoveTransientOverlay(); Render(); }
+                else RenderPhotoViewerContent();
+            }, "danger-action", "journey-photo-viewer-delete"));
+
+            var strip = Element(null, "journey-photo-viewer-strip");
+            for (var i = 0; i < photos.Count; i++)
+            {
+                var index = i;
+                var thumb = new UiButton(() => { _viewerPhotoIndex = index; RenderPhotoViewerContent(); }) { name = "viewer-thumb-" + i };
+                thumb.AddToClassList("journey-photo-viewer-strip-item");
+                if (index == _viewerPhotoIndex) thumb.AddToClassList("journey-photo-viewer-strip-item-selected");
+                thumb.Add(Image(LoadPhoto(photos[i]), "journey-photo-viewer-strip-image", ScaleMode.ScaleAndCrop));
+                strip.Add(thumb);
+            }
+            _overlayScrim.Add(strip);
         }
 
         void BuildJourneyDetail()
@@ -753,16 +1114,158 @@ namespace ARWalking.UI
         void OpenMarker(MapMarkerUiData marker)
         {
             if (marker.type == MapMarkerType.Player) { ShowToast(CompanionName(_runtime.PrimaryCompanionId()) + " is walking with you."); return; }
-            _runtime.SelectedLandmarkIndex = FindLandmarkIndex(marker.targetId);
-            Navigate(UiRoute.LandmarkDetail);
+            ShowLandmarkSheet(marker.targetId);
+        }
+
+        /// <summary>Opens a bottom sheet (scrim + slide-up card) into the popup container - the
+        /// pattern originated by the old ShowFoodPicker, generalized for reuse by the Landmark
+        /// sheet, Feed sheet, and Account panel. Add content to the returned element; closing any
+        /// transient overlay (<see cref="RemoveTransientOverlay"/>) dismisses it.</summary>
+        VisualElement ShowSheet(string sheetName)
+        {
+            RemoveTransientOverlay();
+            _overlayScrim = Element(sheetName + "-scrim", "tray-scrim");
+            var sheet = Card(sheetName, "discovery-tray", "elevated-card");
+            sheet.Add(Element("sheet-handle", "sheet-handle"));
+            _overlayScrim.Add(sheet);
+            _panel.popupContainer.Add(_overlayScrim);
+            SyncMapViewVisibility();
+            return sheet;
+        }
+
+        /// <summary>Opens a centered floating modal (scrim + card) into the popup container - used
+        /// by the Shop's Pet Detail card. Add content to the returned element.</summary>
+        VisualElement ShowCenteredModal(string modalName, bool withCloseButton = true)
+        {
+            RemoveTransientOverlay();
+            _overlayScrim = Element(modalName + "-scrim", "overlay-scrim");
+            var modal = Card(modalName, "elevated-card", "modal-card");
+            if (withCloseButton)
+                modal.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "modal-close", "small-round-control"));
+            _overlayScrim.Add(modal);
+            _panel.popupContainer.Add(_overlayScrim);
+            SyncMapViewVisibility();
+            return modal;
+        }
+
+        /// <summary>Account panel (avatar, editable display name, inline two-step progress reset) -
+        /// opened from the top-bar profile button. Replaces the old centered Settings overlay as the
+        /// primary entry point; that overlay's Settings/Permissions/Confirmation content is still
+        /// reachable through <see cref="ShowOverlay"/> for anything not covered here.</summary>
+        void ShowAccountPanel()
+        {
+            _accountResetConfirming = false;
+            RenderAccountPanel();
+        }
+
+        void RenderAccountPanel()
+        {
+            var modal = ShowCenteredModal("account-panel");
+            modal.Add(Eyebrow("ACCOUNT"));
+
+            var avatar = Element(null, "account-avatar");
+            var initial = string.IsNullOrWhiteSpace(_runtime.SaveData.displayName) ? "B" : _runtime.SaveData.displayName.Substring(0, 1).ToUpperInvariant();
+            avatar.Add(Label(initial, "account-avatar-initial"));
+            modal.Add(avatar);
+
+            var nameField = new UiTextField { value = _runtime.SaveData.displayName, maxLength = 20 };
+            nameField.AddToClassList("account-name-field");
+            nameField.RegisterValueChangedCallback(evt =>
+            {
+                var normalized = PlayerSaveData.NormalizeDisplayName(evt.newValue);
+                if (!PlayerSaveData.IsValidDisplayName(normalized)) return;
+                _runtime.SaveData.displayName = normalized;
+                _runtime.Persist();
+            });
+            modal.Add(nameField);
+            modal.Add(Divider());
+
+            if (!_accountResetConfirming)
+            {
+                modal.Add(Action("Restart All Progress", () => { _accountResetConfirming = true; RenderAccountPanel(); }, "danger-action"));
+            }
+            else
+            {
+                modal.Add(Body("This resets coins, companions, and journey. Are you sure?"));
+                var confirmRow = Row();
+                confirmRow.Add(Action("Cancel", () => { _accountResetConfirming = false; RenderAccountPanel(); }, "secondary-action", "half-action"));
+                confirmRow.Add(Action("Reset", () => { RemoveTransientOverlay(); ConfirmResetLocalProgress(); }, "danger-action", "half-action"));
+                modal.Add(confirmRow);
+            }
+        }
+
+        /// <summary>Feed sheet (design doc "Companions" feeding flow) - choose an owned food and an
+        /// amount, then feed it to the given companion, without leaving the Companions tab. Food
+        /// itself is bought separately, from the Shop's Food section.</summary>
+        void ShowFeedSheet(string companionId)
+        {
+            _feedCompanionId = companionId;
+            _feedFoodId = _data.Foods.Count > 0 ? _data.Foods[0].id : null;
+            _feedAmount = 1;
+            RenderFeedSheet();
+        }
+
+        void RenderFeedSheet()
+        {
+            var sheet = ShowSheet("feed-sheet");
+            sheet.Add(Eyebrow("FEED"));
+            sheet.Add(Title("Feed " + CompanionName(_feedCompanionId)));
+            sheet.Add(Body("Choose a food and how much to give."));
+
+            foreach (var food in _data.Foods)
+            {
+                var qty = _runtime.SaveData.FoodQuantity(food.id);
+                var selected = _feedFoodId == food.id;
+                var row = new UiButton(() => { _feedFoodId = food.id; _feedAmount = 1; RenderFeedSheet(); }) { name = "feed-food-" + food.id };
+                row.AddToClassList("card");
+                row.AddToClassList("shop-food-card");
+                row.AddToClassList("feed-food-row");
+                if (selected) row.AddToClassList("feed-food-row-selected");
+                var well = Element(null, "food-art-well");
+                well.Add(Image(_assets != null ? _assets.Food(FindFoodIndex(food.id)) : null, "food-art", ScaleMode.ScaleAndCrop));
+                row.Add(well);
+                var copy = Column("food-copy");
+                copy.Add(Subtitle(food.name));
+                copy.Add(Body("Have ×" + qty + " · +" + food.growthExperience + " EXP each"));
+                row.Add(copy);
+                sheet.Add(row);
+            }
+
+            var currentQty = string.IsNullOrEmpty(_feedFoodId) ? 0 : _runtime.SaveData.FoodQuantity(_feedFoodId);
+            _feedAmount = Mathf.Clamp(_feedAmount, 1, Mathf.Max(1, currentQty));
+
+            var stepper = Row("feed-amount-stepper");
+            stepper.Add(IconAction("chevron-left", null, "-", () => { if (_feedAmount > 1) { _feedAmount--; RenderFeedSheet(); } }, "feed-amount-minus", "small-round-control"));
+            stepper.Add(Label(_feedAmount.ToString(), "feed-amount-value"));
+            stepper.Add(IconAction("chevron-right", null, "+", () => { if (_feedAmount < currentQty) { _feedAmount++; RenderFeedSheet(); } }, "feed-amount-plus", "small-round-control"));
+            sheet.Add(stepper);
+
+            if (currentQty <= 0 || string.IsNullOrEmpty(_feedFoodId))
+                sheet.Add(Action("No food — visit Shop", () => { RemoveTransientOverlay(); SelectRoot(UiRootTab.Shop); }, "disabled-action"));
+            else
+                sheet.Add(ActionWithIcon("sparkles", null, "Feed ×" + _feedAmount, () =>
+                {
+                    var foodId = _feedFoodId;
+                    var companionId = _feedCompanionId;
+                    for (var i = 0; i < _feedAmount; i++)
+                    {
+                        var result = _runtime.Feed(foodId, companionId);
+                        if (!result.success) { ShowToast(result.error); break; }
+                    }
+                    RemoveTransientOverlay();
+                    Render();
+                }, "primary-action"));
+        }
+
+        int FindFoodIndex(string id)
+        {
+            for (var i = 0; i < _data.Foods.Count; i++) if (_data.Foods[i].id == id) return i;
+            return 0;
         }
 
         void ShowFoodPicker(FoodUiData food)
         {
-            RemoveTransientOverlay();
-            _overlayScrim = Element("food-picker-scrim", "tray-scrim");
-            var tray = Card("food-picker-tray", "discovery-tray", "elevated-card");
-            tray.Add(Element("sheet-handle", "sheet-handle"));
+            var tray = ShowSheet("food-picker-tray");
             tray.Add(Eyebrow("CHOOSE A COMPANION"));
             tray.Add(Title("Who gets the " + food.name + "?"));
             var choices = Element(null, "food-companion-grid");
@@ -789,8 +1292,6 @@ namespace ARWalking.UI
             }
             tray.Add(choices);
             tray.Add(Action("Cancel", RemoveTransientOverlay, "secondary-action"));
-            _overlayScrim.Add(tray);
-            _panel.popupContainer.Add(_overlayScrim);
         }
 
         void RenderOverlay()
@@ -840,6 +1341,7 @@ namespace ARWalking.UI
             if (_overlayScrim == null) return;
             _overlayScrim.RemoveFromHierarchy();
             _overlayScrim = null;
+            SyncMapViewVisibility();
         }
 
         ScrollView ScreenWithHeader(string title, string subtitle, bool showBack,
@@ -872,13 +1374,22 @@ namespace ARWalking.UI
             if (mapMode) bar.AddToClassList("map-top-status-bar");
             var metrics = Row("status-pill-group");
             metrics.Add(StatusPill("coins", _assets != null ? _assets.iconShop : null, _runtime.SaveData.coins.ToString("N0"), "coin-status-pill", null, null));
-            metrics.Add(StatusPill("footprints", _assets != null ? _assets.iconSteps : null, _runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " km", "distance-status-pill", () => Navigate(UiRoute.ActivityDashboard), "activity-dashboard-button"));
+            metrics.Add(StatusPill("footprints", _assets != null ? _assets.iconSteps : null, _runtime.SaveData.totalDistanceKilometres.ToString("0.0") + " km", "distance-status-pill", null, null));
             bar.Add(metrics);
-            var profile = new UiButton(() => ShowOverlay(UiOverlay.Settings)) { name = "settings-button" };
+
+            var rightGroup = Row("top-status-right-group");
+            var activity = new UiButton(() => Navigate(UiRoute.ActivityDashboard)) { name = "activity-dashboard-button" };
+            activity.AddToClassList("icon-button");
+            activity.AddToClassList("top-hub-button");
+            activity.Add(IconView("footprints", "icon-image", White, _assets != null ? _assets.iconSteps : null));
+            rightGroup.Add(activity);
+
+            var profile = new UiButton(ShowAccountPanel) { name = "settings-button" };
             profile.AddToClassList("profile-button");
             var initial = string.IsNullOrWhiteSpace(_runtime.SaveData.displayName) ? "B" : _runtime.SaveData.displayName.Substring(0, 1).ToUpperInvariant();
             profile.Add(Label(initial, "profile-initial"));
-            bar.Add(profile);
+            rightGroup.Add(profile);
+            bar.Add(rightGroup);
             return bar;
         }
 
@@ -925,14 +1436,18 @@ namespace ARWalking.UI
             return button;
         }
 
-        Texture2D JourneyImage(JourneyEntryData journey)
+        Texture2D JourneyImage(JourneyEntryData journey) => LoadPhoto(journey.photoPath) ?? (_assets != null ? _assets.journeyOne : null);
+
+        /// <summary>Loads and caches a photo from an on-disk path (a saved AR photo). Returns null if
+        /// the path is empty or the file is missing/unreadable - callers decide their own fallback.</summary>
+        Texture2D LoadPhoto(string path)
         {
-            if (string.IsNullOrEmpty(journey.photoPath)) return _assets != null ? _assets.journeyOne : null;
-            if (_journeyPhotoCache.TryGetValue(journey.photoPath, out var cached) && cached != null) return cached;
-            if (!File.Exists(journey.photoPath)) return _assets != null ? _assets.journeyOne : null;
+            if (string.IsNullOrEmpty(path)) return null;
+            if (_journeyPhotoCache.TryGetValue(path, out var cached) && cached != null) return cached;
+            if (!File.Exists(path)) return null;
             var texture = new Texture2D(2, 2);
-            if (!texture.LoadImage(File.ReadAllBytes(journey.photoPath))) return _assets != null ? _assets.journeyOne : null;
-            _journeyPhotoCache[journey.photoPath] = texture;
+            if (!texture.LoadImage(File.ReadAllBytes(path))) return null;
+            _journeyPhotoCache[path] = texture;
             return texture;
         }
 
@@ -950,15 +1465,36 @@ namespace ARWalking.UI
             return count;
         }
 
+        int OwnedCompanionCount()
+        {
+            var count = 0;
+            for (var i = 0; i < _data.Companions.Count; i++) if (IsOwned(i)) count++;
+            return count;
+        }
+
         bool IsUnlocked(int index)
         {
             var progress = _runtime.Companion(_data.Companions[index].id);
             return progress != null && progress.unlocked;
         }
 
+        /// <summary>Distance-unlocked AND purchased/granted - the companion is actually in the
+        /// player's collection (design doc "Owned" state).</summary>
+        bool IsOwned(int index)
+        {
+            var progress = _runtime.Companion(_data.Companions[index].id);
+            return progress != null && progress.owned;
+        }
+
         int FirstUnlockedCompanionIndex()
         {
             for (var i = 0; i < _data.Companions.Count; i++) if (IsUnlocked(i)) return i;
+            return 0;
+        }
+
+        int FirstOwnedCompanionIndex()
+        {
+            for (var i = 0; i < _data.Companions.Count; i++) if (IsOwned(i)) return i;
             return 0;
         }
 
@@ -972,11 +1508,27 @@ namespace ARWalking.UI
         int FindLandmarkIndex(string id) { for (var i = 0; i < _data.Landmarks.Count; i++) if (_data.Landmarks[i].id == id) return i; return 0; }
         string LandmarkName(string id) { var index = FindLandmarkIndex(id); return _data.Landmarks.Count > 0 ? _data.Landmarks[index].name : id; }
         string CompanionName(string id) { foreach (var item in _data.Companions) if (item.id == id) return item.name; return id; }
-        static string StageLine(CompanionProgressData progress) => CompanionProgressionService.StageFor(progress.growthExperience) + " · " + progress.growthExperience + " EXP";
+        static string StageLine(CompanionProgressData progress)
+        {
+            var entry = CompanionRoster.Find(progress.companionId);
+            return CompanionProgressionService.StageFor(entry, progress.growthExperience) + " · " + progress.growthExperience + " EXP";
+        }
         static string DateLabel(string utc) => DateTime.TryParse(utc, out var value) ? value.ToLocalTime().ToString("d MMM yyyy") : "Saved locally";
         static float DailyGoalRatio(float distanceKilometres, float goalKilometres) => goalKilometres > 0f ? Mathf.Clamp01(distanceKilometres / goalKilometres) : 0f;
-        static float GrowthRatio(int experience, GrowthStage stage) => stage == GrowthStage.Baby ? Mathf.Clamp01(experience / 500f) : stage == GrowthStage.Young ? Mathf.Clamp01((experience - 500f) / 1000f) : 1f;
-        static string GrowthCaption(int experience, GrowthStage stage) => stage == GrowthStage.Baby ? experience + " / 500 EXP" : stage == GrowthStage.Young ? experience + " / 1,500 EXP" : "Max";
+
+        static float GrowthRatio(CompanionRoster.Entry entry, int experience, GrowthStage stage) => stage switch
+        {
+            GrowthStage.Baby => entry.YoungExp > 0 ? Mathf.Clamp01((float)experience / entry.YoungExp) : 0f,
+            GrowthStage.Young => entry.AdultExp > entry.YoungExp ? Mathf.Clamp01((float)(experience - entry.YoungExp) / (entry.AdultExp - entry.YoungExp)) : 0f,
+            _ => 1f
+        };
+
+        static string GrowthCaption(CompanionRoster.Entry entry, int experience, GrowthStage stage) => stage switch
+        {
+            GrowthStage.Baby => experience + " / " + entry.YoungExp + " EXP",
+            GrowthStage.Young => experience + " / " + entry.AdultExp + " EXP",
+            _ => "Max"
+        };
 
         void ShowToast(string message)
         {

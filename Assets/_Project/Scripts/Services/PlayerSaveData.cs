@@ -8,7 +8,13 @@ namespace ARWalking.UI
     public sealed class CompanionProgressData
     {
         public string companionId;
+        /// <summary>Total walking distance requirement has been met (design doc "Unlocked" state).
+        /// Does not by itself mean the player has the companion - see <see cref="owned"/>.</summary>
         public bool unlocked;
+        /// <summary>Purchased with coins (or granted free/by a Landmark reward) - design doc "Owned"
+        /// state. A companion must be both <see cref="unlocked"/> and <see cref="owned"/> to appear
+        /// in the Companions tab / be selectable as lead.</summary>
+        public bool owned;
         [Min(0)] public int growthExperience;
     }
 
@@ -50,12 +56,24 @@ namespace ARWalking.UI
         [Min(0)] public int steps;
     }
 
+    /// <summary>How many of one food item the player is carrying. A list (not a Dictionary) because
+    /// Unity's JsonUtility cannot serialize dictionaries.</summary>
+    [Serializable]
+    public sealed class FoodInventoryEntry
+    {
+        public string foodId;
+        [Min(0)] public int quantity;
+    }
+
     [Serializable]
     public sealed class PlayerSaveData
     {
-        /// <summary>v2: companion roster switched from dog/cat/rabbit to the 17-pet CorgiAR
-        /// roster (see CompanionRoster); old ids are dropped on load by RepairCollections().</summary>
-        public const int CurrentSchemaVersion = 2;
+        /// <summary>v2: companion roster switched from dog/cat/rabbit to the 17-pet CorgiAR roster
+        /// (see CompanionRoster). v3: split "unlocked" (distance requirement met) from a new "owned"
+        /// (purchased/granted) flag, added leadCompanionId, foodInventory, and missions - see
+        /// docs/AR-Walking-Cultural-Exploration-Game-Progression-Shop-Tutorial-Landmark-Journey-Design.md.
+        /// Old ids/format are repaired on load by RepairCollections().</summary>
+        public const int CurrentSchemaVersion = 3;
 
         public int schemaVersion = CurrentSchemaVersion;
         public bool setupComplete;
@@ -65,6 +83,18 @@ namespace ARWalking.UI
         public bool hasTotalSteps;
         [Min(0)] public int totalSteps;
         public List<CompanionProgressData> companions = new List<CompanionProgressData>();
+        /// <summary>The player's chosen active/lead companion - the only one that earns walking
+        /// income (design doc section 2). Falls back to the starter if unset/invalid.</summary>
+        public string leadCompanionId;
+        public List<FoodInventoryEntry> foodInventory = new List<FoodInventoryEntry>();
+        public List<MissionProgressData> missions = new List<MissionProgressData>();
+        /// <summary>All tutorial missions have been claimed - once true, the Mission Card moves on
+        /// to Walking milestones/Landmark missions and never re-checks the tutorial chain.</summary>
+        public bool tutorialComplete;
+        /// <summary>Set once the player has ever bought food, for the tutorial's Shop-visit step.</summary>
+        public bool everPurchasedFood;
+        /// <summary>Set once the player has ever fed a companion, for the tutorial's Feed step.</summary>
+        public bool everFedCompanion;
         public List<StampData> stamps = new List<StampData>();
         public List<string> completedLandmarkIds = new List<string>();
         public List<JourneyEntryData> journeys = new List<JourneyEntryData>();
@@ -94,9 +124,41 @@ namespace ARWalking.UI
             return companions?.Find(item => item != null && item.companionId == companionId);
         }
 
+        public int FoodQuantity(string foodId)
+        {
+            var entry = foodInventory?.Find(item => item != null && item.foodId == foodId);
+            return entry?.quantity ?? 0;
+        }
+
+        public void AddFood(string foodId, int amount)
+        {
+            if (amount == 0) return;
+            var entry = foodInventory.Find(item => item != null && item.foodId == foodId);
+            if (entry == null)
+            {
+                entry = new FoodInventoryEntry { foodId = foodId, quantity = 0 };
+                foodInventory.Add(entry);
+            }
+            entry.quantity = Mathf.Max(0, entry.quantity + amount);
+        }
+
+        /// <summary>Attempts to remove <paramref name="amount"/> of a food item; fails without side
+        /// effects if the player doesn't have enough.</summary>
+        public bool TryConsumeFood(string foodId, int amount)
+        {
+            var entry = foodInventory.Find(item => item != null && item.foodId == foodId);
+            if (entry == null || entry.quantity < amount) return false;
+            entry.quantity -= amount;
+            return true;
+        }
+
         public void RepairCollections()
         {
+            var isPreOwnedSplitSave = schemaVersion < 3;
+
             companions = companions ?? new List<CompanionProgressData>();
+            foodInventory = foodInventory ?? new List<FoodInventoryEntry>();
+            missions = missions ?? new List<MissionProgressData>();
             stamps = stamps ?? new List<StampData>();
             completedLandmarkIds = completedLandmarkIds ?? new List<string>();
             journeys = journeys ?? new List<JourneyEntryData>();
@@ -112,14 +174,26 @@ namespace ARWalking.UI
             foreach (var entry in CompanionRoster.Entries)
             {
                 var isStarter = entry.UnlockDistanceKilometres <= 0f;
-                EnsureCompanion(entry.Id, isStarter, isStarter ? 450 : 0);
+                EnsureCompanion(entry.Id, isStarter, isStarter, 0);
             }
+
+            if (isPreOwnedSplitSave)
+            {
+                // Pre-v3 saves had no purchase step - "unlocked" alone meant the player already had
+                // the companion. Carry that forward as "owned" so nobody loses a companion they had.
+                foreach (var companion in companions)
+                    if (companion.unlocked) companion.owned = true;
+            }
+
+            var lead = string.IsNullOrEmpty(leadCompanionId) ? null : FindCompanion(leadCompanionId);
+            if (lead == null || !lead.owned)
+                leadCompanionId = CompanionRoster.Entries[0].Id;
         }
 
-        void EnsureCompanion(string id, bool unlocked, int experience)
+        void EnsureCompanion(string id, bool unlocked, bool owned, int experience)
         {
             if (FindCompanion(id) != null) return;
-            companions.Add(new CompanionProgressData { companionId = id, unlocked = unlocked, growthExperience = experience });
+            companions.Add(new CompanionProgressData { companionId = id, unlocked = unlocked, owned = owned, growthExperience = experience });
         }
     }
 }
