@@ -155,8 +155,8 @@ namespace ARWalking.UI
             int experience;
             switch (foodId)
             {
-                case "basic-food": cost = 20; experience = 20; break;
-                case "better-food": cost = 40; experience = 40; break;
+                case FoodCatalogIds.RiceBall: cost = 20; experience = 15; break;
+                case FoodCatalogIds.ChickenLeg: cost = 40; experience = 40; break;
                 default: return Fail(result, "Unknown food item.");
             }
             if (_save.coins < cost) return Fail(result, "Not enough Coins.");
@@ -164,11 +164,51 @@ namespace ARWalking.UI
             result.previousStage = StageFor(companion.growthExperience);
             _save.coins -= cost;
             companion.growthExperience += experience;
+            AddFood(foodId, 1);
             result.success = true;
             result.coinsSpent = cost;
             result.experienceGained = experience;
             result.currentStage = StageFor(companion.growthExperience);
             return result;
+        }
+
+        /// <summary>Owned quantity of a food item, shared with the AR/3D feeding minigames
+        /// (see <c>UiPrototypeRuntime.FoodQuantity</c>). Never negative.</summary>
+        public int FoodQuantity(string foodId) => Math.Max(0, _save.FindFood(foodId)?.quantity ?? 0);
+
+        public void AddFood(string foodId, int amount)
+        {
+            if (string.IsNullOrEmpty(foodId) || amount == 0) return;
+            var entry = _save.FindFood(foodId);
+            if (entry == null)
+            {
+                entry = new FoodInventoryData { foodId = foodId, quantity = 0 };
+                _save.foodInventory.Add(entry);
+            }
+            entry.quantity = Math.Max(0, entry.quantity + amount);
+        }
+
+        /// <summary>Spends one unit of a food item (an AR/3D throw actually picked up). Returns
+        /// false when none are left, so the caller can decline the drag instead of going negative.</summary>
+        public bool ConsumeFood(string foodId)
+        {
+            var entry = _save.FindFood(foodId);
+            if (entry == null || entry.quantity <= 0) return false;
+            entry.quantity -= 1;
+            return true;
+        }
+
+        /// <summary>Display-only coin rate shown on the Companion detail screen's "Walking
+        /// income" row for the current lead companion - does not affect the actual per-walk
+        /// coin award computed in <see cref="CompleteWalk"/>.</summary>
+        public static float WalkingIncomePer100m(GrowthStage stage)
+        {
+            switch (stage)
+            {
+                case GrowthStage.Baby: return 3.0f;
+                case GrowthStage.Young: return 5.2f;
+                default: return 8.0f;
+            }
         }
 
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId, string companionRewardId, DateTime utcNow)

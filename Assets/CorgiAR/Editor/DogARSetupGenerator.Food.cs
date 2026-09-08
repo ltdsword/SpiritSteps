@@ -1,4 +1,5 @@
 using System;
+using ARWalking.UI;
 using CorgiAR.UI;
 using ShibaFeeding;
 using UnityEditor;
@@ -79,17 +80,19 @@ namespace CorgiAR.EditorTools
                 new FoodDragThrowUI.FoodChoice
                 {
                     DisplayName = "GÀ",
+                    FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,
-                    Quantity = 20,
+                    Quantity = 2,
                     WorldSize = 0.28f
                 },
                 new FoodDragThrowUI.FoodChoice
                 {
                     DisplayName = "CƠM NẮM",
+                    FoodId = FoodCatalogIds.RiceBall,
                     Prefab = onigiriPrefab,
                     Icon = onigiriIcon,
-                    Quantity = 20,
+                    Quantity = 5,
                     WorldSize = 0.16f
                 }
             };
@@ -101,6 +104,7 @@ namespace CorgiAR.EditorTools
             {
                 SerializedProperty element = choicesProperty.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("DisplayName").stringValue = choices[i].DisplayName;
+                element.FindPropertyRelative("FoodId").stringValue = choices[i].FoodId;
                 element.FindPropertyRelative("Prefab").objectReferenceValue = choices[i].Prefab;
                 element.FindPropertyRelative("Icon").objectReferenceValue = choices[i].Icon;
                 element.FindPropertyRelative("Quantity").intValue = choices[i].Quantity;
@@ -257,9 +261,10 @@ namespace CorgiAR.EditorTools
                 new FoodDragThrowUI.FoodChoice
                 {
                     DisplayName = "G\u00C0",
+                    FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,
-                    Quantity = 20,
+                    Quantity = 2,
                     HudIconSize = 285f,
                     WorldSize = 0.28f,
                     TrailStart = new Color(1f, 0.82f, 0.28f, 0.58f),
@@ -268,9 +273,10 @@ namespace CorgiAR.EditorTools
                 new FoodDragThrowUI.FoodChoice
                 {
                     DisplayName = "C\u01A0M N\u1EAEM",
+                    FoodId = FoodCatalogIds.RiceBall,
                     Prefab = onigiriPrefab,
                     Icon = onigiriIcon,
-                    Quantity = 20,
+                    Quantity = 5,
                     HudIconSize = 190f,
                     WorldSize = 0.16f,
                     TrailStart = new Color(1f, 0.96f, 0.76f, 0.62f),

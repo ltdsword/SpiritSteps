@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using ARWalking.UI;
 using ShibaFeeding;
 
 namespace CorgiAR.UI
@@ -45,7 +46,20 @@ namespace CorgiAR.UI
         public event Action FoodVisualChanged;
         private bool HasChoices => choices != null && choices.Length > 0;
         public Sprite SelectedFoodIcon => HasChoices ? SelectedChoice().Icon : null;
-        public int SelectedFoodQuantity => HasChoices ? Mathf.Max(0, SelectedChoice().Quantity) : 0;
+        public int SelectedFoodQuantity => HasChoices ? QuantityOf(SelectedChoice()) : 0;
+
+        /// <summary>Owned quantity for one choice: the app's persisted inventory when the choice
+        /// carries a <see cref="FoodDragThrowUI.FoodChoice.FoodId"/>, otherwise the
+        /// locally-serialized fallback.</summary>
+        private static int QuantityOf(FoodDragThrowUI.FoodChoice choice)
+        {
+            if (!string.IsNullOrEmpty(choice.FoodId))
+            {
+                UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+                if (runtime != null) return Mathf.Max(0, runtime.FoodQuantity(choice.FoodId));
+            }
+            return Mathf.Max(0, choice.Quantity);
+        }
 
         public ArFoodDragController(VisualElement element, Camera worldCamera, IFeedableDog shiba,
             FoodDragThrowUI.FoodChoice[] choices)
@@ -81,7 +95,7 @@ namespace CorgiAR.UI
         {
             if (heldFood != null || shiba == null || shiba.IsEating)
                 return;
-            if (HasChoices && SelectedChoice().Quantity <= 0)
+            if (HasChoices && QuantityOf(SelectedChoice()) <= 0)
                 return;
 
             FoodDragThrowUI.FoodChoice selected = SelectedChoice();
@@ -174,8 +188,15 @@ namespace CorgiAR.UI
                 return;
             selectedIndex = Mathf.Clamp(selectedIndex, 0, choices.Length - 1);
             FoodDragThrowUI.FoodChoice selected = choices[selectedIndex];
-            selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
-            choices[selectedIndex] = selected;
+            if (!string.IsNullOrEmpty(selected.FoodId))
+            {
+                UiPrototypeRuntime.Instance?.ConsumeFood(selected.FoodId);
+            }
+            else
+            {
+                selected.Quantity = Mathf.Max(0, selected.Quantity - 1);
+                choices[selectedIndex] = selected;
+            }
             FoodVisualChanged?.Invoke();
         }
 

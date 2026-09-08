@@ -117,16 +117,17 @@ MonoBehaviour:
     unlockHint: Walk 20 km total to unlock
     unlockDistanceKilometres: 20
   foods:
-  - id: basic-food
-    name: Basic Food
+  - id: rice-ball
+    name: Rice Ball
     coinCost: 20
-    growthExperience: 20
-    description: A simple snack for any unlocked companion.
-  - id: better-food
-    name: Better Food
+    growthExperience: 15
+    description: A light onigiri snack any unlocked companion can carry into AR or
+      the meadow.
+  - id: chicken-leg
+    name: Chicken Leg
     coinCost: 40
     growthExperience: 40
-    description: A larger meal for any unlocked companion.
+    description: A hearty drumstick treat for any unlocked companion.
   landmarks:
   - id: independence-palace
     name: Independence Palace

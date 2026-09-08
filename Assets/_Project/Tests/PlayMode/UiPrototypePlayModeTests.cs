@@ -82,7 +82,7 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Companions); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
             home.Navigate(UiRoute.CompanionDetail); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
             home.SelectRoot(UiRootTab.Shop); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ShopFood));
-            var feed = home.Feed("basic-food", PrototypeIds.Corgi);
+            var feed = home.Feed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi);
             Assert.That(feed.success, Is.True);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(10));
             home.SelectRoot(UiRootTab.Journey); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyList));
@@ -321,8 +321,10 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Companions);
             yield return null;
 
+            // "Feed" is the companion card's entry point into the Pet3D meadow (the old
+            // standalone "Pet" button was folded into it).
             var root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(root.Q<UnityEngine.UIElements.Button>("pet"), Is.Not.Null);
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("feed"), Is.Not.Null);
 
             UiPrototypeRuntime.Instance.EnterPet3D(PrototypeIds.Corgi);
             yield return WaitForScene(Pet3DSceneContext.SceneName);

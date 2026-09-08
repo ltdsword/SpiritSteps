@@ -39,7 +39,6 @@ namespace ARWalking.UI
         int _setupStep;
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
-        bool _pickingPetForPhoto;
         Label _walkDistanceValueLabel;
         Label _walkCoinsValueLabel;
         Label _walkStepsValueLabel;
@@ -446,14 +445,12 @@ namespace ARWalking.UI
 
         void BuildCompanions()
         {
-            var pickingForPhoto = _pickingPetForPhoto;
-            _pickingPetForPhoto = false;
-            var scroll = ScreenWithHeader("Companions", pickingForPhoto ? "Choose a friend for your AR photo" : UnlockedCompanionCount() + " friends walking with you", false,
-                "camera", "AR Photo", BeginArPhotoPick, "blossom-chip");
+            var scroll = ScreenWithHeader("Companions", UnlockedCompanionCount() + " companions unlocked", false,
+                "camera", "AR Photo", BeginArPhotoPick, "blossom-chip", true);
 
             _featuredCompanionIndex = Mathf.Clamp(_featuredCompanionIndex, 0, _data.Companions.Count - 1);
             if (!IsUnlocked(_featuredCompanionIndex)) _featuredCompanionIndex = FirstUnlockedCompanionIndex();
-            scroll.Add(BuildFeaturedCompanion(_featuredCompanionIndex, pickingForPhoto));
+            scroll.Add(BuildFeaturedCompanion(_featuredCompanionIndex));
 
             var ownedGrid = Element("owned-companion-grid", "owned-companion-grid");
             for (var i = 0; i < _data.Companions.Count; i++)
@@ -462,11 +459,7 @@ namespace ARWalking.UI
                 var index = i;
                 var definition = _data.Companions[i];
                 var progress = _runtime.Companion(definition.id);
-                var button = new UiButton(() =>
-                {
-                    if (pickingForPhoto) _runtime.EnterPetAr(definition.id, true);
-                    else { _featuredCompanionIndex = index; Render(); }
-                }) { name = "companion-" + definition.id };
+                var button = new UiButton(() => { _featuredCompanionIndex = index; Render(); }) { name = "companion-" + definition.id };
                 button.AddToClassList("owned-companion-card");
                 if (_featuredCompanionIndex == i) button.AddToClassList("selected-companion-card");
                 var well = Element(null, "companion-thumb-well", "accent-surface-" + (i % 4));
@@ -477,29 +470,16 @@ namespace ARWalking.UI
                 ownedGrid.Add(button);
             }
             scroll.Add(ownedGrid);
-
-            scroll.Add(SectionTitle("Yet to meet"));
-            for (var i = 0; i < _data.Companions.Count; i++)
-            {
-                if (IsUnlocked(i)) continue;
-                var definition = _data.Companions[i];
-                var row = Card("locked-companion-row");
-                var lockWell = Element(null, "locked-icon-well");
-                lockWell.Add(IconView("lock", "locked-icon", MutedInk));
-                row.Add(lockWell);
-                var copy = Column();
-                copy.Add(Subtitle(definition.name));
-                copy.Add(Body(definition.unlockHint));
-                row.Add(copy);
-                scroll.Add(row);
-            }
         }
 
-        VisualElement BuildFeaturedCompanion(int index, bool pickingForPhoto)
+        VisualElement BuildFeaturedCompanion(int index)
         {
             var definition = _data.Companions[index];
             var progress = _runtime.Companion(definition.id);
             var stage = CompanionProgressionService.StageFor(progress.growthExperience);
+            var wrapper = Column("featured-companion-wrapper");
+            wrapper.Add(BuildFoodInventoryRow());
+
             var card = Card("featured-companion", "elevated-card");
             var hero = Row("featured-companion-hero", "accent-surface-" + (index % 4));
             var portrait = Element(null, "featured-portrait-well");
@@ -511,7 +491,10 @@ namespace ARWalking.UI
             nameRow.Add(Pill(stage.ToString(), "stage-pill"));
             copy.Add(nameRow);
             copy.Add(Body(definition.description));
-            copy.Add(StageDots(stage));
+            var dotsRow = Row("featured-dots-row");
+            dotsRow.Add(StageDots(stage));
+            dotsRow.Add(Label(NextStageLabel(stage), "next-stage-label"));
+            copy.Add(dotsRow);
             hero.Add(copy);
             card.Add(hero);
 
@@ -524,17 +507,59 @@ namespace ARWalking.UI
             growthHeader.Add(Label(GrowthCaption(progress.growthExperience, stage), "small-label"));
             growth.Add(growthHeader);
             growth.Add(Progress(GrowthRatio(progress.growthExperience, stage), "growth-progress"));
+            growth.Add(Body("Feed " + definition.name + " to help it grow."));
+            growth.Add(WalkingIncomeRow(stage));
+
+            var isLead = _runtime.LeadCompanionId == definition.id;
             var actions = Row("featured-actions");
-            actions.Add(ActionWithIcon("sparkles", null, "Feed", () => SelectRoot(UiRootTab.Shop), "secondary-action", "half-action"));
-            actions.Add(ActionWithIcon("camera", _assets != null ? _assets.iconCamera : null, pickingForPhoto ? "Choose" : "AR Photo",
-                () => _runtime.EnterPetAr(definition.id, true), "blossom-action", "half-action"));
+            actions.Add(ActionWithIcon("heart", null, "Feed", () => _runtime.EnterPet3D(definition.id), "blossom-action", "half-action"));
+            actions.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null,
+                isLead ? "Leading" : "Set as lead",
+                () => { _runtime.SetLeadCompanion(definition.id); Render(); },
+                isLead ? "secondary-action" : "primary-action", "half-action"));
             growth.Add(actions);
-            growth.Add(ActionWithIcon("paw-print", _assets != null ? _assets.iconCompanions : null, "Pet",
-                () => _runtime.EnterPet3D(definition.id), "primary-action"));
             var details = Action("View companion details", () => { _runtime.SelectedCompanionIndex = index; Navigate(UiRoute.CompanionDetail); }, "text-action");
             growth.Add(details);
             card.Add(growth);
-            return card;
+            wrapper.Add(card);
+            return wrapper;
+        }
+
+        VisualElement WalkingIncomeRow(GrowthStage stage)
+        {
+            var row = Element(null, "info-row", "walking-income-row");
+            var well = Element(null, "info-icon-well");
+            well.Add(IconView("coins", "info-icon", SunInk));
+            row.Add(well);
+            row.Add(Label("Walking income", "small-strong-label"));
+            var spacer = Element(null);
+            spacer.style.flexGrow = 1;
+            row.Add(spacer);
+            row.Add(Label(CompanionProgressionService.WalkingIncomePer100m(stage).ToString("0.0") + " coins / 100m", "walking-income-value"));
+            return row;
+        }
+
+        VisualElement BuildFoodInventoryRow()
+        {
+            var row = Row("food-inventory-row");
+            for (var i = 0; i < _data.Foods.Count; i++)
+            {
+                var food = _data.Foods[i];
+                var chip = new UiButton(() => SelectRoot(UiRootTab.Shop)) { name = "food-chip-" + food.id };
+                chip.AddToClassList("food-inventory-chip");
+                var well = Element(null, "food-inventory-icon-well", "accent-surface-" + (i % 4));
+                well.Add(Image(_assets != null ? _assets.Food(i) : null, "food-inventory-icon", ScaleMode.ScaleAndCrop));
+                chip.Add(well);
+                var copy = Column();
+                var nameRow = Row("food-inventory-name-row");
+                nameRow.Add(Label(food.name, "food-inventory-name"));
+                nameRow.Add(Label("×" + _runtime.FoodQuantity(food.id), "food-inventory-quantity"));
+                copy.Add(nameRow);
+                copy.Add(Label("+" + food.growthExperience + " EXP", "food-inventory-exp"));
+                chip.Add(copy);
+                row.Add(chip);
+            }
+            return row;
         }
 
         void BuildCompanionDetail()
@@ -554,7 +579,7 @@ namespace ARWalking.UI
                 return;
             }
 
-            scroll.Add(BuildFeaturedCompanion(index, false));
+            scroll.Add(BuildFeaturedCompanion(index));
             var story = Card("companion-story-card");
             story.Add(Eyebrow("YOUR COMPANION"));
             story.Add(Subtitle("Grow together, one walk at a time"));
@@ -744,11 +769,7 @@ namespace ARWalking.UI
             scroll.Add(friends);
         }
 
-        void BeginArPhotoPick()
-        {
-            _pickingPetForPhoto = true;
-            SelectRoot(UiRootTab.Companions);
-        }
+        void BeginArPhotoPick() => _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), true);
 
         void OpenMarker(MapMarkerUiData marker)
         {
@@ -843,7 +864,7 @@ namespace ARWalking.UI
         }
 
         ScrollView ScreenWithHeader(string title, string subtitle, bool showBack,
-            string actionIcon = null, string actionLabel = null, Action action = null, string actionClass = null)
+            string actionIcon = null, string actionLabel = null, Action action = null, string actionClass = null, bool largeAction = false)
         {
             var page = Page("content-page", true);
             page.Add(BuildTopStatusBar(false));
@@ -856,7 +877,7 @@ namespace ARWalking.UI
             if (!string.IsNullOrEmpty(actionLabel))
             {
                 var chip = ActionWithIcon(actionIcon, actionIcon == "coins" ? null : _assets != null ? _assets.iconCamera : null,
-                    actionLabel, action ?? (() => { }), actionClass ?? "secondary-action", "header-chip");
+                    actionLabel, action ?? (() => { }), actionClass ?? "secondary-action", largeAction ? "header-chip-large" : "header-chip");
                 header.Add(chip);
             }
             page.Add(header);
@@ -977,6 +998,7 @@ namespace ARWalking.UI
         static float DailyGoalRatio(float distanceKilometres, float goalKilometres) => goalKilometres > 0f ? Mathf.Clamp01(distanceKilometres / goalKilometres) : 0f;
         static float GrowthRatio(int experience, GrowthStage stage) => stage == GrowthStage.Baby ? Mathf.Clamp01(experience / 500f) : stage == GrowthStage.Young ? Mathf.Clamp01((experience - 500f) / 1000f) : 1f;
         static string GrowthCaption(int experience, GrowthStage stage) => stage == GrowthStage.Baby ? experience + " / 500 EXP" : stage == GrowthStage.Young ? experience + " / 1,500 EXP" : "Max";
+        static string NextStageLabel(GrowthStage stage) => stage == GrowthStage.Baby ? "Next: Young" : stage == GrowthStage.Young ? "Next: Adult" : "Fully grown";
 
         void ShowToast(string message)
         {
@@ -993,7 +1015,6 @@ namespace ARWalking.UI
                 var dot = Element(null, "stage-dot");
                 if (i <= (int)current) dot.AddToClassList("stage-dot-active");
                 stages.Add(dot);
-                if (i < 2) stages.Add(IconView("chevron-right", "stage-chevron", MutedInk));
             }
             return stages;
         }

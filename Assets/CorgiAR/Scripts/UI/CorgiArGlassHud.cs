@@ -292,6 +292,7 @@ namespace CorgiAR.UI
         private void SelectPet(string id)
         {
             binder?.Bind(id);
+            UiPrototypeRuntime.Instance?.SetLeadCompanion(id);
             ClosePetPicker();
         }
 

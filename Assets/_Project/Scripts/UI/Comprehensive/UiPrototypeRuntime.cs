@@ -171,6 +171,35 @@ namespace ARWalking.UI
             return result;
         }
 
+        /// <summary>Owned quantity of a food item - the single source of truth the Companion
+        /// screen's food chips and the AR/3D food selectors (<c>ArFoodDragController</c>/
+        /// <c>ShibaFeeding.FoodDragThrowUI</c>) all read, so buying or throwing food stays in
+        /// sync everywhere.</summary>
+        public int FoodQuantity(string foodId) => _progression != null ? _progression.FoodQuantity(foodId) : 0;
+
+        /// <summary>Spends one unit of a food item picked up in AR/3D. Returns false (and spends
+        /// nothing) when none are left.</summary>
+        public bool ConsumeFood(string foodId)
+        {
+            if (_progression == null || string.IsNullOrEmpty(foodId)) return false;
+            var consumed = _progression.ConsumeFood(foodId);
+            if (consumed) Persist();
+            return consumed;
+        }
+
+        /// <summary>The companion picked via the Companion detail screen's "Set as lead" action,
+        /// or empty when none was picked yet.</summary>
+        public string LeadCompanionId => SaveData?.leadCompanionId ?? string.Empty;
+
+        public void SetLeadCompanion(string companionId)
+        {
+            RequireProfile();
+            var progress = Companion(companionId);
+            if (progress == null || !progress.unlocked) return;
+            SaveData.leadCompanionId = companionId;
+            Persist();
+        }
+
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId)
         {
             RequireProfile();
@@ -392,6 +421,12 @@ namespace ARWalking.UI
         /// the starter if somehow none are unlocked yet.</summary>
         public string PrimaryCompanionId()
         {
+            var lead = LeadCompanionId;
+            if (!string.IsNullOrEmpty(lead))
+            {
+                var leadProgress = Companion(lead);
+                if (leadProgress != null && leadProgress.unlocked) return lead;
+            }
             foreach (var entry in CompanionRoster.Entries)
             {
                 var progress = Companion(entry.Id);

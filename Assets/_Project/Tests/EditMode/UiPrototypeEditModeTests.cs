@@ -163,15 +163,15 @@ namespace ARWalking.Tests.EditMode
         {
             var save = PlayerSaveData.CreateNew("Mai");
             var service = new CompanionProgressionService(save);
-            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Husky).success, Is.False);
-            Assert.That(service.PurchaseAndFeed("basic-food", PrototypeIds.Corgi).error, Is.EqualTo("Not enough Coins."));
+            Assert.That(service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Husky).success, Is.False);
+            Assert.That(service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi).error, Is.EqualTo("Not enough Coins."));
             save.coins = 40;
-            var result = service.PurchaseAndFeed("better-food", PrototypeIds.Corgi);
+            var result = service.PurchaseAndFeed(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi);
             Assert.That(result.success, Is.True);
             Assert.That(result.coinsSpent, Is.EqualTo(40));
             Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(490));
             save.coins = 20;
-            result = service.PurchaseAndFeed("basic-food", PrototypeIds.Corgi);
+            result = service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi);
             Assert.That(result.StageChanged, Is.True);
             Assert.That(result.currentStage, Is.EqualTo(GrowthStage.Young));
         }

@@ -13,6 +13,13 @@ namespace ARWalking.UI
     }
 
     [Serializable]
+    public sealed class FoodInventoryData
+    {
+        public string foodId;
+        [Min(0)] public int quantity;
+    }
+
+    [Serializable]
     public sealed class JourneyEntryData
     {
         public string id;
@@ -65,6 +72,12 @@ namespace ARWalking.UI
         public bool hasTotalSteps;
         [Min(0)] public int totalSteps;
         public List<CompanionProgressData> companions = new List<CompanionProgressData>();
+        /// <summary>Companion chosen as the "lead" - the one shown for Walking income, entered by
+        /// "AR Photo", and kept in sync whenever the player swaps companions in AR/3D.
+        /// <see cref="RepairCollections"/> guarantees this is never empty (falls back to the first
+        /// unlocked companion), so there is always exactly one lead, on or off the app.</summary>
+        public string leadCompanionId = string.Empty;
+        public List<FoodInventoryData> foodInventory = new List<FoodInventoryData>();
         public List<StampData> stamps = new List<StampData>();
         public List<string> completedLandmarkIds = new List<string>();
         public List<JourneyEntryData> journeys = new List<JourneyEntryData>();
@@ -94,9 +107,16 @@ namespace ARWalking.UI
             return companions?.Find(item => item != null && item.companionId == companionId);
         }
 
+        public FoodInventoryData FindFood(string foodId)
+        {
+            return foodInventory?.Find(item => item != null && item.foodId == foodId);
+        }
+
         public void RepairCollections()
         {
             companions = companions ?? new List<CompanionProgressData>();
+            leadCompanionId = leadCompanionId ?? string.Empty;
+            foodInventory = foodInventory ?? new List<FoodInventoryData>();
             stamps = stamps ?? new List<StampData>();
             completedLandmarkIds = completedLandmarkIds ?? new List<string>();
             journeys = journeys ?? new List<JourneyEntryData>();
@@ -108,18 +128,43 @@ namespace ARWalking.UI
             var validIds = new HashSet<string>();
             foreach (var entry in CompanionRoster.Entries) validIds.Add(entry.Id);
             companions.RemoveAll(item => item == null || !validIds.Contains(item.companionId));
+            if (!string.IsNullOrEmpty(leadCompanionId) && !validIds.Contains(leadCompanionId))
+                leadCompanionId = string.Empty;
 
             foreach (var entry in CompanionRoster.Entries)
             {
                 var isStarter = entry.UnlockDistanceKilometres <= 0f;
                 EnsureCompanion(entry.Id, isStarter, isStarter ? 450 : 0);
             }
+
+            // Always have exactly one lead companion - default to the first unlocked one
+            // (roster order) until the player picks one explicitly.
+            if (string.IsNullOrEmpty(leadCompanionId))
+            {
+                foreach (var entry in CompanionRoster.Entries)
+                {
+                    var progress = FindCompanion(entry.Id);
+                    if (progress == null || !progress.unlocked) continue;
+                    leadCompanionId = entry.Id;
+                    break;
+                }
+            }
+
+            // A few starter treats so a fresh save can try AR/3D feeding right away.
+            EnsureFood(FoodCatalogIds.RiceBall, 5);
+            EnsureFood(FoodCatalogIds.ChickenLeg, 2);
         }
 
         void EnsureCompanion(string id, bool unlocked, int experience)
         {
             if (FindCompanion(id) != null) return;
             companions.Add(new CompanionProgressData { companionId = id, unlocked = unlocked, growthExperience = experience });
+        }
+
+        void EnsureFood(string id, int startingQuantity)
+        {
+            if (FindFood(id) != null) return;
+            foodInventory.Add(new FoodInventoryData { foodId = id, quantity = startingQuantity });
         }
     }
 }

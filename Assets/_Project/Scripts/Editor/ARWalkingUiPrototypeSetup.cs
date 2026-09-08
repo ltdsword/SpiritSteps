@@ -183,8 +183,8 @@ namespace ARWalking.Editor
             }
             catalog.foods = new List<FoodUiData>
             {
-                new FoodUiData { id="basic-food", name="Basic Food", coinCost=20, growthExperience=20, description="A simple snack for any unlocked companion." },
-                new FoodUiData { id="better-food", name="Better Food", coinCost=40, growthExperience=40, description="A larger meal for any unlocked companion." }
+                new FoodUiData { id=FoodCatalogIds.RiceBall, name="Rice Ball", coinCost=20, growthExperience=15, description="A light onigiri snack any unlocked companion can carry into AR or the meadow." },
+                new FoodUiData { id=FoodCatalogIds.ChickenLeg, name="Chicken Leg", coinCost=40, growthExperience=40, description="A hearty drumstick treat for any unlocked companion." }
             };
             catalog.landmarks = new List<LandmarkUiData>
             {
@@ -220,10 +220,12 @@ namespace ARWalking.Editor
             library.companions = CompanionRoster.Entries
                 .Select(entry => Texture("Assets/CorgiAR/UI/Pets/" + entry.Id + ".png")).ToArray();
             library.archivedPlantPlaceholders = Textures("Seedlings/commonPelletRedSprout.png", "Seedlings/commonPelletBlueReady.png", "Seedlings/commonPelletYellowSprout.png");
+            // Same food art the AR/3D food selector uses (ArFoodDragController/FoodDragThrowUI's
+            // FoodChoice.Icon) - positional, matching catalog.foods order (RiceBall, ChickenLeg).
             library.foods = new[]
             {
-                Texture("Assets/_Project/Art/UI/Food/rice-ball.png"),
-                Texture("Assets/_Project/Art/UI/Food/fruit-bowl.png")
+                Texture("Assets/CorgiAR/onigiri/onigiri.png"),
+                Texture("Assets/CorgiAR/ExternalAssets/chicken-drumstick.png")
             };
             library.landmarks = Textures("Landmarks/independence-palace.png", "Landmarks/post-office.png", "Landmarks/notre-dame.png");
             library.icons = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Project/Art/UI/ReferenceTemp/Icons" })
