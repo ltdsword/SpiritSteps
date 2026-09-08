@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace CorgiAR
 {
     /// <summary>
-    /// The "đổi thú" full-screen modal: a scrim that blocks the HUD plus a card
+    /// The "switch pet" full-screen modal: a scrim that blocks the HUD plus a card
     /// with a 3-column scrolling grid of pets (thumbnail + name, current one
     /// highlighted) and a close button. The GameObject stays active; visibility
     /// and input-blocking are driven through a <see cref="CanvasGroup"/> so the
@@ -51,7 +51,7 @@ namespace CorgiAR
                 binder.PetChanged -= OnPetChanged;
         }
 
-        /// <summary>Wired to the "ĐỔI THÚ" HUD button.</summary>
+        /// <summary>Wired to the "SWITCH PET" HUD button.</summary>
         public void Toggle() => SetOpen(!IsOpen);
 
         public void Open() => SetOpen(true);

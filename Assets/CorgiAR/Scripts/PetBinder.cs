@@ -87,7 +87,7 @@ namespace CorgiAR
         public bool Has(string id) => TryFind(id, out _);
 
         /// <summary>Switch to the next unlocked companion in roster order (wraps around). Used by
-        /// the "Đổi thú" HUD card - a no-modal replacement for the old Pet Menu sheet.</summary>
+        /// the "Switch pet" HUD card - a no-modal replacement for the old Pet Menu sheet.</summary>
         public void CycleNext()
         {
             if (bindings.Length == 0)

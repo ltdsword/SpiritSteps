@@ -21,6 +21,7 @@ namespace CorgiAR
         private UiPrototypeRuntime runtime;
         private VisualElement appRoot;
         private bool stampCollected;
+        private bool showInfoCard;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RegisterSceneBootstrap()
@@ -50,7 +51,10 @@ namespace CorgiAR
 
             tracker = FindFirstObjectByType<LandmarkImageTrackingController>();
             if (tracker != null)
+            {
                 tracker.TargetRecognized += OnTargetRecognized;
+                tracker.ContentTapped += OnContentTapped;
+            }
 
             stampCollected = runtime.SaveData != null &&
                              runtime.SaveData.completedLandmarkIds.Contains(LandmarkId);
@@ -61,7 +65,10 @@ namespace CorgiAR
         private void OnDestroy()
         {
             if (tracker != null)
+            {
                 tracker.TargetRecognized -= OnTargetRecognized;
+                tracker.ContentTapped -= OnContentTapped;
+            }
         }
 
         private void BuildRoot()
@@ -82,6 +89,13 @@ namespace CorgiAR
         }
 
         private void OnTargetRecognized() => Render();
+        private void OnContentTapped()
+        {
+            if (!tracker.Recognized || showInfoCard)
+                return;
+            showInfoCard = true;
+            Render();
+        }
 
         private void Render()
         {
@@ -98,14 +112,14 @@ namespace CorgiAR
             back.AddToClassList("dark-round-control");
             header.Add(back);
             var titlePill = Element("landmark-scan-title-pill", "landmark-scan-title-pill");
-            titlePill.Add(Text("Quét Nhà thờ Đức Bà", "subtitle"));
+            titlePill.Add(Text("Scan Notre-Dame Basilica", "subtitle"));
             header.Add(titlePill);
             page.Add(header);
 
             if (tracker == null)
             {
                 var controls = Element("ar-scan-controls", "ar-scan-controls");
-                controls.Add(Instruction("Không tìm thấy bộ nhận diện hình ảnh."));
+                controls.Add(Instruction("Image recognition tracker not found."));
                 page.Add(controls);
                 return;
             }
@@ -114,10 +128,18 @@ namespace CorgiAR
             {
                 page.Add(Element("ar-scanning-frame", "ar-scanning-frame"));
                 var controls = Element("ar-scan-controls", "ar-scan-controls");
-                controls.Add(Instruction("Hướng camera vào ảnh Nhà thờ Đức Bà"));
+                controls.Add(Instruction("Point your camera at the Notre-Dame Basilica image"));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                controls.Add(ActionButton("Mô phỏng nhận diện", tracker.SimulateRecognitionForEditor, "secondary-action"));
+                controls.Add(ActionButton("Simulate recognition", tracker.SimulateRecognitionForEditor, "secondary-action"));
 #endif
+                page.Add(controls);
+                return;
+            }
+
+            if (!showInfoCard)
+            {
+                var controls = Element("ar-scan-controls", "ar-scan-controls");
+                controls.Add(Instruction("Notre-Dame Basilica recognized! Tap the model to learn its story."));
                 page.Add(controls);
                 return;
             }
@@ -130,17 +152,17 @@ namespace CorgiAR
             var sheet = Element("landmark-scan-result-sheet", "landmark-scan-result-sheet");
             var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "landmark-scan-result-scroll" };
             scroll.AddToClassList("landmark-scan-result-scroll");
-            scroll.Add(Text("Đã nhận diện!", "title"));
-            scroll.Add(Text("NHÀ THỜ ĐỨC BÀ SÀI GÒN", "eyebrow"));
+            scroll.Add(Text("Recognized!", "title"));
+            scroll.Add(Text("NOTRE-DAME BASILICA OF SAIGON", "eyebrow"));
 
-            scroll.Add(Text("LỊCH SỬ", "landmark-scan-section-title"));
+            scroll.Add(Text("HISTORY", "landmark-scan-section-title"));
             scroll.Add(Text(
-                "Công trình được khởi công xây dựng vào ngày 07/10/1877 và khánh thành vào năm 1880 do kiến trúc sư người Pháp Jules Bourard thiết kế.",
+                "Construction began on 7 October 1877 and the basilica was completed in 1880, designed by French architect Jules Bourard.",
                 "landmark-scan-result-body"));
 
-            scroll.Add(Text("Ý NGHĨA VĂN HÓA - XÃ HỘI", "landmark-scan-section-title"));
+            scroll.Add(Text("CULTURAL & SOCIAL SIGNIFICANCE", "landmark-scan-section-title"));
             scroll.Add(Text(
-                "Trải qua bao biến động lịch sử, Nhà thờ chính tòa Đức Bà Sài Gòn đã vượt qua ranh giới của một công trình tôn giáo để trở thành hồn cốt, di sản văn hóa không thể tách rời của đô thị phương Nam.",
+                "Through many historical changes, Notre-Dame Cathedral Basilica of Saigon has grown beyond a religious building to become the soul and an inseparable cultural heritage of the southern city.",
                 "landmark-scan-result-body"));
 
             var reward = Element("landmark-reward-card", "landmark-reward-card");
@@ -154,14 +176,14 @@ namespace CorgiAR
             rewardImage.AddToClassList("landmark-reward-image");
             reward.Add(rewardImage);
             var rewardCopy = Element("landmark-reward-copy", "landmark-reward-copy");
-            rewardCopy.Add(Text("Bò tót", "subtitle"));
-            rewardCopy.Add(Text(stampCollected ? "Đã có trong bộ sưu tập" : "Phần thưởng khám phá", "body"));
+            rewardCopy.Add(Text("Bull", "subtitle"));
+            rewardCopy.Add(Text(stampCollected ? "Already in your collection" : "Discovery reward", "body"));
             reward.Add(rewardCopy);
             scroll.Add(reward);
 
             scroll.Add(stampCollected
-                ? ActionButton("Về Journey", ReturnToJourney, "primary-action")
-                : ActionButton("Nhận Bò tót & Stamp", CollectReward, "primary-action"));
+                ? ActionButton("Back to Journey", ReturnToJourney, "primary-action")
+                : ActionButton("Claim Bull & Stamp", CollectReward, "primary-action"));
             sheet.Add(scroll);
             page.Add(sheet);
         }

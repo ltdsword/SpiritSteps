@@ -319,7 +319,7 @@ namespace ShibaFeeding
             GameObject popup = new GameObject("Yum Popup");
             popup.transform.position = position;
             JuicyPopup effect = popup.AddComponent<JuicyPopup>();
-            effect.Initialize("NGON QUÁ!  ♥", popupColor, Camera.main);
+            effect.Initialize("YUM!  ♥", popupColor, Camera.main);
         }
     }
 }

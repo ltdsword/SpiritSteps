@@ -78,7 +78,7 @@ namespace ShibaFeeding
         public int SelectedFoodIndex => selectedFoodIndex;
         public string SelectedFoodName => HasFoodChoices
             ? foodChoices[selectedFoodIndex].DisplayName
-            : "G\u00C0";
+            : "CHICKEN";
         public Sprite SelectedFoodIcon => HasFoodChoices ? SelectedChoice().Icon : null;
         public int SelectedFoodQuantity => HasFoodChoices ? QuantityOf(SelectedChoice()) : 0;
 
@@ -427,7 +427,7 @@ namespace ShibaFeeding
             {
                 return new FoodChoice
                 {
-                    DisplayName = "G\u00C0",
+                    DisplayName = "CHICKEN",
                     Prefab = foodPrefab,
                     TrailStart = new Color(1f, 0.82f, 0.28f, 0.55f),
                     TrailEnd = new Color(1f, 0.35f, 0.05f, 0f)
@@ -731,7 +731,7 @@ namespace ShibaFeeding
                 Text hint = hintTransform.GetComponent<Text>();
                 if (hint != null)
                 {
-                    hint.text = "GIỮ THỨC ĂN  •  KÉO LÊN  •  THẢ ĐỂ NÉM";
+                    hint.text = "HOLD FOOD  •  DRAG UP  •  RELEASE TO THROW";
                     hint.fontSize = 24;
                 }
             }
@@ -740,7 +740,7 @@ namespace ShibaFeeding
             if (label != null)
             {
                 label.gameObject.SetActive(false);
-                label.text = "KÉO ĐỂ NÉM";
+                label.text = "DRAG TO THROW";
                 RectTransform labelRect = label.rectTransform;
                 labelRect.anchorMin = new Vector2(0f, 0.02f);
                 labelRect.anchorMax = new Vector2(1f, 0.24f);

@@ -10,7 +10,7 @@ namespace CorgiAR
     /// <see cref="IFeedableDog"/> so <see cref="FoodDragThrowUI"/> / <see cref="ThrownFood"/>
     /// (ported from the ShibaFeeding demo) can throw a treat to the AR pet: the pet
     /// follows the held treat, runs to where it lands, plays the Eating chain, and
-    /// pops a "NGON QUÁ" bubble before resuming its mode.
+    /// pops a "YUM" bubble before resuming its mode.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class DogFeedingController : MonoBehaviour, IFeedableDog, IThrowBoundary
@@ -34,7 +34,7 @@ namespace CorgiAR
         [SerializeField, Min(0.2f)] private float chewDuration = 2.6f;
         [SerializeField, Min(0.1f)] private float endDuration = 1.1f;
         [SerializeField] private Color popupColor = new(1f, 0.45f, 0.12f);
-        [SerializeField] private string popupText = "NGON QUÁ!  ♥";
+        [SerializeField] private string popupText = "YUM!  ♥";
 
         private Coroutine eatRoutine;
 

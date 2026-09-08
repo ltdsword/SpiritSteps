@@ -201,10 +201,10 @@ namespace CorgiAR.UI
             changePetThumb.AddToClassList("ar-change-pet-thumb");
             card.Add(changePetThumb);
             VisualElement copy = Element(null);
-            var kicker = new Label("ĐANG CHỌN");
+            var kicker = new Label("CURRENTLY WALKING");
             kicker.AddToClassList("ar-change-pet-kicker");
             kicker.AddToClassList("font-display");
-            var title = new Label("Đổi thú");
+            var title = new Label("Switch Pet");
             title.AddToClassList("ar-change-pet-title");
             title.AddToClassList("font-display");
             copy.Add(kicker);
@@ -220,10 +220,10 @@ namespace CorgiAR.UI
             interactionRow = Element("pet-3d-interaction-row", "ar-interaction-row", "pet3d-interaction-row");
             safeRoot.Add(interactionRow);
 
-            VisualElement comeCircle = BuildCircleItem(out comeItem, "GỌI VỀ", true, () => companion?.ComeHere());
+            VisualElement comeCircle = BuildCircleItem(out comeItem, "COME HERE", true, () => companion?.ComeHere());
             comeCircle.Add(SpriteImage(Resources.Load<Sprite>("UI/Icons/whistle3d"), "ar-interaction-icon-food"));
 
-            VisualElement foodCircle = BuildCircleItem(out foodItem, "CHO ĂN", false, null);
+            VisualElement foodCircle = BuildCircleItem(out foodItem, "FEED", false, null);
             foodCircle.AddToClassList("pet3d-food-circle");
             foodIcon = SpriteImage(null, "ar-interaction-icon-food");
             foodCircle.Add(foodIcon);
@@ -240,7 +240,7 @@ namespace CorgiAR.UI
             if (foodDrag != null)
                 WireDrag(foodCircle, foodDrag.BeginExternalDrag, foodDrag.ContinueExternalDrag, foodDrag.EndExternalDrag);
 
-            VisualElement ballCircle = BuildCircleItem(out ballItem, "NÉM BÓNG", false, null);
+            VisualElement ballCircle = BuildCircleItem(out ballItem, "THROW BALL", false, null);
             ballCircle.Add(SpriteImage(Resources.Load<Sprite>("UI/Icons/ball"), "ar-interaction-icon-food"));
             if (ballDrag != null)
                 WireDrag(ballCircle, ballDrag.BeginExternalDrag, ballDrag.ContinueExternalDrag, ballDrag.EndExternalDrag);
@@ -266,7 +266,7 @@ namespace CorgiAR.UI
             petPicker.style.display = DisplayStyle.None;
             var modal = Element(null, "pet3d-picker-card");
             var header = Element(null, "pet3d-picker-header");
-            var title = new Label("Chọn thú cưng");
+            var title = new Label("Choose a Pet");
             title.AddToClassList("pet3d-picker-title");
             title.AddToClassList("font-display");
             header.Add(title);
@@ -389,10 +389,10 @@ namespace CorgiAR.UI
 
         private static string StatusFor(bool placed, bool eating, bool sitting)
         {
-            if (!placed) return "Chạm màn hình để đặt thú cưng";
-            if (eating) return "Đang ăn… ngon quá!";
-            if (sitting) return "Thú đang ngồi ngoan";
-            return "Chạm thú để vuốt • ném bóng, cho ăn, gọi lại đây";
+            if (!placed) return "Tap the screen to place your pet";
+            if (eating) return "Eating… yum!";
+            if (sitting) return "Your pet is sitting nicely";
+            return "Tap your pet to pet it • throw the ball, feed it, or call it back";
         }
 
         private void ReturnToApp()

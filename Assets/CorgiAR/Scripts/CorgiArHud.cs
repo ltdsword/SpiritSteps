@@ -108,7 +108,7 @@ namespace CorgiAR
             SetActive(sitButton, placed && !eating);
             SetActive(comeButton, placed && !eating && !sitting);
             if (sitLabel != null && sitButton != null && sitButton.gameObject.activeSelf)
-                sitLabel.text = sitting ? "ĐỨNG DẬY" : "NGỒI";
+                sitLabel.text = sitting ? "STAND UP" : "SIT";
 
             SetTint(manualButton, mode == CompanionControlMode.Manual);
             SetTint(autoButton, mode == CompanionControlMode.Automatic);
@@ -116,17 +116,17 @@ namespace CorgiAR
 
         private string StatusFor(bool placed, bool eating, bool sitting, CompanionControlMode mode)
         {
-            if (!placed) return "Chạm màn hình để đặt thú cưng";
-            if (eating) return "Đang ăn… ngon quá!";
-            if (sitting) return "Thú đang ngồi ngoan • chạm nút để cho đứng dậy";
+            if (!placed) return "Tap the screen to place your pet";
+            if (eating) return "Eating… yum!";
+            if (sitting) return "Your pet is sitting nicely • tap the button to stand up";
 
             PetMood m = mood != null ? mood.Mood : PetMood.Happy;
-            if (m == PetMood.Starving) return "Thú đang rất đói — cho ăn ngay đi!";
-            if (m == PetMood.Hungry) return "Thú hơi đói rồi — ném cho miếng ăn nhé";
+            if (m == PetMood.Starving) return "Your pet is starving — feed it now!";
+            if (m == PetMood.Hungry) return "Your pet is getting hungry — toss it a snack";
 
             return mode == CompanionControlMode.Manual
-                ? "Kéo joystick để điều khiển • chạm thú để vuốt • chạm 2 lần để ngồi"
-                : "Thú tự đi quanh bạn • ném bóng, cho ăn, gọi lại đây";
+                ? "Drag the joystick to move • tap your pet to pet it • double-tap to sit"
+                : "Your pet wanders around you • throw the ball, feed it, or call it back";
         }
 
         private static void SetActive(Component c, bool active)

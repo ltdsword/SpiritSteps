@@ -67,11 +67,11 @@ namespace CorgiAR
             try
             {
                 UiPrototypeRuntime.Instance.SaveArPhoto(shot.EncodeToPNG());
-                message = "Đã lưu ảnh vào Journey";
+                message = "Saved to Journey";
             }
             catch (Exception e)
             {
-                message = "Lưu ảnh lỗi: " + e.Message;
+                message = "Failed to save photo: " + e.Message;
             }
 
             if (hudCanvas != null) hudCanvas.enabled = hudWasOn;

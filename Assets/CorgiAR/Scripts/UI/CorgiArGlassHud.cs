@@ -13,8 +13,8 @@ using UiImage = UnityEngine.UIElements.Image;
 namespace CorgiAR.UI
 {
     /// <summary>
-    /// UI Toolkit rebuild of the in-AR gameplay HUD (status pill, "Đổi thú" card, Gọi về/Cho
-    /// ăn/Ném bóng row, camera cluster, photo viewer) - replaces the old uGUI
+    /// UI Toolkit rebuild of the in-AR gameplay HUD (status pill, "Switch pet" card, Come
+    /// here/Feed/Throw ball row, camera cluster, photo viewer) - replaces the old uGUI
     /// "Corgi AR HUD"/<c>PetArHudGenerator</c>. Built at runtime in <see cref="Start"/>, same
     /// pattern as <c>WalkUiController</c>/<c>HomeUiController</c> (own UIDocument/PanelSettings,
     /// reuses the shared <c>ARWalking.uss</c> stylesheet/design tokens). Lives in
@@ -156,15 +156,15 @@ namespace CorgiAR.UI
         {
             if (!placed)
                 return planeDetected
-                    ? "Đã tìm thấy mặt phẳng — đang đặt thú…"
-                    : "Đưa camera quét từ từ quanh sàn/bàn để tìm mặt phẳng…";
-            if (eating) return "Đang ăn… ngon quá!";
-            if (sitting) return "Thú đang ngồi ngoan";
+                    ? "Surface found — placing your pet…"
+                    : "Slowly move the camera around the floor/table to find a surface…";
+            if (eating) return "Eating… yum!";
+            if (sitting) return "Your pet is sitting nicely";
 
             PetMood m = mood != null ? mood.Mood : PetMood.Happy;
-            if (m == PetMood.Starving) return "Thú đang rất đói — cho ăn ngay đi!";
-            if (m == PetMood.Hungry) return "Thú hơi đói rồi — ném cho miếng ăn nhé";
-            return "Thú tự đi quanh bạn • ném bóng, cho ăn, gọi lại đây";
+            if (m == PetMood.Starving) return "Your pet is starving — feed it now!";
+            if (m == PetMood.Hungry) return "Your pet is getting hungry — toss it a snack";
+            return "Your pet wanders around you • throw the ball, feed it, or call it back";
         }
 
         // ---- building blocks ----
@@ -173,7 +173,7 @@ namespace CorgiAR.UI
         {
             VisualElement row = Element(null, "ar-status-row");
             VisualElement pill = Element(null, "ar-status-pill");
-            var label = new Label("Đưa camera quét từ từ quanh sàn/bàn để tìm mặt phẳng…");
+            var label = new Label("Slowly move the camera around the floor/table to find a surface…");
             label.AddToClassList("ar-status-label");
             label.AddToClassList("font-display");
             pill.Add(label);
@@ -191,10 +191,10 @@ namespace CorgiAR.UI
             card.Add(thumb);
 
             VisualElement textColumn = Element(null);
-            var kicker = new Label("ĐANG CHỌN");
+            var kicker = new Label("CURRENTLY WALKING");
             kicker.AddToClassList("ar-change-pet-kicker");
             kicker.AddToClassList("font-display");
-            var title = new Label("Đổi thú");
+            var title = new Label("Switch Pet");
             title.AddToClassList("ar-change-pet-title");
             title.AddToClassList("font-display");
             textColumn.Add(kicker);
@@ -236,7 +236,7 @@ namespace CorgiAR.UI
             petPicker.style.display = DisplayStyle.None;
             var modal = Element(null, "pet3d-picker-card");
             var header = Element(null, "pet3d-picker-header");
-            var title = new Label("Chọn thú cưng");
+            var title = new Label("Choose a Pet");
             title.AddToClassList("pet3d-picker-title");
             title.AddToClassList("font-display");
             header.Add(title);
@@ -301,7 +301,7 @@ namespace CorgiAR.UI
             VisualElement row = Element(null, "ar-interaction-row");
             panel.Add(row);
 
-            comeCircle = BuildCircleItem(row, "GỌI VỀ", asButton: true, onClick: () => companion?.ComeHere());
+            comeCircle = BuildCircleItem(row, "COME HERE", asButton: true, onClick: () => companion?.ComeHere());
             if (whistleIconSprite != null)
             {
                 var whistleIcon = new UiImage
@@ -320,7 +320,7 @@ namespace CorgiAR.UI
                 comeCircle.Add(Icon("whistle", "ar-interaction-icon", White));
             }
 
-            foodCircle = BuildCircleItem(row, "CHO ĂN", asButton: false);
+            foodCircle = BuildCircleItem(row, "FEED", asButton: false);
             foodCircle.AddToClassList("pet3d-food-circle");
             foodIconImage = new UiImage { scaleMode = ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
             foodIconImage.AddToClassList("ar-interaction-icon-food");
@@ -338,7 +338,7 @@ namespace CorgiAR.UI
             switchFood.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
             foodCircle.Add(switchFood);
 
-            ballCircle = BuildCircleItem(row, "NÉM BÓNG", asButton: false);
+            ballCircle = BuildCircleItem(row, "THROW BALL", asButton: false);
             var ballIcon = new UiImage
             {
                 sprite = ballIconSprite,

@@ -79,7 +79,7 @@ namespace CorgiAR.EditorTools
             {
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "GÀ",
+                    DisplayName = "CHICKEN",
                     FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,
@@ -88,7 +88,7 @@ namespace CorgiAR.EditorTools
                 },
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "CƠM NẮM",
+                    DisplayName = "RICE BALL",
                     FoodId = FoodCatalogIds.RiceBall,
                     Prefab = onigiriPrefab,
                     Icon = onigiriIcon,
@@ -195,7 +195,7 @@ namespace CorgiAR.EditorTools
             badgeImage.raycastTarget = false;
             Text nameLabel = nameBadge.transform.Find("Label")?.GetComponent<Text>();
             if (nameLabel == null)
-                nameLabel = Label(nameBadge.transform, "Label", "G\u00C0", 20);
+                nameLabel = Label(nameBadge.transform, "Label", "CHICKEN", 20);
             nameLabel.fontSize = 20;
             nameLabel.raycastTarget = false;
 
@@ -260,7 +260,7 @@ namespace CorgiAR.EditorTools
             {
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "G\u00C0",
+                    DisplayName = "CHICKEN",
                     FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,
@@ -272,7 +272,7 @@ namespace CorgiAR.EditorTools
                 },
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "C\u01A0M N\u1EAEM",
+                    DisplayName = "RICE BALL",
                     FoodId = FoodCatalogIds.RiceBall,
                     Prefab = onigiriPrefab,
                     Icon = onigiriIcon,

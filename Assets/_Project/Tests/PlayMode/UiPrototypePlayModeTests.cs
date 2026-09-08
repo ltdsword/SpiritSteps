@@ -107,11 +107,18 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(root.Q("landmark-scan-page"), Is.Not.Null);
             Assert.That(root.Q("ar-scanning-frame"), Is.Not.Null);
 
-            GameObject.Find("XR Origin").SendMessage("SimulateRecognitionForEditor",
-                SendMessageOptions.RequireReceiver);
+            GameObject xrOrigin = GameObject.Find("XR Origin");
+            xrOrigin.SendMessage("SimulateRecognitionForEditor", SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-scan-result-sheet"), Is.Null,
+                "Recognition alone must show the 3D landmark model first, not the info card yet.");
+            Assert.That(root.Q("ar-scanning-frame"), Is.Null,
+                "The scanning frame should be gone once the target is recognized.");
+
+            xrOrigin.SendMessage("SimulateContentTapForEditor", SendMessageOptions.RequireReceiver);
             yield return null;
             Assert.That(root.Q("landmark-scan-result-sheet"), Is.Not.Null,
-                "A successful image recognition must replace the scan frame with the cultural-memory sheet.");
+                "Tapping the recognized landmark model must reveal the cultural-memory sheet.");
             var rewardImage = root.Q<UnityEngine.UIElements.Image>("landmark-reward-image");
             Assert.That(rewardImage, Is.Not.Null);
             Assert.That(rewardImage.image, Is.Not.Null, "The Bull reward must be visible after recognition.");

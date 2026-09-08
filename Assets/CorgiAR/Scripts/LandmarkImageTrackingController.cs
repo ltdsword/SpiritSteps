@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 
@@ -27,6 +28,9 @@ namespace CorgiAR
         public bool Recognized => recognized;
         public string ExpectedTargetName => expectedTargetName;
         public event Action TargetRecognized;
+        /// <summary>Raised when the player taps the 3D landmark model once it is showing on the
+        /// tracked image - the UI uses this to reveal the history/info card.</summary>
+        public event Action ContentTapped;
 
         private void Awake()
         {
@@ -40,6 +44,30 @@ namespace CorgiAR
         {
             if (imageManager != null)
                 imageManager.trackablesChanged.AddListener(OnTrackablesChanged);
+        }
+
+        private void Update()
+        {
+            if (trackedContent == null || !trackedContent.activeInHierarchy)
+                return;
+            Vector2? tapPosition = TapScreenPosition();
+            if (tapPosition == null)
+                return;
+            Camera cam = Camera.main;
+            if (cam == null)
+                return;
+            Ray ray = cam.ScreenPointToRay(new Vector3(tapPosition.Value.x, tapPosition.Value.y, 0f));
+            if (Physics.Raycast(ray, out RaycastHit hit) && hit.collider.transform.IsChildOf(trackedContent.transform))
+                ContentTapped?.Invoke();
+        }
+
+        private static Vector2? TapScreenPosition()
+        {
+            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+                return Touchscreen.current.primaryTouch.position.ReadValue();
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+                return Mouse.current.position.ReadValue();
+            return null;
         }
 
         private void OnDisable()
@@ -122,6 +150,10 @@ namespace CorgiAR
             Debug.Log("LANDMARK_IMAGE_RECOGNIZED_SIMULATED " + expectedTargetName, this);
             TargetRecognized?.Invoke();
         }
+
+        /// <summary>Validates the post-tap presentation in Editor/tests, where simulating a real
+        /// screen tap on the tracked content isn't practical.</summary>
+        public void SimulateContentTapForEditor() => ContentTapped?.Invoke();
 
         private void OnGUI()
         {

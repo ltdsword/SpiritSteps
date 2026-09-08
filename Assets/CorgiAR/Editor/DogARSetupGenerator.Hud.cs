@@ -57,13 +57,13 @@ namespace CorgiAR.EditorTools
             // --- status pill (top) ---
             GameObject status = Pill(canvasGo.transform, "Status", new Vector2(0.5f, 1f),
                 new Vector2(900f, 90f), new Vector2(0f, -70f));
-            Text statusLabel = Label(status.transform, "Label", "Chạm màn hình để đặt thú cưng", 30);
+            Text statusLabel = Label(status.transform, "Label", "Tap the screen to place your pet", 30);
 
             // --- mode toggle (top, under status) ---
             GameObject toggle = Row(canvasGo.transform, "Mode Toggle", new Vector2(0.5f, 1f),
                 new Vector2(560f, 78f), new Vector2(0f, -180f));
-            Button manualBtn = PillButton(toggle.transform, "Manual", "ĐIỀU KHIỂN");
-            Button autoBtn = PillButton(toggle.transform, "Auto", "TỰ ĐỘNG");
+            Button manualBtn = PillButton(toggle.transform, "Manual", "MANUAL");
+            Button autoBtn = PillButton(toggle.transform, "Auto", "AUTO");
 
             // --- command column (top-left) ---
             GameObject column = new("Command Column", typeof(RectTransform));
@@ -79,11 +79,11 @@ namespace CorgiAR.EditorTools
             vlg.childForceExpandHeight = true;
             vlg.childAlignment = TextAnchor.UpperLeft;
 
-            Button petMenuBtn = ColumnButton(column.transform, "Pet Menu Button", "ĐỔI THÚ", Accent);
-            Button sitBtn = ColumnButton(column.transform, "Sit Button", "NGỒI", Dim);
-            Button comeBtn = ColumnButton(column.transform, "Come Button", "LẠI ĐÂY", Dim);
-            Button hungryBtn = ColumnButton(column.transform, "Hungry Button", "ĐÓI", Dim);
-            Button photoBtn = ColumnButton(column.transform, "Photo Button", "CHỤP ẢNH", Dim);
+            Button petMenuBtn = ColumnButton(column.transform, "Pet Menu Button", "SWITCH PET", Accent);
+            Button sitBtn = ColumnButton(column.transform, "Sit Button", "SIT", Dim);
+            Button comeBtn = ColumnButton(column.transform, "Come Button", "COME HERE", Dim);
+            Button hungryBtn = ColumnButton(column.transform, "Hungry Button", "HUNGRY", Dim);
+            Button photoBtn = ColumnButton(column.transform, "Photo Button", "TAKE PHOTO", Dim);
 
             // --- joystick (bottom-left) ---
             GameObject joyGo = new("Joystick", typeof(RectTransform), typeof(Image), typeof(VirtualJoystick));
@@ -148,7 +148,7 @@ namespace CorgiAR.EditorTools
             var ballImg = ballGo.GetComponent<Image>();
             ballImg.sprite = KnobSprite;
             ballImg.color = new Color(0.10f, 0.28f, 0.52f, 0.9f);
-            Label(ballGo.transform, "Label", "NÉM\nBÓNG", 24);
+            Label(ballGo.transform, "Label", "THROW\nBALL", 24);
             var ballDrag = ballGo.AddComponent<ToyDragThrowUI>();
             GameObject ballPrefab = EnsurePlayBallPrefab();
             ballDrag.Configure(hudCamera, toyFetch, ballPrefab, ballImg);
@@ -180,7 +180,7 @@ namespace CorgiAR.EditorTools
             sheetImg.type = Image.Type.Sliced;
             sheetImg.color = new Color(0.06f, 0.09f, 0.12f, 0.98f);
 
-            Label(sheet.transform, "Title", "CHỌN THÚ CƯNG", 34).rectTransform
+            Label(sheet.transform, "Title", "CHOOSE A PET", 34).rectTransform
                 .SetInsetAndSizeFromParentEdge(RectTransform.Edge.Top, 18f, 66f);
 
             GameObject closeGo = new("Close", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));

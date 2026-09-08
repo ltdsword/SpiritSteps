@@ -37,7 +37,7 @@ namespace CorgiAR
             hud?.SetPhotoModeEnabled(PetArSceneContext.IsPhotoMode);
 
             if (PetArSceneContext.Interaction == PendingPetInteraction.Feed)
-                hud?.ShowToast("Kéo thức ăn xuống để cho ăn", 4f);
+                hud?.ShowToast("Drag the food down to feed your pet", 4f);
         }
     }
 }

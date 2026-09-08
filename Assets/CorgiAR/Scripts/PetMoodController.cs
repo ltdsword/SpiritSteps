@@ -7,7 +7,7 @@ namespace CorgiAR
     /// eats (<see cref="DogFeedingController.Fed"/>). A hungry pet moves slower and
     /// is more likely to flop down and rest — the modifiers are pushed into
     /// <see cref="DogCompanionController.SetMoodModifiers"/>. <see cref="ForceHungry"/>
-    /// pins hunger to full for the HUD "đói" demo button.
+    /// pins hunger to full for the HUD "hungry" demo button.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class PetMoodController : MonoBehaviour
