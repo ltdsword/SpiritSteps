@@ -654,6 +654,9 @@ namespace ARWalking.UI
             stats.Add(Metric(_runtime.SaveData.savedPhotoPaths.Count.ToString(), "photos", "journey-stat-card"));
             scroll.Add(stats);
 
+            scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan",
+                _runtime.EnterLandmarkScan, "primary-action", "journey-scan-action"));
+
             scroll.Add(SectionTitle("Stamp passport"));
             var passport = Card("passport-card", "elevated-card");
             for (var i = 0; i < _data.Landmarks.Count; i++)

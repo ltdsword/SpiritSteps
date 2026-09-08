@@ -90,6 +90,34 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator JourneyScanCreatesStandaloneScannerUiAfterSceneTransition()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Journey);
+            yield return null;
+
+            UiPrototypeRuntime.Instance.EnterLandmarkScan();
+            yield return WaitForScene("LandmarkScan");
+            yield return null;
+
+            var scanUi = GameObject.Find("Landmark Scan UI");
+            Assert.That(scanUi, Is.Not.Null,
+                "Opening Scan from Journey must bootstrap its UI after the LandmarkScan scene loads.");
+            var root = scanUi.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q("landmark-scan-page"), Is.Not.Null);
+            Assert.That(root.Q("ar-scanning-frame"), Is.Not.Null);
+
+            GameObject.Find("XR Origin").SendMessage("SimulateRecognitionForEditor",
+                SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-scan-result-sheet"), Is.Not.Null,
+                "A successful image recognition must replace the scan frame with the cultural-memory sheet.");
+            var rewardImage = root.Q<UnityEngine.UIElements.Image>("landmark-reward-image");
+            Assert.That(rewardImage, Is.Not.Null);
+            Assert.That(rewardImage.image, Is.Not.Null, "The Bull reward must be visible after recognition.");
+        }
+
+        [UnityTest]
         public IEnumerator WalkResultWithFullRosterKeepsEveryRewardScrollable()
         {
             var home = CreateProfile();
@@ -184,6 +212,7 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Journey);
             yield return null;
             Assert.That(root.Q(className: "journey-stats"), Is.Not.Null);
+            Assert.That(root.Q(className: "journey-scan-action"), Is.Not.Null);
             Assert.That(root.Q(className: "passport-card"), Is.Not.Null);
 
             home.Navigate(UiRoute.LandmarkDetail);

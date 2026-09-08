@@ -154,15 +154,16 @@ MonoBehaviour:
     companionRewardId: uaa_deer
   - id: notre-dame-basilica
     name: Notre-Dame Basilica
-    localName: Nha tho Duc Ba Sai Gon
-    history: The basilica is a familiar historic landmark beside the Central Post
-      Office in District 1.
-    architecture: Red brick walls and two bell towers define its prominent silhouette
-      on the square.
-    didYouKnow: Its central location makes it a common meeting point and city reference.
+    localName: Nhà thờ Đức Bà Sài Gòn
+    history: Công trình được khởi công xây dựng vào ngày 07/10/1877 và khánh thành
+      vào năm 1880 do kiến trúc sư người Pháp Jules Bourard thiết kế.
+    architecture: Trải qua bao biến động lịch sử, Nhà thờ chính tòa Đức Bà Sài Gòn
+      đã vượt qua ranh giới của một công trình tôn giáo để trở thành hồn cốt, di sản
+      văn hóa không thể tách rời của đô thị phương Nam.
+    didYouKnow: Một biểu tượng văn hóa - xã hội của Thành phố Hồ Chí Minh.
     imageKey: notre-dame
-    imageTargetReady: 0
-    companionRewardId: 
+    imageTargetReady: 1
+    companionRewardId: uaa_bull
   map:
     textureKey: hcm-illustrated
     regionName: District 1, Ho Chi Minh City

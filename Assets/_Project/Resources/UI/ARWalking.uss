@@ -472,6 +472,7 @@
 
 /* Journey */
 .journey-stats { justify-content: space-between; margin-bottom: 12px; }
+.journey-scan-action { margin-top: 8px; margin-bottom: 20px; }
 .journey-stat-card, .activity-summary-card { width: 31.5%; flex-grow: 0; min-height: 128px; border-radius: 34px; background-color: rgb(255, 253, 247); border-width: 2px; border-bottom-width: 6px; border-color: rgba(105, 120, 109, 0.15); }
 .journey-stat-card .metric-value { font-size: 45px; }
 .passport-card { flex-direction: row; justify-content: space-between; padding: 22px; }
@@ -557,6 +558,21 @@
 .ar-stamp-medallion { width: 250px; height: 250px; border-radius: 125px; border-width: 10px; border-color: rgba(255, 255, 255, 0.78); background-color: rgb(84, 190, 107); align-items: center; justify-content: center; margin-bottom: 30px; }
 .ar-stamp-icon { width: 130px; height: 130px; }
 .ar-collected-actions { width: 100%; max-width: 700px; margin-top: 26px; }
+
+/* Dedicated Landmark scanner (kept separate from companion AR). */
+.landmark-scan-page { position: relative; flex-grow: 1; overflow: hidden; background-color: rgba(0, 0, 0, 0); }
+.landmark-scan-header { position: absolute; left: 28px; right: 28px; top: 28px; flex-direction: row; align-items: center; }
+.landmark-scan-title-pill { flex-grow: 1; margin-left: 14px; min-height: 72px; justify-content: center; padding: 10px 24px; border-radius: 36px; background-color: rgba(22, 31, 25, 0.66); }
+.landmark-scan-title-pill .subtitle { color: white; font-size: 27px; margin-bottom: 0; }
+.landmark-scan-result-sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 1050px; padding: 34px 38px 48px 38px; border-top-left-radius: 58px; border-top-right-radius: 58px; background-color: rgba(255, 253, 247, 0.98); }
+.landmark-scan-result-scroll { flex-grow: 1; }
+.landmark-scan-section-title { margin-top: 16px; font-size: 23px; color: rgb(84, 160, 99); letter-spacing: 1px; }
+.landmark-scan-result-body { margin-top: 8px; font-size: 25px; line-height: 35px; color: rgb(42, 63, 49); white-space: normal; }
+.landmark-reward-card { margin-top: 22px; padding: 20px; flex-direction: row; align-items: center; border-radius: 34px; border-width: 2px; border-color: rgba(143, 72, 86, 0.22); background-color: rgb(250, 218, 224); }
+.landmark-reward-image { width: 142px; height: 142px; min-width: 142px; margin-right: 20px; }
+.landmark-reward-copy { flex-grow: 1; }
+.landmark-reward-copy .subtitle { color: rgb(143, 72, 86); margin-bottom: 2px; }
+.landmark-reward-copy .body { color: rgb(42, 63, 49); margin-top: 0; }
 
 /* Corgi AR gameplay HUD (CorgiArGlassHud) - matches the Claude Design "AR Play" mockup: flat
    rgba() + border + large radius "glass" illusion, same technique as the rest of this file

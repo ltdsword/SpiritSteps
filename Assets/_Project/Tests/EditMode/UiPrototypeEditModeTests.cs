@@ -276,8 +276,11 @@ namespace ARWalking.Tests.EditMode
             Assert.That(catalog.landmarks.Count, Is.EqualTo(3));
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).imageTargetReady, Is.True);
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).companionRewardId, Is.EqualTo(PrototypeIds.Deer));
-            Assert.That(catalog.landmarks.Where(item => item.id != PrototypeIds.CentralPostOffice).Select(item => item.companionRewardId),
-                Is.All.Null.Or.Empty, "Only Central Post Office is configured with a companion reward today.");
+            var notreDame = catalog.landmarks.Single(item => item.id == PrototypeIds.NotreDameBasilica);
+            Assert.That(notreDame.imageTargetReady, Is.True);
+            Assert.That(notreDame.companionRewardId, Is.EqualTo(PrototypeIds.Bull));
+            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.IndependencePalace).companionRewardId,
+                Is.Null.Or.Empty);
             Assert.That(library, Is.Not.Null);
             Assert.That(library.companions.Length, Is.EqualTo(CompanionRoster.Entries.Length));
             Assert.That(library.archivedPlantPlaceholders.Length, Is.EqualTo(3));

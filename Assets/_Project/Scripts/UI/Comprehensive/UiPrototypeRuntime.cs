@@ -366,6 +366,16 @@ namespace ARWalking.UI
             SceneManager.LoadScene("PetAr");
         }
 
+        /// <summary>Opens the dedicated Landmark image scanner without starting the companion AR flow.</summary>
+        public void EnterLandmarkScan()
+        {
+            RequireProfile();
+            SceneManager.LoadScene("LandmarkScan");
+        }
+
+        /// <summary>Returns from the dedicated scanner. The selected root tab is preserved.</summary>
+        public void ReturnFromLandmarkScan() => SceneManager.LoadScene("Home");
+
         /// <summary>Opens the non-AR meadow playground used for walking, feeding and fetch.
         /// On Android/iOS this context explicitly keeps SampleScene in desktop-meadow mode,
         /// so entering it never starts an AR session.</summary>
