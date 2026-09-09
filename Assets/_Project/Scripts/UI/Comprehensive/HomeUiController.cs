@@ -24,6 +24,7 @@ namespace ARWalking.UI
         static readonly Color SkyInk = Rgb(54, 103, 126);
         static readonly Color White = Color.white;
         static readonly Color ActivityDeepGreen = Rgb(74, 150, 90);
+        static readonly Color AlertRed = Rgb(224, 78, 63);
         static readonly ActivityPeriod[] PeriodTabs = { ActivityPeriod.Week, ActivityPeriod.Month, ActivityPeriod.Year };
 
         UIDocument _document;
@@ -52,6 +53,8 @@ namespace ARWalking.UI
         Label _walkCoinsValueLabel;
         Label _walkStepsValueLabel;
         VisualElement _walkProgressFill;
+        string _nearbyLandmarkAlertId;
+        VisualElement _nearbyLandmarkAlertButton;
         readonly Dictionary<string, Texture2D> _journeyPhotoCache = new Dictionary<string, Texture2D>();
         readonly Dictionary<string, VectorImage> _vectorIcons = new Dictionary<string, VectorImage>();
 
@@ -96,7 +99,45 @@ namespace ARWalking.UI
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
             if (IsMapRoute() && _runtime.MapView != null && _runtime.MapView.IsAvailable)
                 RenderRealMapMarkers();
+            if (IsMapRoute()) RefreshNearbyLandmarkAlert();
             if (_runtime.Navigator.CurrentRoute == UiRoute.ActiveWalk) RefreshWalkControlCard();
+        }
+
+        // Independent of the single-slot Mission Card (tutorial -> milestone -> landmark): this
+        // shows for ANY undiscovered landmark in range, so it can be visible at the same time as an
+        // unrelated tutorial/milestone mission (see docs/images/map.png). Only toggles the cached
+        // button's visibility in place when the nearby landmark actually changes, matching the
+        // "only act when state differs" pattern RenderRealMapMarkers already uses for the WebView push.
+        void RefreshNearbyLandmarkAlert()
+        {
+            var nextId = FindNearbyUndiscoveredLandmarkId();
+            if (nextId == _nearbyLandmarkAlertId) return;
+            _nearbyLandmarkAlertId = nextId;
+            if (_nearbyLandmarkAlertButton != null)
+                _nearbyLandmarkAlertButton.style.display = nextId != null ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        // A fixed alert radius, independent of each landmark's own (usually smaller) AR unlock radius
+        // (LandmarkProximity.isWithinUnlockRadius) - this is just "you're close enough that it's worth
+        // knowing something is nearby," not "close enough to open the AR Memory."
+        const float NearbyLandmarkAlertRadiusMetres = 500f;
+
+        // Picks the NEAREST not-yet-discovered landmark within range, not just the first one in catalog
+        // order, so if two are simultaneously in range the closer one is the one offered.
+        string FindNearbyUndiscoveredLandmarkId()
+        {
+            if (_data == null) return null;
+            string nearestId = null;
+            var nearestDistance = float.PositiveInfinity;
+            foreach (var landmark in _data.Landmarks)
+            {
+                if (IsStampCollected(landmark.id)) continue;
+                var distance = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id).distanceMetres;
+                if (distance > NearbyLandmarkAlertRadiusMetres || distance >= nearestDistance) continue;
+                nearestDistance = distance;
+                nearestId = landmark.id;
+            }
+            return nearestId;
         }
 
         // Render() only rebuilds the walk-control-card on route/overlay changes, but distance/steps/coins
@@ -131,6 +172,15 @@ namespace ARWalking.UI
         public void CloseFloatingOverlay() => RemoveTransientOverlay();
         /// <summary>Opens the Shop's Pet Detail modal for a companion index (test/entry-point hook).</summary>
         public void ShowPetDetail(int index) => ShowPetDetailModal(index);
+        /// <summary>Id of the landmark the nearby-landmark alert button currently targets, or null if
+        /// it isn't showing (test/entry-point hook).</summary>
+        public string NearbyLandmarkAlertId => _nearbyLandmarkAlertId;
+        /// <summary>Opens the nearby-landmark "Find & scan this memory" panel (test/entry-point hook) -
+        /// mirrors tapping the map's red "!" alert button. No-op if it isn't currently showing.</summary>
+        public void ShowNearbyMemory()
+        {
+            if (_nearbyLandmarkAlertId != null) ShowNearbyMemoryPanel(_nearbyLandmarkAlertId);
+        }
         /// <summary>Claims the Map's current Mission Card reward, if any is claimable (test/entry-point hook).</summary>
         public bool ClaimCurrentMission()
         {
@@ -291,6 +341,10 @@ namespace ARWalking.UI
             bottom.AddToClassList("map-bottom-bar");
             page.Add(bottom);
 
+            // The nearby-landmark alert lives in the top status bar (next to the Activity Dashboard
+            // button), not as a floating overlay here - the native WebView surface always paints over
+            // Unity content within its margins regardless of z-order, so nothing docked mid-map would
+            // ever stay visible.
             _runtime.LocationService.Activate();
             _runtime.MapView.OnMarkerTapped -= OnRealMapMarkerTapped; // avoid a duplicate subscription if BuildMap runs again
             _runtime.MapView.OnMarkerTapped += OnRealMapMarkerTapped;
@@ -402,6 +456,22 @@ namespace ARWalking.UI
             controls.Add(IconAction("camera", _assets != null ? _assets.iconCamera : null, "CAM", BeginArPhotoPick, "map-photo-button", "map-round-control", "blossom-control"));
             page.Add(controls);
             page.Add(BuildWalkControlCard());
+        }
+
+        /// <summary>Small "!" button in the top status bar, next to the Activity Dashboard button (see
+        /// docs/images/map.png) - visible whenever <see cref="FindNearbyUndiscoveredLandmarkId"/> finds
+        /// any not-yet-discovered landmark within its unlock radius. Independent of the Mission Card's
+        /// single active-mission slot, so both can show at once. Lives in the top bar rather than
+        /// floating over the map itself because the real map's native WebView surface always paints
+        /// over Unity content within its bounds regardless of z-order, so nothing docked mid-map can
+        /// ever stay visible there.</summary>
+        VisualElement BuildNearbyLandmarkAlertButton()
+        {
+            var button = IconAction("alert", null, "!", ShowNearbyMemory,
+                "nearby-landmark-alert-button", "top-hub-button", "top-alert-button", "dark-round-control");
+            button.style.display = _nearbyLandmarkAlertId != null ? DisplayStyle.Flex : DisplayStyle.None;
+            _nearbyLandmarkAlertButton = button;
+            return button;
         }
 
         VisualElement BuildWalkControlCard()
@@ -940,6 +1010,51 @@ namespace ARWalking.UI
             SyncMapViewVisibility();
         }
 
+        /// <summary>Floating "Find & scan this memory" panel opened from the nearby-landmark alert
+        /// button (see docs/images/memory_floating_panel.png) - a compact teaser distinct from the
+        /// full Landmark sheet, whose Scan action jumps straight into the existing LandmarkScan AR
+        /// scanner (<see cref="UiPrototypeRuntime.EnterLandmarkScan"/>, already wired to the
+        /// Journey tab's Scan action).</summary>
+        void ShowNearbyMemoryPanel(string landmarkId)
+        {
+            var index = FindLandmarkIndex(landmarkId);
+            var landmark = _data.Landmarks[index];
+            var proximity = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id);
+
+            var modal = ShowCenteredModal("memory-panel");
+            var kicker = Row("memory-panel-kicker");
+            kicker.Add(IconView("alert", "memory-panel-kicker-icon", AlertRed));
+            kicker.Add(Label("NEARBY MISSION", "memory-panel-kicker-label"));
+            modal.Add(kicker);
+            modal.Add(Title("Find & scan this memory"));
+
+            var row = Row("memory-panel-photo-row");
+            var photoCol = Column("memory-panel-photo-col");
+            photoCol.Add(Image(_assets != null ? _assets.Landmark(index) : null, "memory-panel-photo-crop", ScaleMode.ScaleAndCrop));
+            photoCol.Add(Label("Cropped from the full photo", "memory-panel-photo-caption"));
+            row.Add(photoCol);
+
+            var textCol = Column("memory-panel-text-col");
+            textCol.Add(Label(landmark.name, "memory-panel-landmark-name"));
+            textCol.Add(Body(FirstSentence(landmark.history)));
+            textCol.Add(Body("This close-up is a crop of the real landmark photo — match it up when you scan."));
+            row.Add(textCol);
+            modal.Add(row);
+
+            var distanceRow = Row("memory-panel-distance-row");
+            distanceRow.Add(IconView("navigation", "memory-panel-distance-icon", AlertRed));
+            distanceRow.Add(Body(proximity.distanceMetres.ToString("0") + " m away"));
+            modal.Add(distanceRow);
+
+            var tip = Row("memory-panel-tip");
+            tip.Add(IconView("sparkles", "memory-panel-tip-icon", SunInk));
+            tip.Add(Body("Find and scan the photo to unlock a secret reward."));
+            modal.Add(tip);
+
+            modal.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan",
+                () => { RemoveTransientOverlay(); _runtime.EnterLandmarkScan(); }, "primary-action", "memory-panel-scan-button"));
+        }
+
         void BuildJourneyList()
         {
             var scroll = ScreenWithHeader("Journey", "Your memories across Sài Gòn", false);
@@ -1427,6 +1542,7 @@ namespace ARWalking.UI
             bar.Add(metrics);
 
             var rightGroup = Row("top-status-right-group");
+            if (IsMapRoute()) rightGroup.Add(BuildNearbyLandmarkAlertButton());
             var activity = new UiButton(() => Navigate(UiRoute.ActivityDashboard)) { name = "activity-dashboard-button" };
             activity.AddToClassList("icon-button");
             activity.AddToClassList("top-hub-button");
@@ -1736,6 +1852,15 @@ namespace ARWalking.UI
 
         static Color Rgb(byte r, byte g, byte b) => new Color32(r, g, b, 255);
 
+        /// <summary>Collapses a long history/architecture paragraph down to its first sentence, for
+        /// compact spots (like the nearby-memory panel) that only have room for a one-line blurb.</summary>
+        static string FirstSentence(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var cut = text.IndexOfAny(new[] { '.', '!', '?' });
+            return cut < 0 ? text.Trim() : text.Substring(0, cut + 1).Trim();
+        }
+
         void ApplySafeArea()
         {
             if (_safeRoot == null || Screen.width <= 0 || Screen.height <= 0) return;
@@ -1752,7 +1877,7 @@ namespace ARWalking.UI
 
         float CurrentKeyboardInsetPixels()
         {
-            if (_runtime == null || _runtime.Navigator.CurrentRoute != UiRoute.OnboardingSetup || _setupStep != 1 || !TouchScreenKeyboard.visible)
+            if (_runtime == null || _runtime.Navigator == null || _runtime.Navigator.CurrentRoute != UiRoute.OnboardingSetup || _setupStep != 1 || !TouchScreenKeyboard.visible)
                 return 0f;
             return Mathf.Max(0f, TouchScreenKeyboard.area.height);
         }

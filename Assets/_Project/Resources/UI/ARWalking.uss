@@ -199,6 +199,7 @@
 .top-status-right-group { align-items: center; }
 .top-hub-button { width: 68px; height: 68px; min-width: 68px; min-height: 68px; border-radius: 34px; border-width: 2px; border-color: rgb(255, 253, 247); background-color: rgb(84, 190, 107); margin-right: 12px; }
 .top-hub-button #icon-image { width: 32px; height: 32px; }
+.top-alert-button { background-color: rgb(224, 78, 63); -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-ExtraBold.ttf"); -unity-font-style: normal; }
 
 .profile-button {
     width: 68px;
@@ -645,6 +646,26 @@
 .landmark-sheet-distance .pill-label { color: white; }
 .landmark-sheet-body { padding: 38px; }
 .landmark-sheet-local-name { font-size: 22px; color: rgb(105, 120, 109); -unity-font-definition: url("../../Art/UI/Fonts/Nunito-Bold.ttf"); -unity-font-style: normal; margin-bottom: 4px; }
+
+/* Nearby-landmark memory panel */
+.memory-panel-kicker { align-items: center; }
+.memory-panel-kicker-icon { width: 20px; height: 20px; margin-right: 6px; }
+.memory-panel-kicker-label { font-size: 19px; letter-spacing: 2px; color: rgb(224, 78, 63); -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-ExtraBold.ttf"); -unity-font-style: normal; }
+.memory-panel .title { font-size: 34px; line-height: 40px; margin-top: 8px; margin-bottom: 0; }
+.memory-panel-photo-row { flex-direction: row; align-items: flex-start; margin-top: 22px; }
+.memory-panel-photo-col { flex-grow: 4; flex-shrink: 1; flex-basis: 0; margin-right: 20px; align-items: center; }
+.memory-panel-photo-crop { width: 100%; height: 140px; border-radius: 20px; border-width: 6px; border-color: rgb(255, 253, 247); rotate: -4deg; }
+.memory-panel-photo-caption { margin-top: 8px; font-size: 19px; line-height: 24px; color: rgb(105, 120, 109); -unity-text-align: middle-center; white-space: normal; width: 100%; -unity-font-definition: url("../../Art/UI/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
+.memory-panel-text-col { flex-grow: 6; flex-shrink: 1; flex-basis: 0; min-width: 0; }
+.memory-panel-landmark-name { font-size: 28px; color: rgb(42, 63, 49); -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-Bold.ttf"); -unity-font-style: normal; }
+.memory-panel-text-col .body { font-size: 24px; line-height: 31px; margin-top: 6px; }
+.memory-panel-distance-row { align-items: center; margin-top: 20px; }
+.memory-panel-distance-icon { width: 22px; height: 22px; margin-right: 8px; }
+.memory-panel-distance-row .body { margin-top: 0; color: rgb(105, 120, 109); }
+.memory-panel-tip { align-items: center; margin-top: 18px; padding: 16px 18px; border-radius: 24px; background-color: rgb(255, 247, 219); }
+.memory-panel-tip-icon { width: 26px; height: 26px; margin-right: 12px; flex-shrink: 0; }
+.memory-panel-tip .body { margin-top: 0; color: rgb(123, 91, 20); }
+.memory-panel-scan-button { margin-top: 20px; }
 
 /* Account panel */
 .account-avatar { width: 130px; height: 130px; border-radius: 65px; align-self: center; margin-top: 10px; background-color: rgb(250, 218, 224); align-items: center; justify-content: center; }
