@@ -78,13 +78,16 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Map); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
             home.BeginWalk(); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
             var result = home.FinishWalk(); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.WalkResult));
-            Assert.That(result.coinsAwarded, Is.EqualTo(30));
+            // Corgi is the default lead companion (Baby, base 4.0 coins/100m); the deterministic
+            // walk provider's default result is 1 km, so 4.0 * 10 hundred-metre units = 40.
+            Assert.That(result.coinsAwarded, Is.EqualTo(40));
+            Assert.That(result.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi));
             home.SelectRoot(UiRootTab.Companions); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionCollection));
             home.Navigate(UiRoute.CompanionDetail); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.CompanionDetail));
             home.SelectRoot(UiRootTab.Shop); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ShopFood));
             var feed = home.Feed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi);
             Assert.That(feed.success, Is.True);
-            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(10));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(20));
             home.SelectRoot(UiRootTab.Journey); Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyList));
             yield return null;
         }
@@ -125,27 +128,30 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator WalkResultWithFullRosterKeepsEveryRewardScrollable()
+        public IEnumerator WalkResultWithManyNewlyUnlockedCompanionsKeepsRewardsScrollable()
         {
             var home = CreateProfile();
-            foreach (var companion in UiPrototypeRuntime.Instance.SaveData.companions)
-                companion.unlocked = true;
+            // Pre-load distance just under the highest unlock threshold (HorseWhite, 106 km) so the
+            // deterministic provider's default 1 km walk crosses every distance-unlock threshold in
+            // the roster (except the starter, already unlocked, and the infinite-threshold Deer).
+            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 105f;
 
             home.BeginWalk();
             var result = home.FinishWalk();
             yield return null;
             yield return null;
 
-            Assert.That(result.rewardedCompanionIds.Count, Is.EqualTo(CompanionRoster.Entries.Length));
+            var expectedUnlockCount = CompanionRoster.Entries.Count(
+                e => !float.IsPositiveInfinity(e.UnlockDistanceKilometres) && e.UnlockDistanceKilometres > 0f);
+            Assert.That(result.newlyUnlockedCompanionIds.Count, Is.EqualTo(expectedUnlockCount));
             var root = home.GetComponent<UIDocument>().rootVisualElement;
             var scroll = root.Q<ScrollView>("walk-result-scroll");
-            Assert.That(scroll, Is.Not.Null, "A large reward roster must scroll instead of being clipped by the page.");
-            Assert.That(root.Query(className: "growth-reward-row").ToList().Count,
-                Is.EqualTo(CompanionRoster.Entries.Length));
+            Assert.That(scroll, Is.Not.Null, "A large reward list must scroll instead of being clipped by the page.");
+            Assert.That(root.Query(className: "info-row").ToList().Count, Is.EqualTo(expectedUnlockCount));
             Assert.That(scroll.contentContainer.Q<UnityEngine.UIElements.Button>("collect-&-continue"), Is.Not.Null,
                 "The collect action must remain reachable at the end of the scrollable summary.");
             Assert.That(scroll.contentContainer.layout.height, Is.GreaterThan(scroll.contentViewport.layout.height),
-                "The full-roster fixture should exercise real vertical overflow.");
+                "The full-unlock fixture should exercise real vertical overflow.");
             Assert.That(scroll.verticalScroller.highValue, Is.GreaterThan(0f),
                 "The overflowing result must expose a usable vertical scroll range.");
         }
@@ -311,7 +317,7 @@ namespace ARWalking.Tests.PlayMode
 
             var starter = runtime.GetCompanionVisualState(PrototypeIds.Corgi);
             Assert.That(starter.unlocked, Is.True);
-            Assert.That(starter.stage, Is.EqualTo(GrowthStage.Baby), "The starter begins at 450 EXP, still under the 500 Baby/Young boundary.");
+            Assert.That(starter.stage, Is.EqualTo(GrowthStage.Baby), "The starter begins at 0 EXP, well under its own Young threshold.");
             Assert.That(starter.scale, Is.EqualTo(0.70f));
 
             var husky = runtime.GetCompanionVisualState(PrototypeIds.Husky);

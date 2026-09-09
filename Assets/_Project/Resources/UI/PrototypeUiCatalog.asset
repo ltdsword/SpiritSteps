@@ -124,8 +124,8 @@ MonoBehaviour:
     description: A light onigiri snack any unlocked companion can carry into AR or
       the meadow.
   - id: chicken-leg
-    name: Chicken Leg
-    coinCost: 40
+    name: Chicken
+    coinCost: 50
     growthExperience: 40
     description: A hearty drumstick treat for any unlocked companion.
   landmarks:

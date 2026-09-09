@@ -111,7 +111,9 @@ namespace CorgiAR
         {
             UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
             CompanionProgressData progress = runtime != null ? runtime.Companion(id) : null;
-            return progress != null && progress.unlocked;
+            // "Owned", not just distance-Unlocked: Shop pets now also need a coin purchase before
+            // the player actually has them (CompanionProgressData.owned).
+            return progress != null && progress.owned;
         }
 
         public void Bind(string id)

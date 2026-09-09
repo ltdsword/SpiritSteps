@@ -24,6 +24,15 @@ namespace ARWalking.Tests.EditMode
             if (Directory.Exists(_temporaryDirectory)) Directory.Delete(_temporaryDirectory, true);
         }
 
+        /// <summary>Every economy test needs a food/companion catalog - reuse the real seeded
+        /// catalog (already validated by RegeneratedCatalogAndTemporaryArtworkBindingsAreValid)
+        /// rather than hand-building a stub one.</summary>
+        static CompanionProgressionService NewService(PlayerSaveData save)
+        {
+            var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
+            return new CompanionProgressionService(save, new StaticUiDataProvider(catalog));
+        }
+
         [Test]
         public void RouteCatalogContainsThirteenScreensAndFourRoots()
         {
@@ -68,9 +77,12 @@ namespace ARWalking.Tests.EditMode
             Assert.That(save.setupComplete, Is.True);
             Assert.That(save.coins, Is.Zero);
             Assert.That(save.FindCompanion(PrototypeIds.Corgi).unlocked, Is.True);
-            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(450));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).owned, Is.True, "The starter companion is owned outright, not just distance-unlocked.");
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.Zero, "Walking grants no Growth EXP - only feeding does - so the starter begins at 0.");
             Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.False);
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.False);
             Assert.That(save.FindCompanion(PrototypeIds.Deer).unlocked, Is.False);
+            Assert.That(save.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi), "The starter is the default lead/active companion.");
         }
 
         [Test]
@@ -82,6 +94,7 @@ namespace ARWalking.Tests.EditMode
             save.coins = 90; save.totalDistanceKilometres = 2.5f; save.hasTotalSteps = true; save.totalSteps = 3200;
             save.stamps.Add(new StampData { stampId="stamp", landmarkId="landmark" }); save.completedLandmarkIds.Add("landmark"); save.savedPhotoPaths.Add("photo.jpg");
             save.journeys.Add(new JourneyEntryData { id="journey", title="Test" });
+            save.AddFood(FoodCatalogIds.RiceBall, 3);
             store.Save(save);
             var result = store.Load();
             Assert.That(result.status, Is.EqualTo(SaveLoadStatus.Loaded));
@@ -91,6 +104,8 @@ namespace ARWalking.Tests.EditMode
             Assert.That(result.save.stamps.Single().stampId, Is.EqualTo("stamp"));
             Assert.That(result.save.journeys.Single().id, Is.EqualTo("journey"));
             Assert.That(result.save.savedPhotoPaths.Single(), Is.EqualTo("photo.jpg"));
+            // CreateNew grants 5 starter Rice Balls; this adds 3 more on top of that starting stock.
+            Assert.That(result.save.FoodQuantity(FoodCatalogIds.RiceBall), Is.EqualTo(8));
         }
 
         [Test]
@@ -106,86 +121,180 @@ namespace ARWalking.Tests.EditMode
             Assert.That(File.Exists(result.backupPath), Is.True);
         }
 
+        [Test]
+        public void PreV3SaveMigratesUnlockedCompanionsToOwnedAndDefaultsLead()
+        {
+            // Simulates a save written before the Unlocked/Owned split (schemaVersion 2): under
+            // that schema "unlocked" alone meant the player already had the companion, so migration
+            // must carry that forward as "owned" rather than making the player re-buy pets they had.
+            var save = new PlayerSaveData { schemaVersion = 2, setupComplete = true, displayName = "Legacy" };
+            save.companions.Add(new CompanionProgressData { companionId = PrototypeIds.Corgi, unlocked = true, growthExperience = 450 });
+            save.companions.Add(new CompanionProgressData { companionId = PrototypeIds.Husky, unlocked = true, growthExperience = 0 });
+            save.RepairCollections();
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).owned, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Fox).owned, Is.False, "A companion that was never unlocked under the old schema stays un-owned.");
+            Assert.That(save.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi));
+        }
+
         [TestCase(0, GrowthStage.Baby, 0.70f)]
         [TestCase(499, GrowthStage.Baby, 0.70f)]
         [TestCase(500, GrowthStage.Young, 0.85f)]
         [TestCase(1499, GrowthStage.Young, 0.85f)]
         [TestCase(1500, GrowthStage.Adult, 1.00f)]
-        public void GrowthStageBoundariesAndPlaceholderScalesAreExact(int experience, GrowthStage stage, float scale)
+        public void GlobalGrowthStageBoundariesAndPlaceholderScalesAreExact(int experience, GrowthStage stage, float scale)
         {
             Assert.That(CompanionProgressionService.StageFor(experience), Is.EqualTo(stage));
             Assert.That(CompanionProgressionService.PlaceholderScaleFor(stage), Is.EqualTo(scale));
         }
 
         [Test]
-        public void WalkRewardsOnlyPreviouslyUnlockedCompanionsAndUnlocksHuskyAtOneKilometre()
+        public void PerCompanionGrowthStageUsesThatCompanionsOwnExpThresholds()
+        {
+            var corgi = CompanionRoster.Find(PrototypeIds.Corgi); // Young=40, Adult=80
+            Assert.That(CompanionProgressionService.StageFor(corgi, 0), Is.EqualTo(GrowthStage.Baby));
+            Assert.That(CompanionProgressionService.StageFor(corgi, 40), Is.EqualTo(GrowthStage.Young));
+            Assert.That(CompanionProgressionService.StageFor(corgi, 80), Is.EqualTo(GrowthStage.Adult));
+
+            var horse = CompanionRoster.Find(PrototypeIds.Horse); // Legendary - Young=330, Adult=825
+            Assert.That(CompanionProgressionService.StageFor(horse, 300), Is.EqualTo(GrowthStage.Baby));
+            Assert.That(CompanionProgressionService.StageFor(horse, 500), Is.EqualTo(GrowthStage.Young));
+            Assert.That(CompanionProgressionService.StageFor(horse, 825), Is.EqualTo(GrowthStage.Adult));
+        }
+
+        [TestCase(GrowthStage.Baby, 1.00f)]
+        [TestCase(GrowthStage.Young, 1.15f)]
+        [TestCase(GrowthStage.Adult, 1.30f)]
+        public void IncomeOfAppliesTheGrowthMultiplierToBaseIncome(GrowthStage stage, float multiplier)
+        {
+            Assert.That(CompanionProgressionService.GrowthMultiplier(stage), Is.EqualTo(multiplier));
+            var husky = CompanionRoster.Find(PrototypeIds.Husky); // base 4.5
+            var experience = stage == GrowthStage.Adult ? husky.AdultExp : stage == GrowthStage.Young ? husky.YoungExp : 0;
+            var expected = Mathf.Round(husky.BaseIncomePerHundredMetres * multiplier * 10f) / 10f;
+            Assert.That(CompanionProgressionService.IncomeOf(husky, experience), Is.EqualTo(expected).Within(0.001f));
+        }
+
+        [Test]
+        public void CompleteWalkPaysOnlyTheLeadCompanionAndGrantsNoWalkingExp()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics
+            var result = NewService(save).CompleteWalk(new WalkMetrics
             {
                 distanceKilometres = 1.25f, hasSteps = true, steps = 1600, elapsedSeconds = 1200f
             });
-            Assert.That(result.coinsAwarded, Is.EqualTo(30));
-            Assert.That(save.coins, Is.EqualTo(30));
-            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(550));
-            Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
-            Assert.That(save.FindCompanion(PrototypeIds.Husky).growthExperience, Is.Zero, "Husky was locked before this walk");
-            Assert.That(save.FindCompanion(PrototypeIds.Deer).growthExperience, Is.Zero);
-            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Corgi }));
+            // Corgi (lead, Baby, base 4.0 coins/100m): 4.0 * (1.25km -> 12.5 hundred-metre units) = 50.
+            Assert.That(result.coinsAwarded, Is.EqualTo(50));
+            Assert.That(result.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi));
+            Assert.That(save.coins, Is.EqualTo(50));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.Zero, "Walking never grants Growth EXP - only feeding does.");
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True, "1.25 km total distance crosses Husky's 1 km unlock threshold.");
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.False, "Being distance-unlocked does not make a companion owned - it must still be bought.");
             Assert.That(result.newlyUnlockedCompanionIds, Does.Contain(PrototypeIds.Husky));
             Assert.That(save.totalSteps, Is.EqualTo(1600));
         }
 
         [Test]
-        public void SubKilometreWalkAddsDistanceButNoDiscreteRewards()
+        public void SubKilometreWalkStillEarnsProportionalCoins()
         {
+            // Unlike the old flat "whole kilometres only" formula, the design-doc formula
+            // (Coins = Distance/100m x Income) pays out continuously, not just at whole-km marks.
             var save = PlayerSaveData.CreateNew("Mai");
-            var result = new CompanionProgressionService(save).CompleteWalk(new WalkMetrics { distanceKilometres = .75f, elapsedSeconds = 300f });
-            Assert.That(result.coinsAwarded, Is.Zero);
-            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(450));
+            var result = NewService(save).CompleteWalk(new WalkMetrics { distanceKilometres = .75f, elapsedSeconds = 300f });
+            Assert.That(result.coinsAwarded, Is.EqualTo(30)); // 4.0 * 7.5 hundred-metre units
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.Zero);
             Assert.That(save.totalDistanceKilometres, Is.EqualTo(.75f));
         }
 
         [Test]
-        public void CompanionUnlockedDuringWalkDoesNotReceiveThatWalkExperience()
+        public void OnlyTheLeadCompanionEarnsWalkingIncomeNotEveryOwnedCompanion()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
-            var eligibleAtStart = service.CaptureUnlockedCompanionIds();
-            save.FindCompanion(PrototypeIds.Deer).unlocked = true;
-            var result = service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, eligibleAtStart);
-            Assert.That(result.rewardedCompanionIds, Is.EquivalentTo(new[] { PrototypeIds.Corgi }));
-            Assert.That(save.FindCompanion(PrototypeIds.Deer).growthExperience, Is.Zero);
+            var service = NewService(save);
+            save.coins = 100;
+            save.FindCompanion(PrototypeIds.Husky).unlocked = true;
+            Assert.That(service.PurchaseCompanion(PrototypeIds.Husky).success, Is.True); // owned, but Corgi remains lead
+            var coinsBeforeWalk = save.coins;
+
+            var result = service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f });
+            Assert.That(result.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi));
+            Assert.That(save.coins, Is.EqualTo(coinsBeforeWalk + 40)); // Corgi: 4.0 * 10 units
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).growthExperience, Is.Zero, "A non-lead owned companion earns nothing from this walk.");
         }
 
         [Test]
-        public void FoodValidatesCoinsAndLockedCompanionsAndReportsStageChange()
+        public void PurchaseFoodThenFeedGrantsExpAndReportsStageChange()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
-            Assert.That(service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Husky).success, Is.False);
-            Assert.That(service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi).error, Is.EqualTo("Not enough Coins."));
-            save.coins = 40;
-            var result = service.PurchaseAndFeed(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi);
+            var service = NewService(save);
+            save.foodInventory.Clear(); // Isolate this test from the starter-treat grant RepairCollections just applied.
+
+            Assert.That(service.FeedCompanion(FoodCatalogIds.RiceBall, PrototypeIds.Husky).error, Is.EqualTo("Choose an owned companion."));
+            Assert.That(service.PurchaseFood(FoodCatalogIds.RiceBall, 1).error, Is.EqualTo("Not enough Coins."));
+
+            save.coins = 50;
+            var purchase = service.PurchaseFood(FoodCatalogIds.ChickenLeg, 1);
+            Assert.That(purchase.success, Is.True);
+            Assert.That(purchase.coinsSpent, Is.EqualTo(50));
+            Assert.That(save.coins, Is.Zero);
+            Assert.That(save.FoodQuantity(FoodCatalogIds.ChickenLeg), Is.EqualTo(1));
+
+            var feed = service.FeedCompanion(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi);
+            Assert.That(feed.success, Is.True);
+            Assert.That(feed.experienceGained, Is.EqualTo(40));
+            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(40));
+            Assert.That(feed.StageChanged, Is.True, "Corgi's Young threshold is exactly 40 EXP.");
+            Assert.That(feed.currentStage, Is.EqualTo(GrowthStage.Young));
+            Assert.That(save.FoodQuantity(FoodCatalogIds.ChickenLeg), Is.Zero, "Feeding consumes the inventory unit.");
+
+            Assert.That(service.FeedCompanion(FoodCatalogIds.ChickenLeg, PrototypeIds.Corgi).error, Does.StartWith("You're out of"));
+        }
+
+        [Test]
+        public void PurchaseCompanionRequiresDistanceUnlockThenChargesCoins()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = NewService(save);
+
+            Assert.That(service.PurchaseCompanion(PrototypeIds.Husky).error, Is.EqualTo("Walk further to unlock this companion first."));
+
+            save.FindCompanion(PrototypeIds.Husky).unlocked = true;
+            Assert.That(service.PurchaseCompanion(PrototypeIds.Husky).error, Is.EqualTo("Not enough Coins."));
+
+            save.coins = 100;
+            var result = service.PurchaseCompanion(PrototypeIds.Husky);
             Assert.That(result.success, Is.True);
-            Assert.That(result.coinsSpent, Is.EqualTo(40));
-            Assert.That(save.FindCompanion(PrototypeIds.Corgi).growthExperience, Is.EqualTo(490));
-            save.coins = 20;
-            result = service.PurchaseAndFeed(FoodCatalogIds.RiceBall, PrototypeIds.Corgi);
-            Assert.That(result.StageChanged, Is.True);
-            Assert.That(result.currentStage, Is.EqualTo(GrowthStage.Young));
+            Assert.That(result.coinsSpent, Is.EqualTo(100));
+            Assert.That(save.coins, Is.Zero);
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.True);
+            Assert.That(service.PurchaseCompanion(PrototypeIds.Husky).error, Is.EqualTo("You already own this companion."));
         }
 
         [Test]
-        public void CentralPostOfficeRewardUnlocksDeerAndIsIdempotent()
+        public void SetLeadCompanionRequiresOwnershipAndPersistsChoice()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
+            var service = NewService(save);
+            Assert.That(service.SetLeadCompanion(PrototypeIds.Husky), Is.False, "Husky isn't owned yet.");
+            Assert.That(save.leadCompanionId, Is.EqualTo(PrototypeIds.Corgi));
+
+            save.coins = 100;
+            save.FindCompanion(PrototypeIds.Husky).unlocked = true;
+            Assert.That(service.PurchaseCompanion(PrototypeIds.Husky).success, Is.True);
+            Assert.That(service.SetLeadCompanion(PrototypeIds.Husky), Is.True);
+            Assert.That(save.leadCompanionId, Is.EqualTo(PrototypeIds.Husky));
+        }
+
+        [Test]
+        public void CentralPostOfficeRewardGrantsDeerAsOwnedAndIsIdempotent()
+        {
+            var save = PlayerSaveData.CreateNew("Mai");
+            var service = NewService(save);
             var first = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Deer, new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc));
             var second = service.CompleteLandmarkMemory(PrototypeIds.CentralPostOffice, PrototypeIds.Deer, DateTime.UtcNow);
             Assert.That(first.newlyCompleted, Is.True);
             Assert.That(first.unlockedCompanionId, Is.EqualTo(PrototypeIds.Deer));
             Assert.That(save.FindCompanion(PrototypeIds.Deer).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Deer).owned, Is.True, "A Landmark Pet is Obtained outright, not merely Unlocked (design doc section 28).");
             Assert.That(save.stamps.Select(item => item.stampId), Is.EquivalentTo(new[] { PrototypeIds.CentralPostOfficeStamp }));
             Assert.That(save.journeys.Count, Is.EqualTo(1));
             Assert.That(second.newlyCompleted, Is.False);
@@ -196,7 +305,7 @@ namespace ARWalking.Tests.EditMode
         public void LandmarkRewardIsDataDrivenPerLandmarkNotHardcodedToOneId()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
+            var service = NewService(save);
 
             // A landmark with no configured reward (empty companionRewardId) grants a Stamp but unlocks nothing.
             var noRewardResult = service.CompleteLandmarkMemory(PrototypeIds.IndependencePalace, string.Empty, DateTime.UtcNow);
@@ -208,16 +317,17 @@ namespace ARWalking.Tests.EditMode
             var rewardResult = service.CompleteLandmarkMemory(PrototypeIds.NotreDameBasilica, PrototypeIds.Husky, DateTime.UtcNow);
             Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Husky));
             Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
+            Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.True);
         }
 
         [Test]
         public void CompleteWalkRecordsDailyActivityForWeeklyChart()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
+            var service = NewService(save);
             var day = new DateTime(2026, 9, 2, 9, 0, 0, DateTimeKind.Utc);
-            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1.5f, hasSteps = true, steps = 2000 }, service.CaptureUnlockedCompanionIds(), day);
-            service.CompleteWalk(new WalkMetrics { distanceKilometres = 0.5f, hasSteps = true, steps = 700 }, service.CaptureUnlockedCompanionIds(), day.AddHours(6));
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1.5f, hasSteps = true, steps = 2000 }, save.leadCompanionId, day);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 0.5f, hasSteps = true, steps = 700 }, save.leadCompanionId, day.AddHours(6));
             Assert.That(save.dailyActivity.Count, Is.EqualTo(1), "Two walks on the same UTC calendar day should accumulate into one entry.");
             var entry = save.dailyActivity.Single();
             Assert.That(entry.dateIso, Is.EqualTo("2026-09-02"));
@@ -225,7 +335,7 @@ namespace ARWalking.Tests.EditMode
             Assert.That(entry.hasSteps, Is.True);
             Assert.That(entry.steps, Is.EqualTo(2700));
 
-            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, service.CaptureUnlockedCompanionIds(), day.AddDays(1));
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 1f }, save.leadCompanionId, day.AddDays(1));
             Assert.That(save.dailyActivity.Count, Is.EqualTo(2), "A walk on a different calendar day should create a separate entry.");
         }
 
@@ -233,13 +343,13 @@ namespace ARWalking.Tests.EditMode
         public void WeeklyActivitySummaryAlignsToMondayAndAveragesWeekToDate()
         {
             var save = PlayerSaveData.CreateNew("Mai");
-            var service = new CompanionProgressionService(save);
+            var service = NewService(save);
             var today = new DateTime(2026, 9, 2, 12, 0, 0, DateTimeKind.Utc);
             var monday = today.AddDays(-((int)today.DayOfWeek + 6) % 7);
             var todayIndex = (int)(today.Date - monday.Date).TotalDays;
 
-            service.CompleteWalk(new WalkMetrics { distanceKilometres = 4f }, service.CaptureUnlockedCompanionIds(), monday);
-            service.CompleteWalk(new WalkMetrics { distanceKilometres = 2f }, service.CaptureUnlockedCompanionIds(), today);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 4f }, save.leadCompanionId, monday);
+            service.CompleteWalk(new WalkMetrics { distanceKilometres = 2f }, save.leadCompanionId, today);
 
             var weekly = service.GetWeeklyActivity(today);
             Assert.That(weekly.days.Length, Is.EqualTo(7));

@@ -184,7 +184,7 @@ namespace ARWalking.Editor
             catalog.foods = new List<FoodUiData>
             {
                 new FoodUiData { id=FoodCatalogIds.RiceBall, name="Rice Ball", coinCost=20, growthExperience=15, description="A light onigiri snack any unlocked companion can carry into AR or the meadow." },
-                new FoodUiData { id=FoodCatalogIds.ChickenLeg, name="Chicken Leg", coinCost=40, growthExperience=40, description="A hearty drumstick treat for any unlocked companion." }
+                new FoodUiData { id=FoodCatalogIds.ChickenLeg, name="Chicken", coinCost=50, growthExperience=40, description="A hearty drumstick treat for any unlocked companion." }
             };
             catalog.landmarks = new List<LandmarkUiData>
             {

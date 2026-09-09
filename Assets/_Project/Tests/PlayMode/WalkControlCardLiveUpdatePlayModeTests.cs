@@ -90,7 +90,8 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(distanceLabel.text, Is.EqualTo("1.2"), "distance must tick live from a plain Update() frame");
 
             var coinsLabel = root.Q(className: "walk-summary-row").Q(className: "sun-value").Q<Label>(className: "metric-value");
-            Assert.That(coinsLabel.text, Is.EqualTo("+" + Mathf.FloorToInt(1.234f * 20f)));
+            // Corgi (default lead, Baby stage) earns its base 4.0 coins/100m - see CompanionProgressionService.IncomeOf.
+            Assert.That(coinsLabel.text, Is.EqualTo("+" + Mathf.RoundToInt(4.0f * (1.234f * 1000f / 100f))));
 
             var stepsLabel = root.Q(className: "walk-summary-row").Q(className: "blossom-value").Q<Label>(className: "metric-value");
             Assert.That(stepsLabel.text, Is.EqualTo("1,650"));

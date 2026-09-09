@@ -99,7 +99,7 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MarkerTapped_NavigatesToLandmarkDetail()
+        public IEnumerator MarkerTapped_OpensLandmarkSheet()
         {
             var home = CreateProfile();
             yield return null; yield return null; yield return null;
@@ -107,7 +107,10 @@ namespace ARWalking.Tests.PlayMode
             _bridge.SimulateMarkerTap(PrototypeIds.CentralPostOffice);
             yield return null;
 
-            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.LandmarkDetail));
+            // A marker tap opens the floating Landmark sheet over the map rather than pushing a route.
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.HomeMap));
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q(className: "landmark-sheet"), Is.Not.Null);
         }
 
         [UnityTest]

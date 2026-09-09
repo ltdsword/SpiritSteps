@@ -35,7 +35,8 @@ namespace ARWalking.UI
 
         LocalPlayerSaveStore _saveStore;
         CompanionProgressionService _progression;
-        List<string> _walkEligibleCompanionIds;
+        MissionService _missions;
+        string _walkLeadCompanionId;
         string _pet3DReturnPetId;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -72,7 +73,11 @@ namespace ARWalking.UI
             _saveStore = new LocalPlayerSaveStore(TestSavePathOverride);
             InitialLoadResult = _saveStore.Load();
             SaveData = InitialLoadResult.save;
-            if (SaveData != null) _progression = new CompanionProgressionService(SaveData);
+            if (SaveData != null)
+            {
+                _progression = new CompanionProgressionService(SaveData, Data);
+                _missions = new MissionService(SaveData, Data, LandmarkMapProvider);
+            }
         }
 
         void OnDestroy()
@@ -138,7 +143,8 @@ namespace ARWalking.UI
         {
             if (!PlayerSaveData.IsValidDisplayName(displayName)) return false;
             SaveData = PlayerSaveData.CreateNew(displayName);
-            _progression = new CompanionProgressionService(SaveData);
+            _progression = new CompanionProgressionService(SaveData, Data);
+            _missions = new MissionService(SaveData, Data, LandmarkMapProvider);
             Persist();
             Navigator.SwitchRoot(UiRootTab.Map);
             return true;
@@ -147,7 +153,7 @@ namespace ARWalking.UI
         public void StartWalk()
         {
             RequireProfile();
-            _walkEligibleCompanionIds = _progression.CaptureUnlockedCompanionIds();
+            _walkLeadCompanionId = SaveData.leadCompanionId;
             WalkProvider.StartWalk();
             Navigator.Push(UiRoute.ActiveWalk);
         }
@@ -155,20 +161,61 @@ namespace ARWalking.UI
         public WalkResultDto FinishWalk()
         {
             RequireProfile();
-            var eligible = _walkEligibleCompanionIds ?? _progression.CaptureUnlockedCompanionIds();
-            LastWalkResult = _progression.CompleteWalk(WalkProvider.StopWalk(), eligible);
-            _walkEligibleCompanionIds = null;
+            var leadCompanionId = _walkLeadCompanionId ?? SaveData.leadCompanionId;
+            LastWalkResult = _progression.CompleteWalk(WalkProvider.StopWalk(), leadCompanionId);
+            _walkLeadCompanionId = null;
             Persist();
             Navigator.Push(UiRoute.WalkResult);
             return LastWalkResult;
         }
 
+        /// <summary>Buys one unit of food into inventory (Shop's Food section).</summary>
+        public FoodPurchaseResultDto PurchaseFood(string foodId, int quantity = 1)
+        {
+            RequireProfile();
+            var result = _progression.PurchaseFood(foodId, quantity);
+            if (result.success) Persist();
+            return result;
+        }
+
+        /// <summary>Buys food and immediately feeds it to a companion in one step. Composes
+        /// <see cref="PurchaseFood"/> + <see cref="Feed"/> and refunds the purchase if feeding fails
+        /// (e.g. an invalid companion id), keeping the combined action atomic for callers that don't
+        /// need the Shop-purchase/Companions-feed steps separated.</summary>
         public FeedResultDto PurchaseAndFeed(string foodId, string companionId)
         {
             RequireProfile();
-            var result = _progression.PurchaseAndFeed(foodId, companionId);
+            var purchase = _progression.PurchaseFood(foodId, 1);
+            if (!purchase.success) return new FeedResultDto { foodId = foodId, companionId = companionId, error = purchase.error };
+            var feed = _progression.FeedCompanion(foodId, companionId);
+            if (feed.success) { Persist(); return feed; }
+            SaveData.coins += purchase.coinsSpent;
+            SaveData.AddFood(foodId, -1);
+            return feed;
+        }
+
+        /// <summary>Buys a distance-unlocked companion with coins (Shop's Pet Detail card).</summary>
+        public CompanionPurchaseResultDto PurchaseCompanion(string companionId)
+        {
+            RequireProfile();
+            var result = _progression.PurchaseCompanion(companionId);
             if (result.success) Persist();
             return result;
+        }
+
+        /// <summary>The player's active/lead companion, or empty when none was picked yet - the
+        /// single source of truth the Companion screen, the Walk HUD, and the AR/3D food selectors
+        /// all read.</summary>
+        public string LeadCompanionId => SaveData?.leadCompanionId ?? string.Empty;
+
+        /// <summary>Sets the player's active/lead companion - the only one that earns walking income.
+        /// Requires the companion to be owned (see <see cref="CompanionProgressionService.SetLeadCompanion"/>).</summary>
+        public bool SetLeadCompanion(string companionId)
+        {
+            RequireProfile();
+            var changed = _progression.SetLeadCompanion(companionId);
+            if (changed) Persist();
+            return changed;
         }
 
         /// <summary>Owned quantity of a food item - the single source of truth the Companion
@@ -185,19 +232,6 @@ namespace ARWalking.UI
             var consumed = _progression.ConsumeFood(foodId);
             if (consumed) Persist();
             return consumed;
-        }
-
-        /// <summary>The companion picked via the Companion detail screen's "Set as lead" action,
-        /// or empty when none was picked yet.</summary>
-        public string LeadCompanionId => SaveData?.leadCompanionId ?? string.Empty;
-
-        public void SetLeadCompanion(string companionId)
-        {
-            RequireProfile();
-            var progress = Companion(companionId);
-            if (progress == null || !progress.unlocked) return;
-            SaveData.leadCompanionId = companionId;
-            Persist();
         }
 
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId)
@@ -317,14 +351,16 @@ namespace ARWalking.UI
         public CompanionVisualState GetCompanionVisualState(string companionId)
         {
             var progress = Companion(companionId);
-            var unlocked = progress != null && progress.unlocked;
-            var stage = unlocked ? CompanionProgressionService.StageFor(progress.growthExperience) : GrowthStage.Baby;
+            // AR/3D should only render a companion the player actually has - distance-Unlocked alone
+            // isn't enough once it also needs to be bought (see CompanionProgressData.owned).
+            var owned = progress != null && progress.owned;
+            var stage = owned ? CompanionProgressionService.StageFor(CompanionRoster.Find(companionId), progress.growthExperience) : GrowthStage.Baby;
             return new CompanionVisualState
             {
                 companionId = companionId,
-                unlocked = unlocked,
+                unlocked = owned,
                 stage = stage,
-                scale = unlocked ? CompanionProgressionService.PlaceholderScaleFor(stage) : 0f
+                scale = owned ? CompanionProgressionService.PlaceholderScaleFor(stage) : 0f
             };
         }
 
@@ -426,21 +462,18 @@ namespace ARWalking.UI
             SceneManager.LoadScene("Home");
         }
 
-        /// <summary>The companion to show when an entry point (e.g. Walk) has no explicit pet
-        /// selection of its own: the first unlocked companion in roster order, falling back to
-        /// the starter if somehow none are unlocked yet.</summary>
+        /// <summary>The companion to show when an entry point (e.g. AR photo) has no explicit pet
+        /// selection of its own: the player's chosen lead companion, falling back to the first owned
+        /// companion in roster order, then the starter if somehow none are owned yet.</summary>
         public string PrimaryCompanionId()
         {
             var lead = LeadCompanionId;
-            if (!string.IsNullOrEmpty(lead))
-            {
-                var leadProgress = Companion(lead);
-                if (leadProgress != null && leadProgress.unlocked) return lead;
-            }
+            var leadProgress = string.IsNullOrEmpty(lead) ? null : Companion(lead);
+            if (leadProgress != null && leadProgress.owned) return lead;
             foreach (var entry in CompanionRoster.Entries)
             {
                 var progress = Companion(entry.Id);
-                if (progress != null && progress.unlocked) return entry.Id;
+                if (progress != null && progress.owned) return entry.Id;
             }
             return CompanionRoster.Entries[0].Id;
         }
@@ -456,6 +489,20 @@ namespace ARWalking.UI
 
         /// <summary>Today's progress plus the current Monday-Sunday week, for the Activity Dashboard screen.</summary>
         public WeeklyActivityDto GetWeeklyActivity() => _progression != null ? _progression.GetWeeklyActivity(DateTime.UtcNow) : new WeeklyActivityDto();
+
+        /// <summary>One Week/Month/Year page of the Activity Dashboard's period switcher.</summary>
+        public ActivityPeriodDto GetActivityPeriod(ActivityPeriod period, int offset) => _progression != null ? _progression.GetActivityPeriod(period, offset, DateTime.UtcNow) : new ActivityPeriodDto();
+
+        /// <summary>The single mission the Map's Mission Card should show right now, or null.</summary>
+        public MissionUiState CurrentMission() => _missions?.CurrentMission();
+
+        /// <summary>Claims the current mission's reward, if any is Completed and claimable.</summary>
+        public bool ClaimCurrentMission()
+        {
+            var claimed = _missions != null && _missions.ClaimCurrent();
+            if (claimed) Persist();
+            return claimed;
+        }
 
         public void Persist()
         {

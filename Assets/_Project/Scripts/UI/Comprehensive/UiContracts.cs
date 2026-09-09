@@ -182,9 +182,11 @@ namespace ARWalking.UI
         public int steps;
         public float durationSeconds;
         public int completedKilometres;
+        /// <summary>Coins earned this walk by <see cref="leadCompanionId"/> - only the lead/active
+        /// companion earns walking income (design doc section 2). Walking grants no Growth EXP.</summary>
         public int coinsAwarded;
-        public int experiencePerEligibleCompanion;
-        public List<string> rewardedCompanionIds = new List<string>();
+        /// <summary>The companion that earned <see cref="coinsAwarded"/>, or empty if none was owned yet.</summary>
+        public string leadCompanionId;
         public List<string> newlyUnlockedCompanionIds = new List<string>();
     }
 
@@ -195,11 +197,31 @@ namespace ARWalking.UI
         public string error;
         public string companionId;
         public string foodId;
-        public int coinsSpent;
         public int experienceGained;
         public GrowthStage previousStage;
         public GrowthStage currentStage;
         public bool StageChanged => success && previousStage != currentStage;
+    }
+
+    /// <summary>Result of buying food into inventory from Shop (see <see cref="CompanionProgressionService.PurchaseFood"/>).</summary>
+    [Serializable]
+    public sealed class FoodPurchaseResultDto
+    {
+        public bool success;
+        public string error;
+        public string foodId;
+        public int quantity;
+        public int coinsSpent;
+    }
+
+    /// <summary>Result of buying a distance-unlocked companion with coins (see <see cref="CompanionProgressionService.PurchaseCompanion"/>).</summary>
+    [Serializable]
+    public sealed class CompanionPurchaseResultDto
+    {
+        public bool success;
+        public string error;
+        public string companionId;
+        public int coinsSpent;
     }
 
     [Serializable]
@@ -264,6 +286,40 @@ namespace ARWalking.UI
         public int todaySteps;
         public float weeklyAverageKilometres;
         public float dailyGoalKilometres;
+    }
+
+    /// <summary>Which page of the Activity Dashboard's period switcher is showing.</summary>
+    public enum ActivityPeriod { Week, Month, Year }
+
+    /// <summary>One bar/column in the Activity Dashboard's chart - a day (Week), a week-of-month
+    /// (Month), or a month (Year), depending on the selected <see cref="ActivityPeriod"/>.</summary>
+    [Serializable]
+    public struct ActivityBar
+    {
+        public string topLabel;
+        public string subLabel;
+        public float distanceKilometres;
+        public bool isFuture;
+        public bool isCurrent;
+    }
+
+    /// <summary>One Week/Month/Year page of the Activity Dashboard's period switcher, built from
+    /// the player's real per-day activity history rather than synthetic data.</summary>
+    [Serializable]
+    public sealed class ActivityPeriodDto
+    {
+        public ActivityPeriod period;
+        public int offset;
+        public string periodLabel;
+        public ActivityBar[] bars = Array.Empty<ActivityBar>();
+        public float totalKilometres;
+        public float targetKilometres;
+        public int totalSteps;
+        public bool hasSteps;
+        public string referenceLabel;
+        public string averageLabel;
+        public float averageKilometres;
+        public bool canGoNext;
     }
 
     public interface IWalkMetricsProvider

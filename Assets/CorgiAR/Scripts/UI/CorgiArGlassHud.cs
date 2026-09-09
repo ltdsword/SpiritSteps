@@ -250,13 +250,16 @@ namespace CorgiAR.UI
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("pet3d-picker-scroll");
             VisualElement grid = Element(null, "pet3d-picker-grid");
+            var choiceCount = 0;
             if (binder != null)
             {
                 UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
                 foreach (PetBinder.Binding binding in binder.Bindings)
                 {
                     CompanionProgressData progress = runtime != null ? runtime.Companion(binding.Id) : null;
-                    if (progress == null || !progress.unlocked) continue;
+                    // "Owned", not just distance-Unlocked - see PetBinder.IsUnlocked.
+                    if (progress == null || !progress.owned) continue;
+                    choiceCount++;
                     PetBinder.Binding captured = binding;
                     var choice = new UiButton(() => SelectPet(captured.Id));
                     choice.AddToClassList("pet3d-picker-choice");
@@ -274,6 +277,7 @@ namespace CorgiAR.UI
                     grid.Add(choice);
                 }
             }
+            PadPickerGridRow(grid, choiceCount);
             scroll.Add(grid);
             modal.Add(scroll);
             petPicker.Add(modal);
@@ -532,6 +536,24 @@ namespace CorgiAR.UI
         {
             if (element == null) return;
             element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>The picker grid uses <c>justify-content: space-between</c> so full rows of 3
+        /// space their cards evenly, but that same rule stretches an incomplete last row's cards
+        /// out to the container's edges instead of packing them to the left. Padding the row out
+        /// to a full 3 with invisible, same-width filler elements keeps real cards left-aligned
+        /// without needing CSS Grid or :nth-child (neither available in UI Toolkit's USS subset).</summary>
+        private static void PadPickerGridRow(VisualElement grid, int itemCount)
+        {
+            var remainder = itemCount % 3;
+            if (remainder == 0) return;
+            for (var i = 0; i < 3 - remainder; i++)
+            {
+                var filler = new VisualElement { pickingMode = PickingMode.Ignore };
+                filler.AddToClassList("pet3d-picker-choice");
+                filler.style.visibility = Visibility.Hidden;
+                grid.Add(filler);
+            }
         }
     }
 }
