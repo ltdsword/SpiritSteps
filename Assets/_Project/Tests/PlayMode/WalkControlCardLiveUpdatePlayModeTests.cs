@@ -97,6 +97,59 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(stepsLabel.text, Is.EqualTo("1,650"));
         }
 
+        [UnityTest]
+        public IEnumerator SessionMetrics_StartAtZero_CommitToLifetimeTotals_ThenReset()
+        {
+            var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            Assert.That(home.CompleteSetup("Session Totals Test"), Is.True);
+            var save = UiPrototypeRuntime.Instance.SaveData;
+            save.coins = 100;
+            save.totalDistanceKilometres = 2f;
+            save.hasTotalSteps = true;
+            save.totalSteps = 1000;
+            save.dailyActivity.Add(new DailyActivityData
+            {
+                dateIso = CompanionProgressionService.LocalNow(DateTime.UtcNow).ToString("yyyy-MM-dd"),
+                distanceKilometres = 2f,
+                hasSteps = true,
+                steps = 1000
+            });
+
+            // Force the Map to rebuild after seeding non-zero lifetime and daily values.
+            home.SelectRoot(UiRootTab.Companions);
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q(className: "coin-status-pill").Q<Label>(className: "status-value").text, Is.EqualTo("100"));
+            Assert.That(root.Q(className: "distance-status-pill").Q<Label>(className: "status-value").text, Is.EqualTo("2.0 km"));
+            AssertSessionMetrics(root, "0.0", "+0", "0");
+
+            home.BeginWalk();
+            _walkProvider.Live = new WalkMetrics { distanceKilometres = 0.1f, hasSteps = true, steps = 42, elapsedSeconds = 60f };
+            yield return null;
+            AssertSessionMetrics(root, "0.1", "+4", "42");
+
+            var result = home.FinishWalk();
+            Assert.That(result.coinsAwarded, Is.EqualTo(4));
+            Assert.That(save.coins, Is.EqualTo(104));
+            Assert.That(save.totalDistanceKilometres, Is.EqualTo(2.1f).Within(0.0001f));
+            Assert.That(save.totalSteps, Is.EqualTo(1042));
+
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+            Assert.That(root.Q(className: "coin-status-pill").Q<Label>(className: "status-value").text, Is.EqualTo("104"));
+            Assert.That(root.Q(className: "distance-status-pill").Q<Label>(className: "status-value").text, Is.EqualTo("2.1 km"));
+            AssertSessionMetrics(root, "0.0", "+0", "0");
+        }
+
+        static void AssertSessionMetrics(VisualElement root, string distance, string coins, string steps)
+        {
+            Assert.That(root.Q<Label>(className: "walk-distance-value").text, Is.EqualTo(distance));
+            Assert.That(root.Q(className: "walk-summary-row").Q(className: "sun-value").Q<Label>(className: "metric-value").text, Is.EqualTo(coins));
+            Assert.That(root.Q(className: "walk-summary-row").Q(className: "blossom-value").Q<Label>(className: "metric-value").text, Is.EqualTo(steps));
+        }
+
         static IEnumerator WaitForScene(string sceneName)
         {
             var deadline = Time.realtimeSinceStartup + 15f;

@@ -375,6 +375,24 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
+        public void FirstTutorialWalkMissionCompletesAtExactlyOneHundredMetres()
+        {
+            var save = PlayerSaveData.CreateNew("Mission Test");
+            var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
+            var missions = new MissionService(save, new StaticUiDataProvider(catalog), new DeterministicLandmarkMapProvider());
+
+            save.totalDistanceKilometres = 0.099f;
+            var active = missions.CurrentMission();
+            Assert.That(active.missionId, Is.EqualTo("tutorial-walk"));
+            Assert.That(active.targetValue, Is.EqualTo(0.1f));
+            Assert.That(active.description, Is.EqualTo("Walk 100m with your companion."));
+            Assert.That(active.status, Is.EqualTo(MissionStatus.Active));
+
+            save.totalDistanceKilometres = 0.1f;
+            Assert.That(missions.CurrentMission().status, Is.EqualTo(MissionStatus.Completed));
+        }
+
+        [Test]
         public void RegeneratedCatalogAndTemporaryArtworkBindingsAreValid()
         {
             var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
