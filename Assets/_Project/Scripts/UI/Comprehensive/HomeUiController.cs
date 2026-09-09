@@ -1246,7 +1246,9 @@ namespace ARWalking.UI
                 var normalized = PlayerSaveData.NormalizeDisplayName(evt.newValue);
                 if (!PlayerSaveData.IsValidDisplayName(normalized)) return;
                 _runtime.SaveData.displayName = normalized;
+                _runtime.SaveData.ApplyAdminPerksIfNamed();
                 _runtime.Persist();
+                Render();
             });
             modal.Add(nameField);
             modal.Add(Divider());
@@ -1526,7 +1528,10 @@ namespace ARWalking.UI
         static string GrowthCaption(CompanionRoster.Entry entry, int experience, GrowthStage stage) => stage switch
         {
             GrowthStage.Baby => experience + " / " + entry.YoungExp + " EXP",
-            GrowthStage.Young => experience + " / " + entry.AdultExp + " EXP",
+            // Matches GrowthRatio above: EXP within the current stage, not the raw cumulative
+            // total against the final threshold, so the number resets alongside the bar instead
+            // of still reading e.g. "50 / 80" right after leveling up into Young.
+            GrowthStage.Young => (experience - entry.YoungExp) + " / " + (entry.AdultExp - entry.YoungExp) + " EXP",
             _ => "Max"
         };
 

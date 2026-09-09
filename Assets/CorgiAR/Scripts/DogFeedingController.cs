@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using ARWalking.UI;
 using ShibaFeeding;
 
 namespace CorgiAR
@@ -115,6 +116,10 @@ namespace CorgiAR
         private IEnumerator EatSequence(ThrownFood food)
         {
             IsEating = true;
+            // Captured now, not read from food.FoodId at the end: BeginBeingEaten's shrink
+            // coroutine destroys the treat only slightly before this sequence finishes, so a
+            // live read there would race Destroy() and could silently skip the EXP grant.
+            string foodId = food.FoodId;
 
             // A treat at the mouth proceeds immediately. Otherwise the pet runs
             // over, but only after TryEat has confirmed it noticed and can reach it.
@@ -179,7 +184,20 @@ namespace CorgiAR
             animatorAdapter?.SetPlaybackSpeed(1f);
             IsEating = false;
             eatRoutine = null;
+            GrantFeedExperience(foodId);
             Fed?.Invoke();
+        }
+
+        /// <summary>Credits the food's Growth EXP once the pet has actually finished eating it -
+        /// the inventory unit was already spent when the treat was picked up (see
+        /// <see cref="FoodDragThrowUI.ConsumeSelectedFood"/>), so a dropped or ignored treat still
+        /// costs the player the item but never grants EXP for nothing.</summary>
+        private static void GrantFeedExperience(string foodId)
+        {
+            if (string.IsNullOrEmpty(foodId))
+                return;
+            UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+            runtime?.GrantFeedExperience(foodId, runtime.PrimaryCompanionId());
         }
 
         private void SpawnPopup()

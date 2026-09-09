@@ -363,7 +363,25 @@ namespace ARWalking.UI
             var food = FindFood(foodId);
             if (food == null) return Fail(result, "Unknown food item.");
             if (!_save.TryConsumeFood(foodId, 1)) return Fail(result, "You're out of " + food.name + ". Buy more from the Shop.");
+            return GrantExperience(companion, companionId, food, result);
+        }
 
+        /// <summary>Grants a food's Growth EXP without touching inventory - for the AR/3D
+        /// throw-and-eat flow, which already spends the inventory unit when the treat is picked
+        /// up (see <see cref="ConsumeFood"/>) and only wants to credit EXP once the pet actually
+        /// finishes eating it, so a dropped or ignored treat doesn't grant EXP for nothing.</summary>
+        public FeedResultDto GrantFeedExperience(string foodId, string companionId)
+        {
+            var result = new FeedResultDto { foodId = foodId, companionId = companionId };
+            var companion = _save.FindCompanion(companionId);
+            if (companion == null || !companion.owned) return Fail(result, "Choose an owned companion.");
+            var food = FindFood(foodId);
+            if (food == null) return Fail(result, "Unknown food item.");
+            return GrantExperience(companion, companionId, food, result);
+        }
+
+        FeedResultDto GrantExperience(CompanionProgressData companion, string companionId, FoodUiData food, FeedResultDto result)
+        {
             var rosterEntry = CompanionRoster.Find(companionId);
             result.previousStage = StageFor(rosterEntry, companion.growthExperience);
             companion.growthExperience += food.growthExperience;

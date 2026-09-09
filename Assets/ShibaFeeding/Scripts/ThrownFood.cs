@@ -7,6 +7,11 @@ namespace ShibaFeeding
     [RequireComponent(typeof(MeshRenderer), typeof(MeshFilter))]
     public sealed class ThrownFood : MonoBehaviour
     {
+        /// <summary>Catalog id (<see cref="FoodCatalogIds"/>) of the food this treat represents,
+        /// set by the HUD that spawned it - lets the receiver credit the right Growth EXP once
+        /// the pet actually eats it. Empty for choices with no app-side catalog counterpart.</summary>
+        public string FoodId { get; set; }
+
         [Header("Throw tuning")]
         [SerializeField, Min(0f)] private float spinSpeed = 720f;
         [SerializeField, Min(0f)] private float eatShrinkDelay = 0.55f;
