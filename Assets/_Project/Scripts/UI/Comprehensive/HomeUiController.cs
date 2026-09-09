@@ -546,9 +546,11 @@ namespace ARWalking.UI
             if (OwnedCompanionCount() > 0) scroll.Add(BuildFeaturedCompanion(_featuredCompanionIndex));
 
             var ownedGrid = Element("owned-companion-grid", "owned-companion-grid");
+            var ownedCount = 0;
             for (var i = 0; i < _data.Companions.Count; i++)
             {
                 if (!IsOwned(i)) continue;
+                ownedCount++;
                 var index = i;
                 var definition = _data.Companions[i];
                 var progress = _runtime.Companion(definition.id);
@@ -563,7 +565,27 @@ namespace ARWalking.UI
                 button.Add(Label(CompanionProgressionService.StageFor(entry, progress.growthExperience).ToString(), "companion-thumb-stage"));
                 ownedGrid.Add(button);
             }
+            PadGridRow(ownedGrid, ownedCount, 3, "owned-companion-card");
             scroll.Add(ownedGrid);
+        }
+
+        /// <summary>Three-column grids use <c>justify-content: space-between</c> so full rows
+        /// space their cards evenly, but that same rule stretches an incomplete last row's cards
+        /// out to the container's edges instead of packing them to the left. Padding the row out
+        /// to a full set of <paramref name="columns"/> with invisible, same-width filler elements
+        /// keeps the real cards left-aligned without needing CSS Grid or :nth-child (neither
+        /// available in UI Toolkit's USS subset).</summary>
+        static void PadGridRow(VisualElement grid, int itemCount, int columns, string itemClass)
+        {
+            var remainder = itemCount % columns;
+            if (remainder == 0) return;
+            for (var i = 0; i < columns - remainder; i++)
+            {
+                var filler = new VisualElement { pickingMode = PickingMode.Ignore };
+                filler.AddToClassList(itemClass);
+                filler.style.visibility = Visibility.Hidden;
+                grid.Add(filler);
+            }
         }
 
         VisualElement BuildFeaturedCompanion(int index)
@@ -689,46 +711,6 @@ namespace ARWalking.UI
         {
             var scroll = ScreenWithHeader("Shop", "Spend coins to grow your friends", false, "coins", _runtime.SaveData.coins.ToString("N0"), null, "sun-chip");
 
-            scroll.Add(SectionTitle("Companions"));
-            var petGrid = Element("shop-pet-grid", "shop-pet-grid");
-            for (var i = 0; i < _data.Companions.Count; i++)
-            {
-                var index = i;
-                var definition = _data.Companions[i];
-                var progress = _runtime.Companion(definition.id);
-                var entry = CompanionRoster.Find(definition.id);
-                var owned = progress != null && progress.owned;
-                var unlocked = progress != null && progress.unlocked;
-
-                var card = new UiButton(() => ShowPetDetailModal(index)) { name = "shop-pet-" + definition.id };
-                card.AddToClassList("card");
-                card.AddToClassList("shop-pet-card");
-                if (!unlocked) card.AddToClassList("shop-pet-card-dim");
-
-                var imageWell = Element(null, "shop-pet-image-well", "accent-surface-" + (i % 4));
-                imageWell.Add(Image(_assets != null ? _assets.Companion(i) : null, "shop-pet-image", ScaleMode.ScaleAndCrop));
-                imageWell.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant(), "shop-pet-rarity-badge"));
-                var statusBadge = Element(null, "shop-pet-status-badge");
-                statusBadge.Add(IconView(owned ? "stamp" : unlocked ? "coins" : "lock", "shop-pet-status-icon", owned ? Primary : unlocked ? SunInk : MutedInk));
-                imageWell.Add(statusBadge);
-                card.Add(imageWell);
-
-                card.Add(Label(definition.name, "shop-pet-name"));
-                var reqRatio = entry.UnlockDistanceKilometres > 0f ? Mathf.Clamp01(_runtime.SaveData.totalDistanceKilometres / entry.UnlockDistanceKilometres) : 1f;
-                card.Add(Progress(unlocked ? 1f : reqRatio, "shop-pet-progress"));
-
-                var footer = Row("shop-pet-footer");
-                footer.Add(Label(entry.UnlockDistanceKilometres <= 0f ? "Starter" : unlocked ? "Unlocked" : entry.UnlockDistanceKilometres.ToString("0.#") + " km required", "shop-pet-req-label"));
-                var priceRow = Row("shop-pet-price");
-                priceRow.Add(IconView("coins", "shop-pet-price-icon", SunInk));
-                priceRow.Add(Label(owned ? "Owned" : entry.PriceCoins <= 0 ? "Free" : entry.PriceCoins.ToString("N0"), "shop-pet-price-label"));
-                footer.Add(priceRow);
-                card.Add(footer);
-
-                petGrid.Add(card);
-            }
-            scroll.Add(petGrid);
-
             scroll.Add(SectionTitle("Companion Food"));
             for (var i = 0; i < _data.Foods.Count; i++)
             {
@@ -758,6 +740,50 @@ namespace ARWalking.UI
                 card.Add(buy);
                 scroll.Add(card);
             }
+
+            scroll.Add(SectionTitle("Companions"));
+            var petGrid = Element("shop-pet-grid", "shop-pet-grid");
+            for (var i = 0; i < _data.Companions.Count; i++)
+            {
+                var progress = _runtime.Companion(_data.Companions[i].id);
+                // Already-owned companions have nothing left to buy here - they live on the
+                // Companions tab instead, where Feed/Set as lead actually apply to them.
+                if (progress != null && progress.owned) continue;
+
+                var index = i;
+                var definition = _data.Companions[i];
+                var entry = CompanionRoster.Find(definition.id);
+                var unlocked = progress != null && progress.unlocked;
+
+                var card = new UiButton(() => ShowPetDetailModal(index)) { name = "shop-pet-" + definition.id };
+                card.AddToClassList("card");
+                card.AddToClassList("shop-pet-card");
+                if (!unlocked) card.AddToClassList("shop-pet-card-dim");
+
+                var imageWell = Element(null, "shop-pet-image-well", "accent-surface-" + (i % 4));
+                imageWell.Add(Image(_assets != null ? _assets.Companion(i) : null, "shop-pet-image", ScaleMode.ScaleAndCrop));
+                imageWell.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant(), "shop-pet-rarity-badge"));
+                var statusBadge = Element(null, "shop-pet-status-badge");
+                statusBadge.Add(IconView(unlocked ? "coins" : "lock", "shop-pet-status-icon", unlocked ? SunInk : MutedInk));
+                imageWell.Add(statusBadge);
+                card.Add(imageWell);
+
+                card.Add(Label(definition.name, "shop-pet-name"));
+                var reqRatio = entry.UnlockDistanceKilometres > 0f ? Mathf.Clamp01(_runtime.SaveData.totalDistanceKilometres / entry.UnlockDistanceKilometres) : 1f;
+                card.Add(Progress(unlocked ? 1f : reqRatio, "shop-pet-progress"));
+
+                var footer = Row("shop-pet-footer");
+                footer.Add(Label(entry.UnlockDistanceKilometres <= 0f ? "Starter" : unlocked ? "Unlocked" : entry.UnlockDistanceKilometres.ToString("0.#") + " km required", "shop-pet-req-label"));
+                var priceRow = Row("shop-pet-price");
+                priceRow.Add(IconView("coins", "shop-pet-price-icon", SunInk));
+                priceRow.Add(Label(entry.PriceCoins <= 0 ? "Free" : entry.PriceCoins.ToString("N0"), "shop-pet-price-label"));
+                footer.Add(priceRow);
+                card.Add(footer);
+
+                petGrid.Add(card);
+            }
+            scroll.Add(petGrid);
+
             var note = Card("shop-note-card");
             note.Add(IconView("paw-print", "shop-note-icon", Primary));
             note.Add(Body("Earn more coins by walking, discovering landmarks, and completing AR memories."));
@@ -1243,11 +1269,13 @@ namespace ARWalking.UI
             tray.Add(Eyebrow("CHOOSE A COMPANION"));
             tray.Add(Title("Who gets the " + food.name + "?"));
             var choices = Element(null, "food-companion-grid");
+            var choiceCount = 0;
             for (var i = 0; i < _data.Companions.Count; i++)
             {
                 var definition = _data.Companions[i];
                 var progress = _runtime.Companion(definition.id);
                 if (progress == null || !progress.unlocked) continue;
+                choiceCount++;
                 var captured = definition;
                 var choice = new UiButton(() =>
                 {
@@ -1264,6 +1292,7 @@ namespace ARWalking.UI
                 choice.Add(Label(captured.name, "food-choice-label"));
                 choices.Add(choice);
             }
+            PadGridRow(choices, choiceCount, 3, "food-companion-choice");
             tray.Add(choices);
             tray.Add(Action("Cancel", RemoveTransientOverlay, "secondary-action"));
         }

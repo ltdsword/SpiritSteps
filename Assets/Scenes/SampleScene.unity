@@ -918,7 +918,7 @@ MonoBehaviour:
   buttonGraphic: {fileID: 179319886}
   visualFeedback: {fileID: 0}
   foodChoices:
-  - DisplayName: "G\xC0"
+  - DisplayName: CHICKEN
     FoodId: chicken-leg
     Prefab: {fileID: 8535146860524967466, guid: 56b49ec6f72e03346926330d3e7f9bb4, type: 3}
     Icon: {fileID: 21300000, guid: 16e42be08bea5a049b903a6b515c78e5, type: 3}
@@ -5480,7 +5480,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "G\xC0"
+  m_Text: CHICKEN
 --- !u!222 &2110419979
 CanvasRenderer:
   m_ObjectHideFlags: 0

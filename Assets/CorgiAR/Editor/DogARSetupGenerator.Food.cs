@@ -79,7 +79,7 @@ namespace CorgiAR.EditorTools
             {
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "GÀ",
+                    DisplayName = "CHICKEN",
                     FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,
@@ -260,7 +260,7 @@ namespace CorgiAR.EditorTools
             {
                 new FoodDragThrowUI.FoodChoice
                 {
-                    DisplayName = "G\u00C0",
+                    DisplayName = "CHICKEN",
                     FoodId = FoodCatalogIds.ChickenLeg,
                     Prefab = chickenPrefab,
                     Icon = chickenIcon,

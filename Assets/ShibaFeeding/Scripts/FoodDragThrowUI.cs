@@ -78,7 +78,7 @@ namespace ShibaFeeding
         public int SelectedFoodIndex => selectedFoodIndex;
         public string SelectedFoodName => HasFoodChoices
             ? foodChoices[selectedFoodIndex].DisplayName
-            : "G\u00C0";
+            : "CHICKEN";
         public Sprite SelectedFoodIcon => HasFoodChoices ? SelectedChoice().Icon : null;
         public int SelectedFoodQuantity => HasFoodChoices ? QuantityOf(SelectedChoice()) : 0;
 
@@ -427,7 +427,7 @@ namespace ShibaFeeding
             {
                 return new FoodChoice
                 {
-                    DisplayName = "G\u00C0",
+                    DisplayName = "CHICKEN",
                     Prefab = foodPrefab,
                     TrailStart = new Color(1f, 0.82f, 0.28f, 0.55f),
                     TrailEnd = new Color(1f, 0.35f, 0.05f, 0f)
