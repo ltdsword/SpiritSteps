@@ -42,6 +42,9 @@ namespace ARWalking.UI
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
         bool _accountResetConfirming;
+        bool _accountNameEditing;
+        string _pendingAccountDisplayName = string.Empty;
+        float _lastKeyboardInsetPixels;
         int _viewerPhotoIndex;
         ActivityPeriod _activityPeriod;
         int _activityOffset;
@@ -84,6 +87,12 @@ namespace ARWalking.UI
         {
             var screenSize = new Vector2Int(Screen.width, Screen.height);
             if (Screen.safeArea != _lastSafeArea || screenSize != _lastScreenSize) ApplySafeArea();
+            var keyboardInsetPixels = CurrentKeyboardInsetPixels();
+            if (!Mathf.Approximately(keyboardInsetPixels, _lastKeyboardInsetPixels))
+            {
+                _lastKeyboardInsetPixels = keyboardInsetPixels;
+                ApplySafeArea();
+            }
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
             if (IsMapRoute() && _runtime.MapView != null && _runtime.MapView.IsAvailable)
                 RenderRealMapMarkers();
@@ -123,7 +132,15 @@ namespace ARWalking.UI
         /// <summary>Opens the Shop's Pet Detail modal for a companion index (test/entry-point hook).</summary>
         public void ShowPetDetail(int index) => ShowPetDetailModal(index);
         /// <summary>Claims the Map's current Mission Card reward, if any is claimable (test/entry-point hook).</summary>
-        public bool ClaimCurrentMission() { var claimed = _runtime.ClaimCurrentMission(); if (claimed) Render(); return claimed; }
+        public bool ClaimCurrentMission()
+        {
+            var mission = _runtime.CurrentMission();
+            var claimed = _runtime.ClaimCurrentMission();
+            if (!claimed) return false;
+            Render();
+            ShowToast(string.IsNullOrEmpty(mission?.rewardLabel) ? "Mission reward claimed!" : "Reward claimed · " + mission.rewardLabel);
+            return true;
+        }
         /// <summary>Switches the Activity Dashboard's Week/Month/Year tab (test/entry-point hook) - mirrors tapping a period tab, resetting to the current period's offset.</summary>
         public void SetActivityPeriod(ActivityPeriod period) { _activityPeriod = period; _activityOffset = 0; Render(); }
 
@@ -391,12 +408,9 @@ namespace ARWalking.UI
         {
             var walking = _runtime.WalkProvider.IsWalking;
             var weekly = _runtime.GetWeeklyActivity();
-            var metrics = walking ? _runtime.WalkProvider.GetLiveMetrics() : new WalkMetrics
-            {
-                distanceKilometres = weekly.todayDistanceKilometres,
-                hasSteps = weekly.todayHasSteps,
-                steps = weekly.todaySteps
-            };
+            // This card is a session HUD. Daily/lifetime activity belongs in the top status bar and
+            // Activity Dashboard, so an idle card must always start from a clean zero state.
+            var metrics = walking ? _runtime.WalkProvider.GetLiveMetrics() : new WalkMetrics { hasSteps = true };
             var card = Card("walk-control-card", "floating-surface", "elevated-card");
             var top = Row("walk-summary-row");
             var main = Column("walk-main-metric");
@@ -478,7 +492,7 @@ namespace ARWalking.UI
                     () => ShowLandmarkSheet(mission.landmarkId), "primary-action", "mission-claim-button"));
             else
                 card.Add(ActionWithIcon("sparkles", null, "Mission Complete — Tap to Claim",
-                    () => { if (_runtime.ClaimCurrentMission()) Render(); }, "mission-claim-button", "icon-action-button"));
+                    () => ClaimCurrentMission(), "mission-claim-button", "icon-action-button"));
             return card;
         }
 
@@ -1226,6 +1240,8 @@ namespace ARWalking.UI
         void ShowAccountPanel()
         {
             _accountResetConfirming = false;
+            _accountNameEditing = false;
+            _pendingAccountDisplayName = _runtime.SaveData.displayName;
             RenderAccountPanel();
         }
 
@@ -1239,16 +1255,18 @@ namespace ARWalking.UI
             avatar.Add(Label(initial, "account-avatar-initial"));
             modal.Add(avatar);
 
-            var nameField = new UiTextField { value = _runtime.SaveData.displayName, maxLength = 20 };
+            var nameRow = Row("account-name-row");
+            var nameField = new UiTextField { name = "account-name-field", value = _pendingAccountDisplayName, maxLength = 20, isReadOnly = !_accountNameEditing };
             nameField.AddToClassList("account-name-field");
-            nameField.RegisterValueChangedCallback(evt =>
-            {
-                var normalized = PlayerSaveData.NormalizeDisplayName(evt.newValue);
-                if (!PlayerSaveData.IsValidDisplayName(normalized)) return;
-                _runtime.SaveData.displayName = normalized;
-                _runtime.Persist();
-            });
-            modal.Add(nameField);
+            if (!_accountNameEditing) nameField.AddToClassList("account-name-field-readonly");
+            nameField.RegisterValueChangedCallback(evt => { if (_accountNameEditing) _pendingAccountDisplayName = evt.newValue; });
+            nameRow.Add(nameField);
+            nameRow.Add(IconAction(_accountNameEditing ? "check" : "pencil", null, _accountNameEditing ? "SAVE" : "EDIT",
+                _accountNameEditing ? (Action)CommitAccountNameEdit : BeginAccountNameEdit,
+                "account-name-edit-button", "small-round-control", _accountNameEditing ? "account-name-save-button" : "account-name-pencil-button",
+                _accountNameEditing ? "dark-round-control" : null));
+            modal.Add(nameRow);
+            if (_accountNameEditing) nameField.schedule.Execute(nameField.Focus).StartingIn(1);
             modal.Add(Divider());
 
             if (!_accountResetConfirming)
@@ -1263,6 +1281,31 @@ namespace ARWalking.UI
                 confirmRow.Add(Action("Reset", () => { RemoveTransientOverlay(); ConfirmResetLocalProgress(); }, "danger-action", "half-action"));
                 modal.Add(confirmRow);
             }
+        }
+
+        void BeginAccountNameEdit()
+        {
+            _accountNameEditing = true;
+            _pendingAccountDisplayName = _runtime.SaveData.displayName;
+            RenderAccountPanel();
+        }
+
+        void CommitAccountNameEdit()
+        {
+            var normalized = PlayerSaveData.NormalizeDisplayName(_pendingAccountDisplayName);
+            if (!PlayerSaveData.IsValidDisplayName(normalized))
+            {
+                ShowToast("Enter 1 to 20 characters.");
+                return;
+            }
+
+            _runtime.SaveData.displayName = normalized;
+            _runtime.Persist();
+            _pendingAccountDisplayName = normalized;
+            _accountNameEditing = false;
+            var profileInitial = _safeRoot.Q<Label>(className: "profile-initial");
+            if (profileInitial != null) profileInitial.text = normalized.Substring(0, 1).ToUpperInvariant();
+            RenderAccountPanel();
         }
 
 
@@ -1702,9 +1745,16 @@ namespace ARWalking.UI
             _safeRoot.style.paddingLeft = safe.xMin * scale;
             _safeRoot.style.paddingRight = (Screen.width - safe.xMax) * scale;
             _safeRoot.style.paddingTop = (Screen.height - safe.yMax) * scale;
-            _safeRoot.style.paddingBottom = safe.yMin * scale;
+            _safeRoot.style.paddingBottom = Mathf.Max(safe.yMin, _lastKeyboardInsetPixels) * scale;
             _lastSafeArea = safe;
             _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
+        }
+
+        float CurrentKeyboardInsetPixels()
+        {
+            if (_runtime == null || _runtime.Navigator.CurrentRoute != UiRoute.OnboardingSetup || _setupStep != 1 || !TouchScreenKeyboard.visible)
+                return 0f;
+            return Mathf.Max(0f, TouchScreenKeyboard.area.height);
         }
 
         sealed class ActivityRing : VisualElement
