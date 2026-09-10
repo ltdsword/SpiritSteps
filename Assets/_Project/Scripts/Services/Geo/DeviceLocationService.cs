@@ -34,6 +34,10 @@ namespace ARWalking.UI
 
         bool _active;
         Coroutine _routine;
+#if UNITY_ANDROID
+        bool _backgroundTracking;
+        AndroidLocationBridge _bridge;
+#endif
 
         /// <summary>Begins requesting permission (if needed) and polling GPS. Safe to call more than once.</summary>
         public void Activate()
@@ -43,6 +47,50 @@ namespace ARWalking.UI
             Current = editorSimulatedStart;
             _routine = StartCoroutine(Application.isEditor ? RunEditorSimulation() : RunRealGps());
         }
+
+        /// <summary>
+        /// Switches GPS collection to WalkTrackingService.java's foreground service so fixes keep arriving
+        /// after the screen locks - Input.location's own polling stops once Android pauses Unity's player
+        /// loop, which happens on screen-off just like backgrounding. Call from an active walk; call
+        /// <see cref="StopBackgroundTracking"/> when the walk ends. No-op outside Android/on-device builds.
+        /// </summary>
+        public void StartBackgroundTracking()
+        {
+            Activate();
+#if UNITY_ANDROID
+            if (_backgroundTracking || Application.isEditor) return;
+            _backgroundTracking = true;
+            if (_routine != null) { StopCoroutine(_routine); _routine = null; }
+            Input.location.Stop();
+            _bridge = AndroidLocationBridge.EnsureInstance();
+            _bridge.OnFixReceived += OnBackgroundFix;
+            AndroidForegroundLocationService.Start(updateDistanceMeters, pollIntervalSeconds);
+#endif
+        }
+
+        /// <summary>Stops the background foreground-service tracking and resumes normal foreground polling.</summary>
+        public void StopBackgroundTracking()
+        {
+#if UNITY_ANDROID
+            if (!_backgroundTracking || Application.isEditor) return;
+            _backgroundTracking = false;
+            if (_bridge != null) _bridge.OnFixReceived -= OnBackgroundFix;
+            AndroidForegroundLocationService.Stop();
+            if (_active) _routine = StartCoroutine(RunRealGps());
+#endif
+        }
+
+#if UNITY_ANDROID
+        void OnBackgroundFix(GeoPoint point)
+        {
+            if (!HasFix || !point.Equals(Current))
+            {
+                Current = point;
+                HasFix = true;
+                OnLocationUpdated?.Invoke(Current);
+            }
+        }
+#endif
 
         void OnDestroy()
         {

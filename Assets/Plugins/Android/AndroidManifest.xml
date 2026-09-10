@@ -9,7 +9,12 @@
       <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
       <meta-data android:name="android.app.lib_name" android:value="game" />
     </activity>
+    <service android:name="com.team06.arwalking.location.WalkTrackingService" android:exported="false" android:foregroundServiceType="location" />
   </application>
   <uses-permission android:name="android.permission.VIBRATE" />
   <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
