@@ -57,6 +57,10 @@ namespace ARWalking.UI
             root.style.backgroundColor = new StyleColor(Color.clear);
             root.pickingMode = PickingMode.Ignore;
             root.Add(_panel);
+            // See HomeUiController.BuildRoot - anchor the notification container to the top instead of
+            // App UI's default center, and keep only one toast on screen at a time (ShowToast below).
+            _panel.notificationContainer.style.justifyContent = Justify.FlexStart;
+            _panel.notificationContainer.style.paddingTop = 140f;
             _safeRoot = Element("safe-area", "safe-area");
             _safeRoot.style.backgroundColor = new StyleColor(Color.clear);
             _safeRoot.pickingMode = PickingMode.Ignore;
@@ -205,6 +209,7 @@ namespace ARWalking.UI
 
         void ShowToast(string message)
         {
+            _panel.notificationContainer.Clear();
             var toast = Label(message, "toast");
             _panel.notificationContainer.Add(toast);
             toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(2200);

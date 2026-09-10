@@ -15,104 +15,120 @@ MonoBehaviour:
   companions:
   - id: corgi
     name: Corgi
-    description: A loyal starter who gains Growth EXP from completed kilometres and
-      food.
+    description: Despite their short legs, Corgis were bred in Wales to herd cattle
+      many times their size by nipping at the heels.
     imageKey: corgi
     unlockHint: Starter companion
     unlockDistanceKilometres: 0
   - id: uaa_husky
     name: Husky
-    description: A companion unlocked after 1 km of total walking distance.
+    description: Siberian Huskies were bred by Siberia's Chukchi people to pull
+      sleds hundreds of kilometres across the Arctic.
     imageKey: uaa_husky
     unlockHint: Walk 1 km total to unlock
     unlockDistanceKilometres: 1
   - id: uaa_fox
     name: Fox
-    description: A companion unlocked after 2 km of total walking distance.
+    description: A fox's bushy tail, called a brush, wraps around its body like
+      a blanket to keep it warm in winter.
     imageKey: uaa_fox
     unlockHint: Walk 2 km total to unlock
     unlockDistanceKilometres: 2
   - id: uaa_wolf
     name: Wolf
-    description: A companion unlocked after 3 km of total walking distance.
+    description: Wolves howl to communicate with pack members who may be miles
+      away, and each wolf's howl is unique.
     imageKey: uaa_wolf
     unlockHint: Walk 3 km total to unlock
     unlockDistanceKilometres: 3
   - id: pug
     name: Pug
-    description: A companion unlocked after 4 km of total walking distance.
+    description: Pugs were bred as lapdogs for Chinese emperors and later became
+      the mascot of the Dutch royal House of Orange.
     imageKey: pug
     unlockHint: Walk 4 km total to unlock
     unlockDistanceKilometres: 4
   - id: chihuahua
     name: Chihuahua
-    description: A companion unlocked after 5 km of total walking distance.
+    description: The world's smallest dog breed takes its name from the Mexican
+      state of Chihuahua, where it was first documented.
     imageKey: chihuahua
     unlockHint: Walk 5 km total to unlock
     unlockDistanceKilometres: 5
   - id: cur
     name: Shiba Inu (Kit)
-    description: A companion unlocked after 6 km of total walking distance.
+    description: Shiba Inu puppies are famously fox-like, a resemblance that helped
+      the breed become one of the internet's favourite memes.
     imageKey: cur
     unlockHint: Walk 6 km total to unlock
     unlockDistanceKilometres: 6
   - id: germanshepherd
     name: German Shepherd
-    description: A companion unlocked after 7 km of total walking distance.
+    description: German Shepherds are the most widely used dog breed in police and
+      military work thanks to their intelligence and drive.
     imageKey: germanshepherd
     unlockHint: Walk 7 km total to unlock
     unlockDistanceKilometres: 7
   - id: uaa_shiba
     name: Shiba Inu
-    description: A companion unlocked after 8 km of total walking distance.
+    description: The Shiba Inu is one of Japan's oldest native dog breeds, originally
+      kept to flush game from dense mountain brush.
     imageKey: uaa_shiba
     unlockHint: Walk 8 km total to unlock
     unlockDistanceKilometres: 8
   - id: uaa_alpaca
     name: Alpaca
-    description: A companion unlocked after 9 km of total walking distance.
+    description: Alpacas hum softly to express emotion and grow some of the warmest,
+      softest natural fibre of any animal.
     imageKey: uaa_alpaca
     unlockHint: Walk 9 km total to unlock
     unlockDistanceKilometres: 9
   - id: uaa_deer
     name: Deer
-    description: A companion unlocked by completing the Central Post Office AR Memory.
+    description: Deer have a reflective layer behind their eyes called the tapetum
+      lucidum, giving them excellent night vision.
     imageKey: uaa_deer
     unlockHint: Complete the Central Post Office AR Memory
     unlockDistanceKilometres: 0
   - id: uaa_stag
     name: Stag
-    description: A companion unlocked after 10 km of total walking distance.
+    description: A stag's antlers are shed and regrown every single year, making
+      them the fastest-growing bone tissue in nature.
     imageKey: uaa_stag
     unlockHint: Walk 10 km total to unlock
     unlockDistanceKilometres: 10
   - id: uaa_donkey
     name: Donkey
-    description: A companion unlocked after 12 km of total walking distance.
+    description: Donkeys have remarkably long memories and can recall the locations
+      of grazing grounds and other donkeys for decades.
     imageKey: uaa_donkey
     unlockHint: Walk 12 km total to unlock
     unlockDistanceKilometres: 12
   - id: uaa_bull
     name: Bull
-    description: A companion unlocked after 14 km of total walking distance.
+    description: Bulls are actually red-green colourblind, so it's the cape's motion,
+      not its colour, that draws a charge.
     imageKey: uaa_bull
     unlockHint: Walk 14 km total to unlock
     unlockDistanceKilometres: 14
   - id: uaa_cow
     name: Cow
-    description: A companion unlocked after 16 km of total walking distance.
+    description: Cows have almost 360-degree vision and can recognise and remember
+      individual human and cow faces.
     imageKey: uaa_cow
     unlockHint: Walk 16 km total to unlock
     unlockDistanceKilometres: 16
   - id: uaa_horse
     name: Horse
-    description: A companion unlocked after 18 km of total walking distance.
+    description: Horses can sleep both standing and lying down, thanks to a natural
+      locking mechanism in their leg joints.
     imageKey: uaa_horse
     unlockHint: Walk 18 km total to unlock
     unlockDistanceKilometres: 18
   - id: uaa_horse_white
     name: White Horse
-    description: A companion unlocked after 20 km of total walking distance.
+    description: Most pale "white" horses are actually greys that lost their colour
+      with age, since true white horses are extremely rare.
     imageKey: uaa_horse_white
     unlockHint: Walk 20 km total to unlock
     unlockDistanceKilometres: 20

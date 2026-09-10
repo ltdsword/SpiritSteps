@@ -417,7 +417,8 @@
 .featured-portrait-well { width: 250px; height: 250px; min-width: 250px; border-radius: 125px; background-color: rgba(255, 253, 247, 0.62); overflow: hidden; position: relative; margin-right: 28px; }
 .featured-companion-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .featured-copy .title { font-size: 49px; line-height: 52px; }
-.featured-copy .body { font-size: 22px; line-height: 29px; max-height: 94px; overflow: hidden; }
+.featured-description-clip { height: 94px; overflow: hidden; position: relative; margin-top: 4px; }
+.featured-description-text { font-size: 22px; line-height: 29px; position: absolute; left: 0; right: 0; top: 0; margin-top: 0; }
 .featured-name-row { align-items: center; }
 .featured-dots-row { flex-direction: row; align-items: center; justify-content: space-between; }
 .next-stage-label { font-size: 20px; color: rgb(105, 120, 109); margin-top: 18px; -unity-font-definition: url("../../Art/UI/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
@@ -470,7 +471,7 @@
 .shop-pet-price-label { font-size: 21px; color: rgb(84, 190, 107); -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-Bold.ttf"); -unity-font-style: normal; }
 
 /* Pet Detail modal (Shop) */
-.pet-detail-hero { height: 380px; min-height: 380px; margin: -40px -40px 20px -40px; position: relative; overflow: hidden; }
+.pet-detail-hero { height: 380px; min-height: 380px; margin: -40px -40px 20px -40px; position: relative; overflow: hidden; border-radius: 52px 52px 0 0; }
 .pet-detail-hero-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; }
 .pet-detail-rarity-badge { position: absolute; left: 24px; top: 24px; }
 .pet-detail-close { position: absolute; right: 22px; top: 22px; }
@@ -626,7 +627,7 @@
 
 /* Rarity (Shop / Pet Detail) */
 .rarity-pill { min-height: 40px; padding-left: 16px; padding-right: 16px; align-self: flex-start; }
-.rarity-pill .pill-label { font-size: 17px; letter-spacing: 1px; }
+.rarity-pill .pill-label { font-size: 17px; letter-spacing: 1px; white-space: nowrap; }
 .rarity-starter { background-color: rgb(239, 237, 222); }
 .rarity-starter .pill-label { color: rgb(105, 120, 109); }
 .rarity-common { background-color: rgb(224, 238, 220); }

@@ -310,7 +310,7 @@ namespace ARWalking.Tests.PlayMode
         public IEnumerator MissionClaimShowsRewardToastAndAdvancesToTheNextMission()
         {
             var home = CreateProfile();
-            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 0.1f;
+            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 0.02f;
             home.SelectRoot(UiRootTab.Companions);
             home.SelectRoot(UiRootTab.Map);
             yield return null;
@@ -319,9 +319,11 @@ namespace ARWalking.Tests.PlayMode
             yield return null;
 
             var root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(5));
-            Assert.That(root.Q<Label>(className: "toast")?.text, Is.EqualTo("Reward claimed · 5 coins"));
-            Assert.That(root.Q<Label>(className: "mission-title")?.text, Is.EqualTo("A Snack for Your Friend"));
+            // Fresh saves already start with a few rice balls (see PlayerSaveData.RepairCollections) -
+            // the mission adds 3 more on top of that starting stock.
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FoodQuantity("rice-ball"), Is.EqualTo(8));
+            Assert.That(root.Q<Label>(className: "toast")?.text, Is.EqualTo("Reward claimed · 3x rice-ball"));
+            Assert.That(root.Q<Label>(className: "mission-title")?.text, Is.EqualTo("Level up your companion"));
         }
 
         [UnityTest]
@@ -433,6 +435,37 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(UiPrototypeRuntime.Instance.SaveData.FindCompanion(PrototypeIds.Deer).unlocked, Is.True);
             Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Count, Is.EqualTo(1));
             Assert.That(UiPrototypeRuntime.Instance.SaveData.stamps.Count, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator LandmarkSheetShowsLockedTeaserUntilExploredThenRevealsFullStory()
+        {
+            var home = CreateProfile();
+            yield return null;
+
+            home.ShowLandmark(PrototypeIds.CentralPostOffice);
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q(className: "landmark-sheet"), Is.Not.Null);
+            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(0),
+                "An unexplored landmark's story shouldn't be spoiled before the player completes its AR mission by scanning it.");
+            Assert.That(root.Q<Label>(className: "body")?.text,
+                Is.EqualTo("There's a mission on this landmark. Please approach this site and explore it."));
+
+            UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, false, PendingPetInteraction.None, PrototypeIds.CentralPostOffice);
+            yield return WaitForScene("PetAr");
+            var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
+            ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage();
+            Assert.That(ar.CollectStamp().newlyCompleted, Is.True);
+
+            UiPrototypeRuntime.Instance.ReturnFromPetAr();
+            yield return WaitForScene("Home");
+            home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            home.ShowLandmark(PrototypeIds.CentralPostOffice);
+            yield return null;
+            root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(3),
+                "Once the landmark is explored (its stamp collected), the full history/architecture/did-you-know story should be visible.");
         }
 
         [UnityTest]

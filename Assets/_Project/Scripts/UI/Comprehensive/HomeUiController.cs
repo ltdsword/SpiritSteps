@@ -102,7 +102,14 @@ namespace ARWalking.UI
                 _lastKeyboardInsetPixels = keyboardInsetPixels;
                 ApplySafeArea();
             }
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleBack();
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                // Escape/Android back closes whatever overlay is on top (photo viewer, sheet,
+                // modal...) first, instead of falling through to the screen underneath - without
+                // this, back silently navigated that screen while the overlay stayed open on top.
+                if (_overlayScrim != null) RemoveTransientOverlay();
+                else HandleBack();
+            }
             if (IsMapRoute() && _runtime.MapView != null && _runtime.MapView.IsAvailable)
                 RenderRealMapMarkers();
             if (IsMapRoute()) RefreshNearbyLandmarkAlert();
@@ -211,6 +218,12 @@ namespace ARWalking.UI
             _panel = new AppPanel { name = "ar-walking-app-panel", theme = "light", scale = "medium" };
             _panel.AddToClassList("app-root");
             root.Add(_panel);
+            // App UI's Panel centers its notification container both vertically and horizontally by
+            // default, which stacks toasts on top of each other and overflows the screen when several
+            // fire in quick succession (e.g. spamming the Feed button) - anchor it to the top instead;
+            // ShowToast itself keeps only one toast on screen at a time.
+            _panel.notificationContainer.style.justifyContent = Justify.FlexStart;
+            _panel.notificationContainer.style.paddingTop = 140f;
             _safeRoot = Element("safe-area", "safe-area");
             _panel.Add(_safeRoot);
         }
@@ -705,7 +718,7 @@ namespace ARWalking.UI
             nameRow.Add(Pill(stage.ToString(), "stage-pill"));
             copy.Add(nameRow);
             copy.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant()));
-            copy.Add(Body(definition.description));
+            copy.Add(BuildAutoScrollingDescription(definition.description));
             var dotsRow = Row("featured-dots-row");
             dotsRow.Add(StageDots(stage));
             dotsRow.Add(Label(NextStageLabel(stage), "next-stage-label"));
@@ -1003,14 +1016,23 @@ namespace ARWalking.UI
             sheet.Add(hero);
 
             var body = Element(null, "landmark-sheet-body");
-            body.Add(Label(landmark.localName, "landmark-sheet-local-name"));
-            body.Add(Title(landmark.name));
-            body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
-            body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
-            body.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
-            body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
-            body.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
+            if (collected)
+            {
+                body.Add(Label(landmark.localName, "landmark-sheet-local-name"));
+                body.Add(Title(landmark.name));
+                body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
+                body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
+                body.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
+                body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
+                body.Add(InfoRow("stamp", "Stamp collected", "Saved in your Journey", "primary-info"));
+            }
+            else
+            {
+                body.Add(Title(landmark.name));
+                body.Add(Body("There's a mission on this landmark. Please approach this site and explore it."));
+                body.Add(InfoRow("lock", "Mission locked", "Explore this landmark to reveal its story", "blossom-info"));
+            }
             if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
                 body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
@@ -1019,7 +1041,13 @@ namespace ARWalking.UI
             sheet.Add(body);
 
             _overlayScrim.Add(sheet);
-            _panel.popupContainer.Add(_overlayScrim);
+            // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
+            // rather than into _panel.popupContainer - that container renders through App UI's
+            // own floating-root mechanism, entirely outside this document's normal child order,
+            // so the nav bar (and anything else in _safeRoot) painted over it regardless of
+            // BringToFront(). Appending here instead puts the scrim after _safeRoot in the same
+            // parent, which is enough on its own to paint on top.
+            _panel.Add(_overlayScrim);
             SyncMapViewVisibility();
         }
 
@@ -1101,7 +1129,18 @@ namespace ARWalking.UI
                 var landmarkIndex = i;
                 var landmark = _data.Landmarks[i];
                 var collected = IsStampCollected(landmark.id);
-                var stamp = Element(null, "passport-stamp");
+                // Only an unlocked stamp opens its memory - a locked one stays a plain,
+                // non-interactive tile (nothing to show yet).
+                var stamp = collected
+                    ? new UiButton(() =>
+                    {
+                        var journeyIndex = FindLatestJourneyIndexForLandmark(landmark.id);
+                        if (journeyIndex < 0) return;
+                        _runtime.SelectedJourneyIndex = journeyIndex;
+                        Navigate(UiRoute.JourneyDetail);
+                    }) { name = "passport-stamp-" + landmark.id }
+                    : Element(null);
+                stamp.AddToClassList("passport-stamp");
                 if (collected) stamp.AddToClassList("passport-stamp-collected");
                 if (collected)
                     stamp.Add(Image(_assets != null ? _assets.Landmark(landmarkIndex) : null, "passport-stamp-image", ScaleMode.ScaleAndCrop));
@@ -1111,29 +1150,6 @@ namespace ARWalking.UI
                 passport.Add(stamp);
             }
             scroll.Add(passport);
-            scroll.Add(SectionTitle("Memory timeline"));
-            if (_runtime.SaveData.journeys.Count == 0)
-            {
-                var empty = Card("journey-empty-card");
-                empty.Add(IconView("book-heart", "journey-empty-icon", Primary, _assets != null ? _assets.iconJourney : null));
-                empty.Add(Subtitle("Your first page is waiting"));
-                empty.Add(Body("Complete a Landmark AR Memory or take an AR photo with a companion."));
-                scroll.Add(empty);
-            }
-            for (var i = _runtime.SaveData.journeys.Count - 1; i >= 0; i--)
-            {
-                var index = i;
-                var journey = _runtime.SaveData.journeys[i];
-                var button = new UiButton(() => { _runtime.SelectedJourneyIndex = index; Navigate(UiRoute.JourneyDetail); }) { name = "journey-" + journey.id };
-                button.AddToClassList("journey-memory-card");
-                button.Add(Image(JourneyImage(journey), "journey-memory-image"));
-                var overlay = Element(null, "journey-memory-overlay");
-                overlay.Add(Pill(DateLabel(journey.createdUtc), "journey-date-pill"));
-                overlay.Add(Subtitle(JourneyDisplayTitle(journey)));
-                overlay.Add(Body(journey.summary));
-                button.Add(overlay);
-                scroll.Add(button);
-            }
 
             scroll.Add(SectionTitle("Photos"));
             scroll.Add(Body("AR photos with your companions"));
@@ -1151,7 +1167,24 @@ namespace ARWalking.UI
                 for (var i = _runtime.SaveData.savedPhotoPaths.Count - 1; i >= 0; i--)
                 {
                     var index = i;
-                    var thumb = new UiButton(() => { _viewerPhotoIndex = index; ShowPhotoViewer(); }) { name = "journey-photo-" + index };
+                    var thumb = new UiButton(() =>
+                    {
+                        // Landmark story or companion "View in AR", depending on which kind of
+                        // journey entry this photo belongs to - falls back to the standalone
+                        // viewer only for a photo with no journey entry pointing at it, which the
+                        // normal capture flow shouldn't produce.
+                        var journeyIndex = FindJourneyIndexForPhotoPath(_runtime.SaveData.savedPhotoPaths[index]);
+                        if (journeyIndex >= 0)
+                        {
+                            _runtime.SelectedJourneyIndex = journeyIndex;
+                            Navigate(UiRoute.JourneyDetail);
+                        }
+                        else
+                        {
+                            _viewerPhotoIndex = index;
+                            ShowPhotoViewer();
+                        }
+                    }) { name = "journey-photo-" + index };
                     thumb.AddToClassList("journey-photo-thumb");
                     thumb.Add(Image(LoadPhoto(_runtime.SaveData.savedPhotoPaths[index]), "journey-photo-thumb-image", ScaleMode.ScaleAndCrop));
                     photoGrid.Add(thumb);
@@ -1201,7 +1234,13 @@ namespace ARWalking.UI
             RemoveTransientOverlay();
             _overlayScrim = Element("journey-photo-viewer-scrim", "journey-photo-viewer");
             RenderPhotoViewerContent();
-            _panel.popupContainer.Add(_overlayScrim);
+            // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
+            // rather than into _panel.popupContainer - that container renders through App UI's
+            // own floating-root mechanism, entirely outside this document's normal child order,
+            // so the nav bar (and anything else in _safeRoot) painted over it regardless of
+            // BringToFront(). Appending here instead puts the scrim after _safeRoot in the same
+            // parent, which is enough on its own to paint on top.
+            _panel.Add(_overlayScrim);
             SyncMapViewVisibility();
         }
 
@@ -1253,7 +1292,7 @@ namespace ARWalking.UI
             var scroll = ScreenWithHeader(JourneyDisplayTitle(journey), DateLabel(journey.createdUtc), true);
             var photo = Card("journey-photo-frame", "elevated-card");
             photo.Add(Image(JourneyImage(journey), "journey-detail-image"));
-            photo.Add(Label((string.IsNullOrEmpty(journey.photoPath) ? "Landmark Stamp" : "Photo Memory") + " · District 1, Saigon", "journey-photo-caption"));
+            photo.Add(Label(string.IsNullOrEmpty(journey.photoPath) ? "Landmark Stamp" : "Photo Memory", "journey-photo-caption"));
             scroll.Add(photo);
             var note = Card("scrapbook-card");
             note.Add(Eyebrow("LOCAL JOURNEY RECORD"));
@@ -1405,7 +1444,13 @@ namespace ARWalking.UI
             var sheet = Card(sheetName, "discovery-tray", "elevated-card");
             sheet.Add(Element("sheet-handle", "sheet-handle"));
             _overlayScrim.Add(sheet);
-            _panel.popupContainer.Add(_overlayScrim);
+            // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
+            // rather than into _panel.popupContainer - that container renders through App UI's
+            // own floating-root mechanism, entirely outside this document's normal child order,
+            // so the nav bar (and anything else in _safeRoot) painted over it regardless of
+            // BringToFront(). Appending here instead puts the scrim after _safeRoot in the same
+            // parent, which is enough on its own to paint on top.
+            _panel.Add(_overlayScrim);
             SyncMapViewVisibility();
             return sheet;
         }
@@ -1420,7 +1465,13 @@ namespace ARWalking.UI
             if (withCloseButton)
                 modal.Add(IconAction("x", _assets != null ? _assets.iconClose : null, "X", RemoveTransientOverlay, "modal-close", "small-round-control"));
             _overlayScrim.Add(modal);
-            _panel.popupContainer.Add(_overlayScrim);
+            // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
+            // rather than into _panel.popupContainer - that container renders through App UI's
+            // own floating-root mechanism, entirely outside this document's normal child order,
+            // so the nav bar (and anything else in _safeRoot) painted over it regardless of
+            // BringToFront(). Appending here instead puts the scrim after _safeRoot in the same
+            // parent, which is enough on its own to paint on top.
+            _panel.Add(_overlayScrim);
             SyncMapViewVisibility();
             return modal;
         }
@@ -1575,7 +1626,13 @@ namespace ARWalking.UI
             }
             modal.Add(Action("Close", _runtime.Navigator.CloseOverlay, "primary-action"));
             _overlayScrim.Add(modal);
-            _panel.popupContainer.Add(_overlayScrim);
+            // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
+            // rather than into _panel.popupContainer - that container renders through App UI's
+            // own floating-root mechanism, entirely outside this document's normal child order,
+            // so the nav bar (and anything else in _safeRoot) painted over it regardless of
+            // BringToFront(). Appending here instead puts the scrim after _safeRoot in the same
+            // parent, which is enough on its own to paint on top.
+            _panel.Add(_overlayScrim);
         }
 
         void RemoveTransientOverlay()
@@ -1762,6 +1819,14 @@ namespace ARWalking.UI
             return -1;
         }
 
+        int FindJourneyIndexForPhotoPath(string photoPath)
+        {
+            for (var i = _runtime.SaveData.journeys.Count - 1; i >= 0; i--)
+                if (_runtime.SaveData.journeys[i] != null && _runtime.SaveData.journeys[i].photoPath == photoPath)
+                    return i;
+            return -1;
+        }
+
         int UnlockedCompanionCount()
         {
             var count = 0;
@@ -1839,6 +1904,7 @@ namespace ARWalking.UI
 
         void ShowToast(string message)
         {
+            _panel.notificationContainer.Clear();
             var toast = Label(message, "toast");
             _panel.notificationContainer.Add(toast);
             toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(2200);
@@ -1890,6 +1956,44 @@ namespace ARWalking.UI
         static Label Subtitle(string text) => Label(text, "subtitle");
         static Label Body(string text) => Label(text, "body");
         static Label Eyebrow(string text) => Label(text, "eyebrow");
+
+        const int AutoScrollHoldMs = 1400;
+        const int AutoScrollMoveMs = 900;
+
+        /// <summary>The featured companion card's description box (.featured-description-clip in
+        /// ARWalking.uss) has a fixed height so the hero card's size stays consistent across
+        /// companions, but trivia sentences vary in length. When one overflows the box, this scrolls
+        /// it up and down on a loop instead of clipping it outright.</summary>
+        static VisualElement BuildAutoScrollingDescription(string text)
+        {
+            var clip = Element(null, "featured-description-clip");
+            var label = Body(text); // keeps .body's colour/font; .featured-description-text only repositions/resizes it
+            label.AddToClassList("featured-description-text");
+            clip.Add(label);
+            var started = false;
+            clip.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                if (started) return;
+                started = true;
+                BeginAutoScrollIfNeeded(clip, label);
+            });
+            return clip;
+        }
+
+        static void BeginAutoScrollIfNeeded(VisualElement clip, Label label)
+        {
+            var overflow = label.resolvedStyle.height - clip.resolvedStyle.height;
+            if (overflow <= 1f) return; // short trivia already fits - nothing to scroll
+            label.schedule.Execute(() => AutoScrollTo(label, overflow, true)).StartingIn(AutoScrollHoldMs);
+        }
+
+        static void AutoScrollTo(Label label, float overflow, bool scrollDown)
+        {
+            var target = scrollDown ? -overflow : 0f;
+            label.experimental.animation
+                .Start(label.resolvedStyle.top, target, AutoScrollMoveMs, (element, value) => element.style.top = value)
+                .OnCompleted(() => label.schedule.Execute(() => AutoScrollTo(label, overflow, !scrollDown)).StartingIn(AutoScrollHoldMs));
+        }
 
         static VisualElement Element(string name, params string[] classes)
         {
