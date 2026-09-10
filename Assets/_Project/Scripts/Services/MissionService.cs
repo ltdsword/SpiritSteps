@@ -12,26 +12,27 @@ namespace ARWalking.UI
     /// </summary>
     public sealed class MissionService
     {
-        /// <summary>Condensed from the design doc's 5-step tutorial (section 18-22): the "First
-        /// Companion" step is skipped here because the starter companion is already granted during
-        /// onboarding, before any mission card could show it.</summary>
+        /// <summary>The onboarding tutorial chain, in the order the Mission Card presents them: walk
+        /// 20m (reward: 3 rice balls - exactly enough Growth EXP to push the starter Corgi from Baby
+        /// to Young, so the very next step is guaranteed completable), level up the companion to Young
+        /// (reward: 20 coins), then buy a food item from the Shop (reward: 10 coins). The starter
+        /// companion itself is already granted during onboarding, before any mission card could show
+        /// it, so there's no separate "get a companion" tutorial step here.</summary>
         static readonly MissionDefinition[] Tutorial =
         {
-            new MissionDefinition { id = "tutorial-walk", type = MissionType.Tutorial, iconKey = "🚶", title = "Walk Together", description = "Walk 100m with your companion.", targetValue = 0.1f, rewardCoins = 5 },
-            new MissionDefinition { id = "tutorial-shop", type = MissionType.Tutorial, iconKey = "🍙", title = "A Snack for Your Friend", description = "Buy a food item from the Shop.", targetValue = 1f },
-            new MissionDefinition { id = "tutorial-feed", type = MissionType.Tutorial, iconKey = "🍙", title = "Snack Time", description = "Feed your companion.", targetValue = 1f, rewardFoodId = "rice-ball", rewardFoodQuantity = 1 },
-            new MissionDefinition { id = "tutorial-grow", type = MissionType.Tutorial, iconKey = "🌱", title = "Grow Together", description = "Feed your companion until it becomes Young.", targetValue = 1f, rewardCoins = 50 },
+            new MissionDefinition { id = "tutorial-walk", type = MissionType.Tutorial, iconKey = "🚶", title = "Walk Together", description = "Walk 20m with your companion.", targetValue = 0.02f, rewardFoodId = "rice-ball", rewardFoodQuantity = 3 },
+            new MissionDefinition { id = "tutorial-levelup", type = MissionType.Tutorial, iconKey = "🌱", title = "Level up your companion", description = "Feed your companion until it reaches Young.", targetValue = 1f, rewardCoins = 20 },
+            new MissionDefinition { id = "tutorial-shop", type = MissionType.Tutorial, iconKey = "🛍️", title = "A Snack for Your Friend", description = "Buy a food item from the Shop.", targetValue = 1f, rewardCoins = 10 },
         };
 
-        /// <summary>Lifetime walking-distance milestones (design doc section 24-26).</summary>
-        static readonly (float km, string title, int coins, string foodId, int foodQty)[] Milestones =
-        {
-            (1f, "First Kilometer", 50, "rice-ball", 1),
-            (10f, "10 Kilometers", 150, "chicken-leg", 1),
-            (50f, "50 Kilometers", 500, "chicken-leg", 2),
-            (100f, "100 Kilometers", 1000, null, 0),
-            (500f, "500 Kilometers", 5000, null, 0),
-        };
+        /// <summary>Post-tutorial walking milestones: an unbounded doubling series starting at 5 km
+        /// (5, 10, 20, 40, ...), each worth a flat 20 coins - the player always has exactly one next
+        /// target, forever, rather than running out after a fixed table.</summary>
+        const float FirstMilestoneKm = 5f;
+        const int MilestoneRewardCoins = 20;
+        /// <summary>Safety cap on how many doublings to search for an unclaimed milestone - doubling
+        /// from 5km blows past any realistic lifetime distance long before this many steps.</summary>
+        const int MaxMilestoneLookahead = 64;
 
         readonly PlayerSaveData _save;
         readonly IUiDataProvider _data;
@@ -73,25 +74,29 @@ namespace ARWalking.UI
                 if (allClaimed) _save.tutorialComplete = true;
             }
 
-            foreach (var milestone in Milestones)
+            var milestoneKm = FirstMilestoneKm;
+            for (var i = 0; i < MaxMilestoneLookahead; i++)
             {
-                var missionId = MilestoneId(milestone.km);
+                var missionId = MilestoneId(milestoneKm);
                 var progress = FindOrCreate(missionId);
-                if (progress.status == MissionStatus.Claimed) continue;
-                progress.currentValue = _save.totalDistanceKilometres;
-                if (progress.currentValue >= milestone.km) progress.status = MissionStatus.Completed;
-                return new MissionUiState
+                if (progress.status != MissionStatus.Claimed)
                 {
-                    missionId = missionId,
-                    type = MissionType.Walking,
-                    iconKey = "🏃",
-                    title = milestone.title,
-                    description = "Walk a total of " + milestone.km.ToString("0") + " km.",
-                    currentValue = progress.currentValue,
-                    targetValue = milestone.km,
-                    status = progress.status,
-                    rewardLabel = RewardLabel(milestone.coins, milestone.foodId, milestone.foodQty)
-                };
+                    progress.currentValue = _save.totalDistanceKilometres;
+                    if (progress.currentValue >= milestoneKm) progress.status = MissionStatus.Completed;
+                    return new MissionUiState
+                    {
+                        missionId = missionId,
+                        type = MissionType.Walking,
+                        iconKey = "🏃",
+                        title = milestoneKm.ToString("0") + " Kilometers",
+                        description = "Walk a total of " + milestoneKm.ToString("0") + " km.",
+                        currentValue = progress.currentValue,
+                        targetValue = milestoneKm,
+                        status = progress.status,
+                        rewardLabel = RewardLabel(MilestoneRewardCoins, null, 0)
+                    };
+                }
+                milestoneKm *= 2f;
             }
 
             if (_data != null && _mapProvider != null)
@@ -145,13 +150,7 @@ namespace ARWalking.UI
             }
             else if (state.type == MissionType.Walking)
             {
-                foreach (var milestone in Milestones)
-                {
-                    if (MilestoneId(milestone.km) != state.missionId) continue;
-                    _save.coins += milestone.coins;
-                    if (!string.IsNullOrEmpty(milestone.foodId)) _save.AddFood(milestone.foodId, milestone.foodQty);
-                    break;
-                }
+                _save.coins += MilestoneRewardCoins;
             }
 
             return true;
@@ -169,14 +168,9 @@ namespace ARWalking.UI
                     progress.currentValue = _save.everPurchasedFood ? 1f : 0f;
                     if (_save.everPurchasedFood) progress.status = MissionStatus.Completed;
                     break;
-                case "tutorial-feed":
-                    progress.currentValue = _save.everFedCompanion ? 1f : 0f;
-                    if (_save.everFedCompanion) progress.status = MissionStatus.Completed;
-                    break;
-                case "tutorial-grow":
-                    var starterId = CompanionRoster.Entries[0].Id;
+                case "tutorial-levelup":
                     var starterEntry = CompanionRoster.Entries[0];
-                    var starterProgress = _save.FindCompanion(starterId);
+                    var starterProgress = _save.FindCompanion(starterEntry.Id);
                     var stage = CompanionProgressionService.StageFor(starterEntry, starterProgress?.growthExperience ?? 0);
                     progress.currentValue = stage == GrowthStage.Baby ? 0f : 1f;
                     if (stage != GrowthStage.Baby) progress.status = MissionStatus.Completed;

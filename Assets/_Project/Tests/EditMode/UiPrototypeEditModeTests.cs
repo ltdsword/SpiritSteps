@@ -377,21 +377,69 @@ namespace ARWalking.Tests.EditMode
         }
 
         [Test]
-        public void FirstTutorialWalkMissionCompletesAtExactlyOneHundredMetres()
+        public void FirstTutorialWalkMissionCompletesAtExactlyTwentyMetres()
         {
             var save = PlayerSaveData.CreateNew("Mission Test");
             var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
             var missions = new MissionService(save, new StaticUiDataProvider(catalog), new DeterministicLandmarkMapProvider());
 
-            save.totalDistanceKilometres = 0.099f;
+            save.totalDistanceKilometres = 0.019f;
             var active = missions.CurrentMission();
             Assert.That(active.missionId, Is.EqualTo("tutorial-walk"));
-            Assert.That(active.targetValue, Is.EqualTo(0.1f));
-            Assert.That(active.description, Is.EqualTo("Walk 100m with your companion."));
+            Assert.That(active.targetValue, Is.EqualTo(0.02f));
+            Assert.That(active.description, Is.EqualTo("Walk 20m with your companion."));
             Assert.That(active.status, Is.EqualTo(MissionStatus.Active));
 
-            save.totalDistanceKilometres = 0.1f;
+            save.totalDistanceKilometres = 0.02f;
             Assert.That(missions.CurrentMission().status, Is.EqualTo(MissionStatus.Completed));
+        }
+
+        [Test]
+        public void TutorialOrderIsWalkThenLevelUpThenShop_AndWalkingMilestonesDoubleFromFiveKm()
+        {
+            var save = PlayerSaveData.CreateNew("Mission Order Test");
+            var catalog = Resources.Load<PrototypeUiCatalog>("UI/PrototypeUiCatalog");
+            var dataProvider = new StaticUiDataProvider(catalog);
+            var missions = new MissionService(save, dataProvider, new DeterministicLandmarkMapProvider());
+            var progression = new CompanionProgressionService(save, dataProvider);
+            var starterId = CompanionRoster.Entries[0].Id;
+
+            save.totalDistanceKilometres = 0.02f;
+            var walk = missions.CurrentMission();
+            Assert.That(walk.missionId, Is.EqualTo("tutorial-walk"));
+            Assert.That(walk.rewardLabel, Is.EqualTo("3x rice-ball"));
+            var riceBallsBeforeClaim = save.FoodQuantity("rice-ball");
+            Assert.That(missions.ClaimCurrent(), Is.True);
+            Assert.That(save.FoodQuantity("rice-ball"), Is.EqualTo(riceBallsBeforeClaim + 3), "Fresh saves already start with a few rice balls (see PlayerSaveData.RepairCollections) - the mission adds 3 more on top.");
+
+            var levelUp = missions.CurrentMission();
+            Assert.That(levelUp.missionId, Is.EqualTo("tutorial-levelup"));
+            Assert.That(missions.CurrentMission().status, Is.Not.EqualTo(MissionStatus.Completed), "The Corgi hasn't been fed yet - levelling up must not be free.");
+            // Feeding exactly the 3 rice balls the walk mission just granted (15 EXP each) is enough
+            // to cross the Corgi's 40 EXP Young threshold - matches the "feed all 3 rice balls" design.
+            for (var i = 0; i < 3; i++) Assert.That(progression.FeedCompanion(FoodCatalogIds.RiceBall, starterId).success, Is.True);
+            Assert.That(missions.CurrentMission().status, Is.EqualTo(MissionStatus.Completed));
+            Assert.That(missions.ClaimCurrent(), Is.True);
+            Assert.That(save.coins, Is.EqualTo(20));
+
+            var shop = missions.CurrentMission();
+            Assert.That(shop.missionId, Is.EqualTo("tutorial-shop"));
+            save.everPurchasedFood = true;
+            Assert.That(missions.CurrentMission().status, Is.EqualTo(MissionStatus.Completed));
+            Assert.That(missions.ClaimCurrent(), Is.True);
+            Assert.That(save.coins, Is.EqualTo(30));
+            Assert.That(save.tutorialComplete, Is.True);
+
+            var firstMilestone = missions.CurrentMission();
+            Assert.That(firstMilestone.type, Is.EqualTo(MissionType.Walking));
+            Assert.That(firstMilestone.targetValue, Is.EqualTo(5f));
+            Assert.That(firstMilestone.rewardLabel, Is.EqualTo("20 coins"));
+            save.totalDistanceKilometres = 5f;
+            Assert.That(missions.ClaimCurrent(), Is.True);
+            Assert.That(save.coins, Is.EqualTo(50));
+
+            var secondMilestone = missions.CurrentMission();
+            Assert.That(secondMilestone.targetValue, Is.EqualTo(10f), "Milestones double: 5km -> 10km.");
         }
 
         [Test]
