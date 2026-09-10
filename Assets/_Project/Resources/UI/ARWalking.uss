@@ -627,7 +627,7 @@
 
 /* Rarity (Shop / Pet Detail) */
 .rarity-pill { min-height: 40px; padding-left: 16px; padding-right: 16px; align-self: flex-start; }
-.rarity-pill .pill-label { font-size: 17px; letter-spacing: 1px; }
+.rarity-pill .pill-label { font-size: 17px; letter-spacing: 1px; white-space: nowrap; }
 .rarity-starter { background-color: rgb(239, 237, 222); }
 .rarity-starter .pill-label { color: rgb(105, 120, 109); }
 .rarity-common { background-color: rgb(224, 238, 220); }
