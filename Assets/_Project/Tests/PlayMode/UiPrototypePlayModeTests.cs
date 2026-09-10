@@ -438,6 +438,37 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator LandmarkSheetShowsLockedTeaserUntilExploredThenRevealsFullStory()
+        {
+            var home = CreateProfile();
+            yield return null;
+
+            home.ShowLandmark(PrototypeIds.CentralPostOffice);
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q(className: "landmark-sheet"), Is.Not.Null);
+            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(0),
+                "An unexplored landmark's story shouldn't be spoiled before the player completes its AR mission by scanning it.");
+            Assert.That(root.Q<Label>(className: "body")?.text,
+                Is.EqualTo("There's a mission on this landmark. Please approach this site and explore it."));
+
+            UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, false, PendingPetInteraction.None, PrototypeIds.CentralPostOffice);
+            yield return WaitForScene("PetAr");
+            var ar = UnityEngine.Object.FindFirstObjectByType<WalkUiController>();
+            ar.SimulateImageTargetRecognition(); ar.NextMemoryPage(); ar.NextMemoryPage();
+            Assert.That(ar.CollectStamp().newlyCompleted, Is.True);
+
+            UiPrototypeRuntime.Instance.ReturnFromPetAr();
+            yield return WaitForScene("Home");
+            home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
+            home.ShowLandmark(PrototypeIds.CentralPostOffice);
+            yield return null;
+            root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(3),
+                "Once the landmark is explored (its stamp collected), the full history/architecture/did-you-know story should be visible.");
+        }
+
+        [UnityTest]
         public IEnumerator ArPhotoSaveAndRestartReloadPersistData()
         {
             var home = CreateProfile();

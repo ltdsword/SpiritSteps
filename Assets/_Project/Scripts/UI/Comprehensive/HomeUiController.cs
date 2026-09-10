@@ -1002,14 +1002,23 @@ namespace ARWalking.UI
             sheet.Add(hero);
 
             var body = Element(null, "landmark-sheet-body");
-            body.Add(Label(landmark.localName, "landmark-sheet-local-name"));
-            body.Add(Title(landmark.name));
-            body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
-            body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
-            body.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
-            body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
-            body.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
+            if (collected)
+            {
+                body.Add(Label(landmark.localName, "landmark-sheet-local-name"));
+                body.Add(Title(landmark.name));
+                body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
+                body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
+                body.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
+                body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
+                body.Add(InfoRow("stamp", "Stamp collected", "Saved in your Journey", "primary-info"));
+            }
+            else
+            {
+                body.Add(Title(landmark.name));
+                body.Add(Body("There's a mission on this landmark. Please approach this site and explore it."));
+                body.Add(InfoRow("lock", "Mission locked", "Explore this landmark to reveal its story", "blossom-info"));
+            }
             if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
                 body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
