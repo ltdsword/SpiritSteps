@@ -42,6 +42,7 @@ namespace ARWalking.UI
         int _setupStep;
         int _featuredCompanionIndex;
         string _pendingDisplayName = string.Empty;
+        bool _displayNameFieldFocused;
         bool _accountResetConfirming;
         bool _accountNameEditing;
         string _pendingAccountDisplayName = string.Empty;
@@ -283,6 +284,11 @@ namespace ARWalking.UI
                 var field = new UiTextField("Display name") { name = "display-name-field", value = _pendingDisplayName, maxLength = 20 };
                 field.AddToClassList("name-field");
                 field.RegisterValueChangedCallback(evt => _pendingDisplayName = evt.newValue);
+                // On-device the on-screen keyboard would otherwise sit directly over this field (it's
+                // the second-to-last element in a bottom-docked sheet) - shift the whole page up while
+                // the field is focused so the field (and the button below it) stay above the keyboard.
+                field.RegisterCallback<FocusInEvent>(_ => { _displayNameFieldFocused = true; _lastKeyboardInsetPixels = CurrentKeyboardInsetPixels(); ApplySafeArea(); });
+                field.RegisterCallback<FocusOutEvent>(_ => { _displayNameFieldFocused = false; _lastKeyboardInsetPixels = CurrentKeyboardInsetPixels(); ApplySafeArea(); });
                 sheet.Add(field);
                 sheet.Add(ActionWithIcon("chevron-right", null, "Choose your companion", () =>
                 {
@@ -1200,9 +1206,13 @@ namespace ARWalking.UI
 
             _overlayScrim.Add(Action("Delete photo", () =>
             {
-                photos.RemoveAt(_viewerPhotoIndex);
-                _runtime.Persist();
-                if (photos.Count == 0) { RemoveTransientOverlay(); Render(); }
+                _runtime.DeletePhoto(path);
+                // Refreshes the Photos grid/stats and Memory timeline underneath the still-open
+                // viewer immediately - previously they only picked up the deletion on the next full
+                // Render() (e.g. a tab switch), and the timeline never picked it up at all since the
+                // old code only ever touched savedPhotoPaths, never the Journey entry referencing it.
+                Render();
+                if (photos.Count == 0) RemoveTransientOverlay();
                 else RenderPhotoViewerContent();
             }, "danger-action", "journey-photo-viewer-delete"));
 
@@ -1964,11 +1974,18 @@ namespace ARWalking.UI
             _lastScreenSize = new Vector2Int(Screen.width, Screen.height);
         }
 
+        // Driven by the display-name field's own focus state (see BuildOnboarding), not just
+        // TouchScreenKeyboard.visible - on some Android/iOS builds TouchScreenKeyboard.area reports 0 or a
+        // stale value while the on-screen keyboard is still animating in, so a height-only check can leave
+        // the field shifted by nothing even though the keyboard is about to cover it. Falling back to a
+        // generous fixed estimate whenever the field is focused guarantees the field always clears the
+        // keyboard, and real area data (once it becomes available) still wins for a tighter fit.
         float CurrentKeyboardInsetPixels()
         {
-            if (_runtime == null || _runtime.Navigator == null || _runtime.Navigator.CurrentRoute != UiRoute.OnboardingSetup || _setupStep != 1 || !TouchScreenKeyboard.visible)
+            if (_runtime == null || _runtime.Navigator == null || _runtime.Navigator.CurrentRoute != UiRoute.OnboardingSetup || _setupStep != 1 || !_displayNameFieldFocused)
                 return 0f;
-            return Mathf.Max(0f, TouchScreenKeyboard.area.height);
+            var reportedHeight = TouchScreenKeyboard.visible ? Mathf.Max(0f, TouchScreenKeyboard.area.height) : 0f;
+            return reportedHeight > 0f ? reportedHeight : Screen.height * 0.42f;
         }
 
         sealed class ActivityRing : VisualElement

@@ -281,6 +281,27 @@ namespace ARWalking.UI
             return value;
         }
 
+        /// <summary>Deletes a saved AR photo: removes it from the gallery, detaches it from any
+        /// Journey entry that used it as a cover image (otherwise the Memory timeline keeps showing
+        /// a photo the player just removed, with nothing short of taking a new one ever clearing
+        /// it), and deletes the file from disk.</summary>
+        public void DeletePhoto(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            SaveData.savedPhotoPaths.Remove(path);
+            foreach (var journey in SaveData.journeys)
+                if (journey != null && journey.photoPath == path) journey.photoPath = null;
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[UiPrototypeRuntime] Failed to delete photo file: " + e.Message);
+            }
+            Persist();
+        }
+
         void RecordPhoto(string path)
         {
             if (!SaveData.savedPhotoPaths.Contains(path)) SaveData.savedPhotoPaths.Add(path);

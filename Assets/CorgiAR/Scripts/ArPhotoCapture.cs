@@ -34,6 +34,7 @@ namespace CorgiAR
 
         private readonly List<Texture2D> sessionPhotos = new();
         private bool capturing;
+        private UIDocument overlayDocument;
 
         public event Action<string> ToastRequested;
         public event Action FlashRequested;
@@ -55,10 +56,23 @@ namespace CorgiAR
             capturing = true;
             bool hudWasOn = hudCanvas != null && hudCanvas.enabled;
             if (hudCanvas != null) hudCanvas.enabled = false;
-            bool hudDocWasOn = hudDocument != null && hudDocument.rootVisualElement != null &&
-                                hudDocument.rootVisualElement.style.display != DisplayStyle.None;
-            if (hudDocument != null && hudDocument.rootVisualElement != null)
-                hudDocument.rootVisualElement.style.display = DisplayStyle.None;
+
+            // WalkUiController draws the top-left Back button in its own UIDocument on a separate
+            // GameObject (see docs/AR-3D-INTEGRATION-CONTRACT.md) - it is not part of hudDocument
+            // (CorgiArGlassHud's own document), so it must be hidden here too or it gets baked into
+            // the screenshot. Resolved lazily/cached rather than serialized: WalkUiController lives
+            // in ARWalking.UI, and the one-way assembly boundary means it cannot reach back into
+            // CorgiAR to wire itself in, unlike CorgiArGlassHud's SetHudDocument call.
+            if (overlayDocument == null)
+            {
+                var overlay = FindFirstObjectByType<WalkUiController>();
+                if (overlay != null) overlayDocument = overlay.GetComponent<UIDocument>();
+            }
+
+            bool hudDocWasOn = IsDocumentVisible(hudDocument);
+            HideDocument(hudDocument);
+            bool overlayDocWasOn = IsDocumentVisible(overlayDocument);
+            HideDocument(overlayDocument);
 
             yield return new WaitForEndOfFrame();
 
@@ -75,8 +89,8 @@ namespace CorgiAR
             }
 
             if (hudCanvas != null) hudCanvas.enabled = hudWasOn;
-            if (hudDocument != null && hudDocument.rootVisualElement != null && hudDocWasOn)
-                hudDocument.rootVisualElement.style.display = DisplayStyle.Flex;
+            if (hudDocWasOn) ShowDocument(hudDocument);
+            if (overlayDocWasOn) ShowDocument(overlayDocument);
             hud?.ShowToast(message, 3.5f);
             ToastRequested?.Invoke(message);
 
@@ -105,6 +119,22 @@ namespace CorgiAR
             }
 
             capturing = false;
+        }
+
+        private static bool IsDocumentVisible(UIDocument doc) =>
+            doc != null && doc.rootVisualElement != null &&
+            doc.rootVisualElement.style.display != DisplayStyle.None;
+
+        private static void HideDocument(UIDocument doc)
+        {
+            if (doc != null && doc.rootVisualElement != null)
+                doc.rootVisualElement.style.display = DisplayStyle.None;
+        }
+
+        private static void ShowDocument(UIDocument doc)
+        {
+            if (doc != null && doc.rootVisualElement != null)
+                doc.rootVisualElement.style.display = DisplayStyle.Flex;
         }
 
         private void OnDestroy()
