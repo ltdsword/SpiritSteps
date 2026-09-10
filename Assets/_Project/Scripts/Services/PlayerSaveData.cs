@@ -113,7 +113,31 @@ namespace ARWalking.UI
 
             var save = new PlayerSaveData { setupComplete = true, displayName = normalized, coins = 0 };
             save.RepairCollections();
+            save.ApplyAdminPerksIfNamed();
             return save;
+        }
+
+        /// <summary>Testing/demo shortcut: a profile named "admin" (case-insensitive) gets a large
+        /// coin balance and two extra companions already owned, instead of the usual empty-handed
+        /// start - lets whoever needs to poke around the Shop/Companions screens do so without
+        /// grinding distance first. Called both from <see cref="CreateNew"/> and whenever the
+        /// display name changes from the Account panel, so renaming an existing profile to
+        /// "admin" grants the same perks as starting fresh with it. Coins only ever go up here,
+        /// never down, so renaming back and forth can't cost an already-admin profile progress.</summary>
+        public void ApplyAdminPerksIfNamed()
+        {
+            if (!string.Equals(displayName, "admin", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            coins = Mathf.Max(coins, 999999);
+            for (int i = 1; i <= 2 && i < CompanionRoster.Entries.Length; i++)
+            {
+                var companion = FindCompanion(CompanionRoster.Entries[i].Id);
+                if (companion == null)
+                    continue;
+                companion.unlocked = true;
+                companion.owned = true;
+            }
         }
 
         public static string NormalizeDisplayName(string value) => (value ?? string.Empty).Trim();

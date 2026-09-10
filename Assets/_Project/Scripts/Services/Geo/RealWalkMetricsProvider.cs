@@ -34,7 +34,7 @@ namespace ARWalking.UI
         public void StartWalk()
         {
             if (IsWalking) return;
-            _location.Activate();
+            _location.StartBackgroundTracking();
             _distanceMeters = 0;
             _lastFix = _location.HasFix ? _location.Current : (GeoPoint?)null;
             _startedAtRealtime = Time.realtimeSinceStartup;
@@ -52,6 +52,7 @@ namespace ARWalking.UI
             if (!IsWalking) throw new InvalidOperationException("A walk must be started before it can be stopped.");
             var result = Snapshot();
             _location.OnLocationUpdated -= OnLocationUpdated;
+            _location.StopBackgroundTracking();
             IsWalking = false;
             return result;
         }

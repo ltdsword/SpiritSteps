@@ -224,6 +224,64 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MissionClaimShowsRewardToastAndAdvancesToTheNextMission()
+        {
+            var home = CreateProfile();
+            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 0.1f;
+            home.SelectRoot(UiRootTab.Companions);
+            home.SelectRoot(UiRootTab.Map);
+            yield return null;
+
+            Assert.That(home.ClaimCurrentMission(), Is.True);
+            yield return null;
+
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(5));
+            Assert.That(root.Q<Label>(className: "toast")?.text, Is.EqualTo("Reward claimed · 5 coins"));
+            Assert.That(root.Q<Label>(className: "mission-title")?.text, Is.EqualTo("A Snack for Your Friend"));
+        }
+
+        [UnityTest]
+        public IEnumerator AccountNameIsReadOnlyUntilPencilThenCheckmarkPersistsIt()
+        {
+            var home = CreateProfile();
+            home.ShowAccount();
+            yield return null;
+
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var field = root.Q<TextField>("account-name-field");
+            Assert.That(field, Is.Not.Null);
+            Assert.That(field.isReadOnly, Is.True);
+            var pencil = root.Q<Button>("account-name-edit-button");
+            Assert.That(pencil, Is.Not.Null);
+            Assert.That(pencil.ClassListContains("account-name-pencil-button"), Is.True);
+            Assert.That(pencil.Q<UnityEngine.UIElements.Image>("icon-image")?.vectorImage, Is.Not.Null);
+
+            InvokePrivate(home, "BeginAccountNameEdit");
+            yield return null;
+            field = root.Q<TextField>("account-name-field");
+            Assert.That(field.isReadOnly, Is.False);
+            field.value = "  New Walker  ";
+            var save = root.Q<Button>("account-name-edit-button");
+            Assert.That(save.ClassListContains("account-name-save-button"), Is.True);
+            InvokePrivate(home, "CommitAccountNameEdit");
+            yield return null;
+
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.displayName, Is.EqualTo("New Walker"));
+            Assert.That(root.Q<TextField>("account-name-field").isReadOnly, Is.True);
+            Assert.That(root.Q<Label>(className: "profile-initial")?.text, Is.EqualTo("N"));
+
+            // Unchecked text is only a draft and must be discarded when the panel closes.
+            InvokePrivate(home, "BeginAccountNameEdit");
+            yield return null;
+            root.Q<TextField>("account-name-field").value = "Discard Me";
+            home.CloseFloatingOverlay();
+            home.ShowAccount();
+            yield return null;
+            Assert.That(root.Q<TextField>("account-name-field").value, Is.EqualTo("New Walker"));
+        }
+
+        [UnityTest]
         public IEnumerator V0ScreenAnatomyIsPresentAcrossEveryPrimaryRoute()
         {
             var home = CreateProfile();
@@ -232,6 +290,9 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Map);
             yield return null;
             Assert.That(root.Q(className: "map-viewport"), Is.Not.Null);
+            // Within(1f) - the runtime panel's ScaleWithScreenSize mode can snap sub-pixel layout values
+            // to the device-pixel grid, so an exact 0.1px tolerance is flaky across test-runner window sizes.
+            Assert.That(root.Q(className: "map-top-status-bar").resolvedStyle.left, Is.EqualTo(44f).Within(1f));
             Assert.That(root.Q(className: "walk-control-card"), Is.Not.Null);
             Assert.That(root.Q(className: "bottom-nav"), Is.Not.Null);
 
@@ -511,6 +572,13 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(home, Is.Not.Null);
             Assert.That(home.CompleteSetup("Test Walker"), Is.True);
             return home;
+        }
+
+        static void InvokePrivate(HomeUiController home, string methodName)
+        {
+            var method = typeof(HomeUiController).GetMethod(methodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            method.Invoke(home, null);
         }
 
         static IEnumerator WaitForScene(string sceneName)

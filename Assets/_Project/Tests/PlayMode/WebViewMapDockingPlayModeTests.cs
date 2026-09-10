@@ -81,7 +81,13 @@ namespace ARWalking.Tests.PlayMode
             yield return null; yield return null; yield return null;
 
             var root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(root.Q(className: "map-top-bar"), Is.Not.Null);
+            var topBar = root.Q(className: "map-top-bar");
+            Assert.That(topBar, Is.Not.Null);
+            // Within(1f) - the runtime panel's ScaleWithScreenSize mode can snap sub-pixel layout values
+            // to the device-pixel grid, so an exact 0.1px tolerance is flaky across test-runner window sizes.
+            Assert.That(topBar.resolvedStyle.marginLeft, Is.EqualTo(44f).Within(1f));
+            Assert.That(topBar.resolvedStyle.marginRight, Is.EqualTo(44f).Within(1f));
+            Assert.That(topBar.resolvedStyle.marginTop, Is.EqualTo(24f).Within(1f));
             Assert.That(root.Q(className: "map-bottom-bar"), Is.Not.Null);
             Assert.That(root.Q(className: "map-top-overlay"), Is.Null, "the old floating overlay must not be built when the webview map is available");
         }

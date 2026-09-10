@@ -17,7 +17,7 @@ namespace ARWalking.UI
         /// onboarding, before any mission card could show it.</summary>
         static readonly MissionDefinition[] Tutorial =
         {
-            new MissionDefinition { id = "tutorial-walk", type = MissionType.Tutorial, iconKey = "🚶", title = "Walk Together", description = "Walk 500m with your companion.", targetValue = 0.5f, rewardCoins = 5 },
+            new MissionDefinition { id = "tutorial-walk", type = MissionType.Tutorial, iconKey = "🚶", title = "Walk Together", description = "Walk 100m with your companion.", targetValue = 0.1f, rewardCoins = 5 },
             new MissionDefinition { id = "tutorial-shop", type = MissionType.Tutorial, iconKey = "🍙", title = "A Snack for Your Friend", description = "Buy a food item from the Shop.", targetValue = 1f },
             new MissionDefinition { id = "tutorial-feed", type = MissionType.Tutorial, iconKey = "🍙", title = "Snack Time", description = "Feed your companion.", targetValue = 1f, rewardFoodId = "rice-ball", rewardFoodQuantity = 1 },
             new MissionDefinition { id = "tutorial-grow", type = MissionType.Tutorial, iconKey = "🌱", title = "Grow Together", description = "Feed your companion until it becomes Young.", targetValue = 1f, rewardCoins = 50 },
