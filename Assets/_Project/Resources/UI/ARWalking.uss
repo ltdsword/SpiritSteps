@@ -417,7 +417,8 @@
 .featured-portrait-well { width: 250px; height: 250px; min-width: 250px; border-radius: 125px; background-color: rgba(255, 253, 247, 0.62); overflow: hidden; position: relative; margin-right: 28px; }
 .featured-companion-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .featured-copy .title { font-size: 49px; line-height: 52px; }
-.featured-copy .body { font-size: 22px; line-height: 29px; max-height: 94px; overflow: hidden; }
+.featured-description-clip { height: 94px; overflow: hidden; position: relative; margin-top: 4px; }
+.featured-description-text { font-size: 22px; line-height: 29px; position: absolute; left: 0; right: 0; top: 0; margin-top: 0; }
 .featured-name-row { align-items: center; }
 .featured-dots-row { flex-direction: row; align-items: center; justify-content: space-between; }
 .next-stage-label { font-size: 20px; color: rgb(105, 120, 109); margin-top: 18px; -unity-font-definition: url("../../Art/UI/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
