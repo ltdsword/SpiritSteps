@@ -473,15 +473,20 @@ namespace ARWalking.UI
             {
                 id = result.journeyId,
                 landmarkId = landmarkId,
-                title = landmarkId == PrototypeIds.CentralPostOffice
-                    ? "Central Post Office AR Memory"
-                    : landmarkId == PrototypeIds.Landmark81
-                        ? "Landmark 81 AR Memory"
-                        : "Landmark Memory",
+                title = LandmarkJourneyTitle(landmarkId),
                 summary = "Collected a Landmark Stamp after completing the AR Memory.",
                 createdUtc = utcNow.ToUniversalTime().ToString("O")
             });
             return result;
+        }
+
+        static string LandmarkJourneyTitle(string landmarkId)
+        {
+            if (landmarkId == PrototypeIds.IndependencePalace) return "Independence Palace";
+            if (landmarkId == PrototypeIds.CentralPostOffice) return "Central Post Office";
+            if (landmarkId == PrototypeIds.NotreDameBasilica) return "Notre-Dame Basilica";
+            if (landmarkId == PrototypeIds.Landmark81) return "Landmark 81";
+            return "Landmark Memory";
         }
 
         static FeedResultDto Fail(FeedResultDto result, string error) { result.error = error; return result; }

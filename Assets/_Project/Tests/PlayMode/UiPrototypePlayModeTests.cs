@@ -99,7 +99,7 @@ namespace ARWalking.Tests.PlayMode
             home.SelectRoot(UiRootTab.Journey);
             yield return null;
 
-            UiPrototypeRuntime.Instance.EnterLandmarkScan();
+            UiPrototypeRuntime.Instance.EnterLandmarkScan(PrototypeIds.NotreDameBasilica);
             yield return WaitForScene("LandmarkScan");
             yield return null;
 
@@ -109,6 +109,8 @@ namespace ARWalking.Tests.PlayMode
             var root = scanUi.GetComponent<UIDocument>().rootVisualElement;
             Assert.That(root.Q("landmark-scan-page"), Is.Not.Null);
             Assert.That(root.Q("ar-scanning-frame"), Is.Not.Null);
+            Assert.That(LandmarkScanSceneContext.RequestedLandmarkId, Is.EqualTo(PrototypeIds.NotreDameBasilica));
+            Assert.That(root.Q("landmark-scan-title-pill").Q<Label>().text, Is.EqualTo("Scan Notre-Dame Basilica"));
 
             GameObject xrOrigin = GameObject.Find("XR Origin");
             xrOrigin.SendMessage("SimulateRecognitionForEditor", SendMessageOptions.RequireReceiver);
@@ -149,10 +151,91 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(scanUi, Is.Not.Null);
             var root = scanUi.GetComponent<UIDocument>().rootVisualElement;
             Assert.That(root.Q("landmark-scan-result-sheet"), Is.Not.Null);
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("landmark-scan-result-close"), Is.Not.Null);
             Assert.That(root.Q<Label>("landmark-history").text, Does.Contain("461.2 metres"));
             Assert.That(root.Q<Label>("landmark-reward-name").text, Is.EqualTo("Stag"));
             Assert.That(root.Q<UnityEngine.UIElements.Image>("landmark-reward-image").image, Is.Not.Null,
                 "The Stag reward must be visible after recognizing Landmark 81.");
+
+            scanUi.SendMessage("CloseInfoCard", SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-scan-result-sheet"), Is.Null,
+                "Closing the info sheet should return to the unobstructed tracked model view.");
+            Assert.That(root.Q(className: "ar-scan-controls"), Is.Not.Null);
+            xrOrigin.SendMessage("SimulateContentTapForEditor", SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-scan-result-sheet"), Is.Not.Null,
+                "Tapping the tracked model again should reopen the Landmark information.");
+
+            scanUi.SendMessage("CollectReward", SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-memory-unlocked-sheet"), Is.Not.Null,
+                "Claiming a new Landmark reward should offer an optional companion photo before leaving the scanner.");
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("take-memory-photo")?.text, Is.EqualTo("Take a Photo"));
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("maybe-later")?.text, Is.EqualTo("Maybe Later"));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.stamps.Single().landmarkId, Is.EqualTo(PrototypeIds.Landmark81));
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.journeys.Single().landmarkId, Is.EqualTo(PrototypeIds.Landmark81));
+
+            string previousLeadPetId = UiPrototypeRuntime.Instance.PrimaryCompanionId();
+            scanUi.SendMessage("TakeMemoryPhoto", SendMessageOptions.RequireReceiver);
+            yield return null;
+            Assert.That(root.Q("landmark-photo-pet-choice-sheet"), Is.Not.Null);
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("use-reward-pet-for-photo")?.text, Is.EqualTo("Use Stag"));
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("keep-current-lead-for-photo")?.text,
+                Is.EqualTo("Keep " + UiPrototypeRuntime.Instance.Data.Companions
+                    .Single(companion => companion.id == previousLeadPetId).name));
+
+            scanUi.SendMessage("UseRewardPetForPhoto", SendMessageOptions.RequireReceiver);
+            yield return WaitForScene("PetAr");
+            Assert.That(PetArSceneContext.PetId, Is.EqualTo(PrototypeIds.Stag));
+            Assert.That(UiPrototypeRuntime.Instance.LeadCompanionId, Is.EqualTo(PrototypeIds.Stag),
+                "Accepting the prompt should set the newly received companion as lead before opening AR.");
+            Assert.That(PetArSceneContext.IsPhotoMode, Is.True);
+            Assert.That(PetArSceneContext.LandmarkId, Is.EqualTo(PrototypeIds.Landmark81),
+                "The captured photo must link back to the Landmark 81 Journey entry.");
+            Assert.That(UnityEngine.Object.FindFirstObjectByType<WalkUiController>().HasLandmarkMemory, Is.False,
+                "Photo follow-up must show the companion camera without reopening the Landmark story overlay.");
+            PetArSceneContext.PetId = null;
+            PetArSceneContext.IsPhotoMode = false;
+            PetArSceneContext.LandmarkId = null;
+        }
+
+        [UnityTest]
+        public IEnumerator LatestLandmarkStampStaysAtTopOfJourneyAndPhotoRemainsInSeparateGallery()
+        {
+            var home = CreateProfile();
+            UiPrototypeRuntime.Instance.CompleteLandmarkMemory(PrototypeIds.Landmark81);
+            PetArSceneContext.LandmarkId = PrototypeIds.Landmark81;
+            UiPrototypeRuntime.Instance.SaveArPhoto(Path.Combine(Path.GetDirectoryName(_savePath), "landmark-81-memory.png"));
+
+            home.SelectRoot(UiRootTab.Journey);
+            yield return null;
+
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            var latestStamp = root.Q("latest-landmark-stamp");
+            var stats = root.Q(className: "journey-stats");
+            var photoGrid = root.Q("journey-photo-grid");
+            Assert.That(latestStamp, Is.Not.Null);
+            Assert.That(latestStamp.Q(className: "latest-stamp-image"), Is.Not.Null);
+            Assert.That(latestStamp.Q(className: "latest-stamp-photo-state"), Is.Not.Null);
+            Assert.That(stats, Is.Not.Null);
+            Assert.That(latestStamp.parent.IndexOf(latestStamp), Is.LessThan(stats.parent.IndexOf(stats)),
+                "The latest Stamp should appear at the top of Journey, before the summary counters.");
+            Assert.That(photoGrid, Is.Not.Null);
+            Assert.That(photoGrid.parent, Is.Not.SameAs(latestStamp),
+                "The photo gallery must remain a separate Journey section, not become the Stamp itself.");
+
+            home.Navigate(UiRoute.JourneyDetail);
+            yield return null;
+            Assert.That(root.Q(className: "history-card"), Is.Not.Null,
+                "A Stamp detail should contain its Landmark history without another navigation step.");
+            Assert.That(root.Q(className: "architecture-card"), Is.Not.Null);
+            Assert.That(root.Q(className: "fact-card"), Is.Not.Null);
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("scan-again"), Is.Not.Null,
+                "A completed Stamp should offer the dedicated Landmark scanner for an optional revisit.");
+            Assert.That(root.Q<UnityEngine.UIElements.Button>("open-landmark"), Is.Null,
+                "Stamp details should not route back through the obsolete Discover/AR Memory flow.");
+            PetArSceneContext.LandmarkId = null;
         }
 
         [UnityTest]

@@ -948,7 +948,7 @@ namespace ARWalking.UI
         {
             var landmark = SelectedLandmark();
             var proximity = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id);
-            var scroll = ScreenWithHeader("Discover", landmark.localName, true);
+            var scroll = ScreenWithHeader("Discover", landmark.localName, true, headerIcon: "map-pin");
             var hero = Element("landmark-hero-card", "landmark-hero-card", "elevated-card");
             hero.Add(Image(_assets != null ? _assets.Landmark(_runtime.SelectedLandmarkIndex) : null, "landmark-hero"));
             var distance = Pill(proximity.distanceMetres.ToString("0") + " m away", "landmark-distance-pill");
@@ -958,7 +958,7 @@ namespace ARWalking.UI
             scroll.Add(Title(landmark.name));
             scroll.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
             scroll.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
-            scroll.Add(StorySection("Architecture", landmark.architecture, "architecture-card", "map"));
+            scroll.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
             scroll.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
             scroll.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
@@ -971,8 +971,8 @@ namespace ARWalking.UI
 
         /// <summary>Floating Landmark sheet (design doc "not a new screen") shown over whatever
         /// screen is currently open - the primary way to view a landmark from a Map pin tap or the
-        /// Mission Card. <see cref="BuildLandmarkDetail"/> remains as JourneyDetail's existing
-        /// full-screen "Open Landmark" path.</summary>
+        /// Mission Card. Completed Journey stamps render their full story directly and revisit the
+        /// dedicated scanner instead of routing through this Discover view.</summary>
         void ShowLandmarkSheet(string landmarkId)
         {
             var index = FindLandmarkIndex(landmarkId);
@@ -994,7 +994,7 @@ namespace ARWalking.UI
             body.Add(Title(landmark.name));
             body.Add(Body("Walk closer, reveal its cultural memory, and add a new stamp to your Journey."));
             body.Add(StorySection("History", landmark.history, "history-card", "book-heart"));
-            body.Add(StorySection("Architecture", landmark.architecture, "architecture-card", "map"));
+            body.Add(StorySection("Cultural Significance", landmark.architecture, "architecture-card", "map"));
             body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
             body.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
@@ -1052,12 +1052,17 @@ namespace ARWalking.UI
             modal.Add(tip);
 
             modal.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan",
-                () => { RemoveTransientOverlay(); _runtime.EnterLandmarkScan(); }, "primary-action", "memory-panel-scan-button"));
+                () => { RemoveTransientOverlay(); _runtime.EnterLandmarkScan(landmark.id); }, "primary-action", "memory-panel-scan-button"));
         }
 
         void BuildJourneyList()
         {
-            var scroll = ScreenWithHeader("Journey", "Your memories across Sài Gòn", false);
+            var scroll = ScreenWithHeader("Journey", "Your memories across Saigon", false);
+
+            var latestStamp = LatestStamp();
+            if (latestStamp != null)
+                scroll.Add(BuildLatestStampCard(latestStamp));
+
             var stats = Row("journey-stats");
             stats.Add(Metric(_runtime.SaveData.journeys.Count.ToString(), "memories", "journey-stat-card"));
             stats.Add(Metric(_runtime.SaveData.stamps.Count.ToString(), "stamps", "journey-stat-card"));
@@ -1102,7 +1107,7 @@ namespace ARWalking.UI
                 button.Add(Image(JourneyImage(journey), "journey-memory-image"));
                 var overlay = Element(null, "journey-memory-overlay");
                 overlay.Add(Pill(DateLabel(journey.createdUtc), "journey-date-pill"));
-                overlay.Add(Subtitle(journey.title));
+                overlay.Add(Subtitle(JourneyDisplayTitle(journey)));
                 overlay.Add(Body(journey.summary));
                 button.Add(overlay);
                 scroll.Add(button);
@@ -1131,6 +1136,40 @@ namespace ARWalking.UI
                 }
                 scroll.Add(photoGrid);
             }
+        }
+
+        VisualElement BuildLatestStampCard(StampData stamp)
+        {
+            var landmarkIndex = FindLandmarkIndex(stamp.landmarkId);
+            var landmark = _data.Landmarks[landmarkIndex];
+            var journeyIndex = FindLatestJourneyIndexForLandmark(stamp.landmarkId);
+            var card = new UiButton(() =>
+            {
+                if (journeyIndex < 0) return;
+                _runtime.SelectedJourneyIndex = journeyIndex;
+                Navigate(UiRoute.JourneyDetail);
+            }) { name = "latest-landmark-stamp" };
+            card.AddToClassList("latest-stamp-card");
+            card.AddToClassList("elevated-card");
+
+            var seal = Element(null, "latest-stamp-seal");
+            seal.Add(Image(_assets != null ? _assets.Landmark(landmarkIndex) : null,
+                "latest-stamp-image", ScaleMode.ScaleAndCrop));
+            card.Add(seal);
+
+            var copy = Column("latest-stamp-copy");
+            copy.Add(Eyebrow("LATEST LANDMARK STAMP"));
+            copy.Add(Title(landmark.name));
+            copy.Add(Body("Discovered " + StampDateLabel(stamp.collectedUtc)));
+            if (!string.IsNullOrEmpty(landmark.companionRewardId))
+                copy.Add(Pill("Companion reward · " + CompanionName(landmark.companionRewardId), "latest-stamp-reward"));
+
+            if (journeyIndex >= 0 && !string.IsNullOrEmpty(_runtime.SaveData.journeys[journeyIndex].photoPath))
+                copy.Add(Pill("Photo attached", "latest-stamp-photo-state"));
+            else
+                copy.Add(Body("Photo optional · Tap to view this memory"));
+            card.Add(copy);
+            return card;
         }
 
         /// <summary>Full-screen photo viewer (design doc "Photos" gallery) with a filmstrip to switch
@@ -1185,24 +1224,36 @@ namespace ARWalking.UI
             if (_runtime.SaveData.journeys.Count == 0) { BuildJourneyList(); return; }
             var index = Mathf.Clamp(_runtime.SelectedJourneyIndex, 0, _runtime.SaveData.journeys.Count - 1);
             var journey = _runtime.SaveData.journeys[index];
-            var scroll = ScreenWithHeader(journey.title, DateLabel(journey.createdUtc), true);
+            var scroll = ScreenWithHeader(JourneyDisplayTitle(journey), DateLabel(journey.createdUtc), true);
             var photo = Card("journey-photo-frame", "elevated-card");
             photo.Add(Image(JourneyImage(journey), "journey-detail-image"));
-            photo.Add(Label("Quận 1, Sài Gòn", "journey-photo-caption"));
+            photo.Add(Label((string.IsNullOrEmpty(journey.photoPath) ? "Landmark Stamp" : "Photo Memory") + " · District 1, Saigon", "journey-photo-caption"));
             scroll.Add(photo);
             var note = Card("scrapbook-card");
             note.Add(Eyebrow("LOCAL JOURNEY RECORD"));
             note.Add(Title(journey.summary));
+            LandmarkUiData landmarkMemory = null;
             if (!string.IsNullOrEmpty(journey.landmarkId))
             {
                 note.Add(InfoRow("map-pin", "Landmark", LandmarkName(journey.landmarkId)));
+                note.Add(InfoRow("calendar", "Discovered", StampDateLabel(journey.createdUtc)));
+                landmarkMemory = _data.Landmarks[FindLandmarkIndex(journey.landmarkId)];
+                if (!string.IsNullOrEmpty(landmarkMemory.companionRewardId))
+                    note.Add(InfoRow("paw-print", "Companion reward", CompanionName(landmarkMemory.companionRewardId)));
                 note.Add(InfoRow("footprints", "Distance", journey.distanceKilometres.ToString("0.00") + " km"));
             }
             else if (!string.IsNullOrEmpty(journey.companionId))
                 note.Add(InfoRow("paw-print", "Companion", CompanionName(journey.companionId)));
             scroll.Add(note);
-            if (!string.IsNullOrEmpty(journey.landmarkId))
-                scroll.Add(ActionWithIcon("map-pin", _assets != null ? _assets.iconMap : null, "Open Landmark", () => { _runtime.SelectedLandmarkIndex = FindLandmarkIndex(journey.landmarkId); Navigate(UiRoute.LandmarkDetail); }, "secondary-action"));
+            if (landmarkMemory != null)
+            {
+                scroll.Add(SectionTitle("Landmark Story"));
+                scroll.Add(StorySection("History", landmarkMemory.history, "history-card", "book-heart"));
+                scroll.Add(StorySection("Cultural Significance", landmarkMemory.architecture, "architecture-card", "map"));
+                scroll.Add(StorySection("Did you know?", landmarkMemory.didYouKnow, "fact-card", "sparkles"));
+                scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan Again",
+                    () => _runtime.EnterLandmarkScan(journey.landmarkId), "primary-action", "journey-scan-again-action"));
+            }
             else if (!string.IsNullOrEmpty(journey.companionId))
                 scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "View in AR", () => _runtime.EnterPetAr(journey.companionId, false), "blossom-action"));
         }
@@ -1510,12 +1561,20 @@ namespace ARWalking.UI
         }
 
         ScrollView ScreenWithHeader(string title, string subtitle, bool showBack,
-            string actionIcon = null, string actionLabel = null, Action action = null, string actionClass = null, bool largeAction = false)
+            string actionIcon = null, string actionLabel = null, Action action = null, string actionClass = null,
+            bool largeAction = false, string headerIcon = null)
         {
             var page = Page("content-page", true);
             page.Add(BuildTopStatusBar(false));
             var header = Row("screen-header");
             if (showBack) header.Add(IconAction("arrow-left", _assets != null ? _assets.iconBack : null, "BACK", () => HandleBack(), "back-button", "small-round-control"));
+            if (!string.IsNullOrEmpty(headerIcon))
+            {
+                var iconWell = Element(null, "screen-header-icon-well");
+                iconWell.Add(IconView(headerIcon, "screen-header-icon", Primary,
+                    headerIcon == "map-pin" && _assets != null ? _assets.iconLocation : null));
+                header.Add(iconWell);
+            }
             var copy = Column("screen-header-copy");
             copy.Add(Title(title));
             copy.Add(Body(subtitle));
@@ -1602,7 +1661,14 @@ namespace ARWalking.UI
             return button;
         }
 
-        Texture2D JourneyImage(JourneyEntryData journey) => LoadPhoto(journey.photoPath) ?? (_assets != null ? _assets.journeyOne : null);
+        Texture2D JourneyImage(JourneyEntryData journey)
+        {
+            var photo = LoadPhoto(journey.photoPath);
+            if (photo != null) return photo;
+            if (!string.IsNullOrEmpty(journey.landmarkId) && _assets != null)
+                return _assets.Landmark(FindLandmarkIndex(journey.landmarkId));
+            return _assets != null ? _assets.journeyOne : null;
+        }
 
         /// <summary>Loads and caches a photo from an on-disk path (a saved AR photo). Returns null if
         /// the path is empty or the file is missing/unreadable - callers decide their own fallback.</summary>
@@ -1622,6 +1688,21 @@ namespace ARWalking.UI
             foreach (var stamp in _runtime.SaveData.stamps)
                 if (stamp != null && stamp.landmarkId == landmarkId) return true;
             return false;
+        }
+
+        StampData LatestStamp()
+        {
+            for (var i = _runtime.SaveData.stamps.Count - 1; i >= 0; i--)
+                if (_runtime.SaveData.stamps[i] != null) return _runtime.SaveData.stamps[i];
+            return null;
+        }
+
+        int FindLatestJourneyIndexForLandmark(string landmarkId)
+        {
+            for (var i = _runtime.SaveData.journeys.Count - 1; i >= 0; i--)
+                if (_runtime.SaveData.journeys[i] != null && _runtime.SaveData.journeys[i].landmarkId == landmarkId)
+                    return i;
+            return -1;
         }
 
         int UnlockedCompanionCount()
@@ -1667,6 +1748,9 @@ namespace ARWalking.UI
         LandmarkUiData SelectedLandmark() => _data.Landmarks[Mathf.Clamp(_runtime.SelectedLandmarkIndex, 0, _data.Landmarks.Count - 1)];
         int FindLandmarkIndex(string id) { for (var i = 0; i < _data.Landmarks.Count; i++) if (_data.Landmarks[i].id == id) return i; return 0; }
         string LandmarkName(string id) { var index = FindLandmarkIndex(id); return _data.Landmarks.Count > 0 ? _data.Landmarks[index].name : id; }
+        string JourneyDisplayTitle(JourneyEntryData journey) => journey != null && !string.IsNullOrEmpty(journey.landmarkId)
+            ? LandmarkName(journey.landmarkId)
+            : journey?.title ?? string.Empty;
         string CompanionName(string id) { foreach (var item in _data.Companions) if (item.id == id) return item.name; return id; }
         static string StageLine(CompanionProgressData progress)
         {
@@ -1674,6 +1758,7 @@ namespace ARWalking.UI
             return CompanionProgressionService.StageFor(entry, progress.growthExperience) + " · " + progress.growthExperience + " EXP";
         }
         static string DateLabel(string utc) => DateTime.TryParse(utc, out var value) ? value.ToLocalTime().ToString("d MMM yyyy") : "Saved locally";
+        static string StampDateLabel(string utc) => DateTime.TryParse(utc, out var value) ? value.ToLocalTime().ToString("d MMM yyyy · HH:mm") : "Saved locally";
         static float DailyGoalRatio(float distanceKilometres, float goalKilometres) => goalKilometres > 0f ? Mathf.Clamp01(distanceKilometres / goalKilometres) : 0f;
 
         static float GrowthRatio(CompanionRoster.Entry entry, int experience, GrowthStage stage) => stage switch

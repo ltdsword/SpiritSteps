@@ -346,6 +346,8 @@
 /* Content screens */
 .screen-header { min-height: 126px; flex-direction: row; align-items: center; padding-bottom: 18px; }
 .screen-header-copy { margin-left: 14px; }
+.screen-header-icon-well { width: 66px; height: 66px; min-width: 66px; margin-left: 14px; border-radius: 33px; align-items: center; justify-content: center; background-color: rgb(224, 241, 218); }
+.screen-header-icon { width: 34px; height: 34px; }
 .screen-header .title { font-size: 55px; }
 .screen-header .body { font-size: 23px; line-height: 29px; }
 .header-chip { flex-grow: 0; min-width: 150px; min-height: 62px; margin-top: 0; margin-left: 14px; padding-left: 22px; padding-right: 22px; }
@@ -527,6 +529,15 @@
 .sun-info { background-color: rgb(255, 247, 219); }
 
 /* Journey */
+.latest-stamp-card { min-height: 230px; margin-bottom: 22px; padding: 24px; flex-direction: row; align-items: center; border-radius: 44px; border-width: 3px; border-bottom-width: 7px; border-color: rgba(84, 190, 107, 0.34); background-color: rgb(232, 245, 229); }
+.latest-stamp-seal { width: 164px; height: 164px; min-width: 164px; margin-right: 24px; padding: 9px; border-radius: 82px; border-width: 5px; border-color: rgba(84, 160, 99, 0.72); background-color: rgb(255, 253, 247); overflow: hidden; }
+.latest-stamp-image { flex-grow: 1; border-radius: 68px; }
+.latest-stamp-copy { flex-grow: 1; }
+.latest-stamp-copy .eyebrow { color: rgb(84, 160, 99); margin-bottom: 2px; }
+.latest-stamp-copy .title { font-size: 35px; line-height: 39px; margin-bottom: 3px; }
+.latest-stamp-copy .body { font-size: 20px; line-height: 26px; margin-top: 3px; }
+.latest-stamp-reward, .latest-stamp-photo-state { align-self: flex-start; min-height: 42px; margin-top: 8px; background-color: rgba(255, 253, 247, 0.86); }
+.latest-stamp-reward .pill-label, .latest-stamp-photo-state .pill-label { font-size: 17px; }
 .journey-stats { justify-content: space-between; margin-bottom: 12px; }
 .journey-scan-action { margin-top: 8px; margin-bottom: 20px; }
 .journey-stat-card, .activity-summary-card { width: 31.5%; flex-grow: 0; min-height: 128px; border-radius: 34px; background-color: rgb(255, 253, 247); border-width: 2px; border-bottom-width: 6px; border-color: rgba(105, 120, 109, 0.15); }
@@ -722,10 +733,14 @@
 /* Dedicated Landmark scanner (kept separate from companion AR). */
 .landmark-scan-page { position: relative; flex-grow: 1; overflow: hidden; background-color: rgba(0, 0, 0, 0); }
 .landmark-scan-header { position: absolute; left: 28px; right: 28px; top: 28px; flex-direction: row; align-items: center; }
+.landmark-scan-back-button { font-size: 62px; color: white; -unity-font-style: bold; -unity-text-align: middle-center; padding: 0 0 8px 0; }
 .landmark-scan-title-pill { flex-grow: 1; margin-left: 14px; min-height: 72px; justify-content: center; padding: 10px 24px; border-radius: 36px; background-color: rgba(22, 31, 25, 0.66); }
 .landmark-scan-title-pill .subtitle { color: white; font-size: 27px; margin-bottom: 0; }
 .landmark-scan-result-sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 1050px; padding: 34px 38px 48px 38px; border-top-left-radius: 58px; border-top-right-radius: 58px; background-color: rgba(255, 253, 247, 0.98); }
 .landmark-scan-result-scroll { flex-grow: 1; }
+.landmark-scan-result-header { flex-direction: row; align-items: center; justify-content: space-between; }
+.landmark-scan-result-header .title { flex-grow: 1; margin-bottom: 0; }
+.landmark-scan-close-button { margin-left: 18px; font-size: 42px; color: rgb(42, 63, 49); -unity-font-style: bold; -unity-text-align: middle-center; padding: 0 0 5px 0; }
 .landmark-scan-section-title { margin-top: 16px; font-size: 23px; color: rgb(84, 160, 99); letter-spacing: 1px; }
 .landmark-scan-result-body { margin-top: 8px; font-size: 25px; line-height: 35px; color: rgb(42, 63, 49); white-space: normal; }
 .landmark-reward-card { margin-top: 22px; padding: 20px; flex-direction: row; align-items: center; border-radius: 34px; border-width: 2px; border-color: rgba(143, 72, 86, 0.22); background-color: rgb(250, 218, 224); }
@@ -733,6 +748,14 @@
 .landmark-reward-copy { flex-grow: 1; }
 .landmark-reward-copy .subtitle { color: rgb(143, 72, 86); margin-bottom: 2px; }
 .landmark-reward-copy .body { color: rgb(42, 63, 49); margin-top: 0; }
+.landmark-memory-unlocked-sheet { position: absolute; left: 36px; right: 36px; bottom: 54px; padding: 34px; align-items: center; border-radius: 52px; border-width: 3px; border-bottom-width: 8px; border-color: rgba(84, 190, 107, 0.36); background-color: rgba(255, 253, 247, 0.98); }
+.landmark-memory-unlocked-sheet .title, .landmark-memory-unlocked-sheet .subtitle, .landmark-memory-unlocked-sheet .body { -unity-text-align: middle-center; }
+.landmark-memory-unlocked-sheet .eyebrow { color: rgb(84, 160, 99); margin-top: 3px; }
+.landmark-memory-stamp { width: 220px; height: 220px; margin-top: 18px; margin-bottom: 16px; padding: 11px; border-radius: 110px; border-width: 8px; border-color: rgba(84, 160, 99, 0.76); background-color: rgb(232, 245, 229); overflow: hidden; }
+.landmark-memory-stamp-image { flex-grow: 1; border-radius: 92px; }
+.landmark-memory-photo-question { margin-top: 18px; font-size: 23px; line-height: 31px; color: rgb(42, 63, 49); white-space: normal; -unity-text-align: middle-center; }
+.landmark-memory-unlocked-actions { align-self: stretch; margin-top: 20px; }
+.landmark-memory-unlocked-actions .action-button { margin-top: 10px; }
 
 /* Corgi AR gameplay HUD (CorgiArGlassHud) - matches the Claude Design "AR Play" mockup: flat
    rgba() + border + large radius "glass" illusion, same technique as the rest of this file

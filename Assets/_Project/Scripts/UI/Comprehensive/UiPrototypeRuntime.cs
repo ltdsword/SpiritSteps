@@ -417,12 +417,24 @@ namespace ARWalking.UI
         /// <summary>Opens the dedicated Landmark image scanner without starting the companion AR flow.</summary>
         public void EnterLandmarkScan()
         {
+            EnterLandmarkScan(null);
+        }
+
+        /// <summary>Opens the scanner for one known Landmark. The image library still contains every
+        /// supported target, while the scanner filters this visit to the requested memory.</summary>
+        public void EnterLandmarkScan(string landmarkId)
+        {
             RequireProfile();
+            LandmarkScanSceneContext.RequestedLandmarkId = landmarkId;
             SceneManager.LoadScene("LandmarkScan");
         }
 
         /// <summary>Returns from the dedicated scanner. The selected root tab is preserved.</summary>
-        public void ReturnFromLandmarkScan() => SceneManager.LoadScene("Home");
+        public void ReturnFromLandmarkScan()
+        {
+            LandmarkScanSceneContext.Clear();
+            SceneManager.LoadScene("Home");
+        }
 
         /// <summary>Opens the non-AR meadow playground used for walking, feeding and fetch.
         /// On Android/iOS this context explicitly keeps SampleScene in desktop-meadow mode,
@@ -529,6 +541,7 @@ namespace ARWalking.UI
         public static void ClearTestOverrides()
         {
             Pet3DSceneContext.Clear();
+            LandmarkScanSceneContext.Clear();
             TestSavePathOverride = null;
             TestWalkProviderOverride = null;
             TestMapProviderOverride = null;

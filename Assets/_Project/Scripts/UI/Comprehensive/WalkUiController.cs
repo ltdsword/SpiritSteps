@@ -33,7 +33,11 @@ namespace ARWalking.UI
         readonly Dictionary<string, VectorImage> _icons = new Dictionary<string, VectorImage>();
 
         public UiRoute CurrentRoute => _runtime.Navigator.CurrentRoute;
-        public bool HasLandmarkMemory => !string.IsNullOrEmpty(PetArSceneContext.LandmarkId);
+        // LandmarkId stays populated during the post-Stamp photo follow-up so SaveArPhoto can attach
+        // the capture to the correct Journey entry. Photo mode must not show the old AR Memory overlay
+        // again, otherwise it covers the companion camera the player was explicitly sent here to use.
+        public bool HasLandmarkMemory => !PetArSceneContext.IsPhotoMode &&
+                                         !string.IsNullOrEmpty(PetArSceneContext.LandmarkId);
 
         void Start()
         {
@@ -142,7 +146,7 @@ namespace ARWalking.UI
                 return;
             }
 
-            var heading = _memoryPage == 1 ? "History" : _memoryPage == 2 ? "Architecture" : "Did You Know?";
+            var heading = _memoryPage == 1 ? "History" : _memoryPage == 2 ? "Cultural Significance" : "Did You Know?";
             var body = _memoryPage == 1 ? landmark.history : _memoryPage == 2 ? landmark.architecture : landmark.didYouKnow;
             var sheet = Element("ar-story-sheet", "ar-story-sheet");
             sheet.Add(Element(null, "sheet-handle"));

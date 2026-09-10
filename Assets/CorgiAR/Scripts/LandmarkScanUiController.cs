@@ -21,6 +21,8 @@ namespace CorgiAR
         private VisualElement appRoot;
         private bool stampCollected;
         private bool showInfoCard;
+        private bool showMemoryUnlocked;
+        private bool showPhotoPetChoice;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RegisterSceneBootstrap()
@@ -51,6 +53,7 @@ namespace CorgiAR
             tracker = FindFirstObjectByType<LandmarkImageTrackingController>();
             if (tracker != null)
             {
+                tracker.SetTargetFilter(LandmarkScanSceneContext.RequestedLandmarkId);
                 tracker.TargetRecognized += OnTargetRecognized;
                 tracker.ContentTapped += OnContentTapped;
             }
@@ -89,6 +92,8 @@ namespace CorgiAR
         private void OnTargetRecognized()
         {
             showInfoCard = false;
+            showMemoryUnlocked = false;
+            showPhotoPetChoice = false;
             RefreshStampState();
             Render();
         }
@@ -113,11 +118,14 @@ namespace CorgiAR
             var back = new Button(ReturnToJourney) { text = "‹", name = "landmark-scan-back" };
             back.AddToClassList("icon-button");
             back.AddToClassList("dark-round-control");
+            back.AddToClassList("landmark-scan-back-button");
             header.Add(back);
             var titlePill = Element("landmark-scan-title-pill", "landmark-scan-title-pill");
             titlePill.Add(Text(tracker != null && tracker.Recognized
                 ? "Scan " + CurrentLandmark().name
-                : "Scan a Landmark", "subtitle"));
+                : string.IsNullOrEmpty(LandmarkScanSceneContext.RequestedLandmarkId)
+                    ? "Scan a Landmark"
+                    : "Scan " + CurrentLandmark().name, "subtitle"));
             header.Add(titlePill);
             page.Add(header);
 
@@ -133,7 +141,9 @@ namespace CorgiAR
             {
                 page.Add(Element("ar-scanning-frame", "ar-scanning-frame"));
                 var controls = Element("ar-scan-controls", "ar-scan-controls");
-                controls.Add(Instruction("Point your camera at a supported Landmark image"));
+                controls.Add(Instruction(string.IsNullOrEmpty(LandmarkScanSceneContext.RequestedLandmarkId)
+                    ? "Point your camera at a supported Landmark image"
+                    : "Point your camera at the " + CurrentLandmark().name + " image"));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 controls.Add(ActionButton("Simulate recognition", tracker.SimulateRecognitionForEditor, "secondary-action"));
 #endif
@@ -149,6 +159,18 @@ namespace CorgiAR
                 return;
             }
 
+            if (showPhotoPetChoice)
+            {
+                BuildPhotoPetChoice(page);
+                return;
+            }
+
+            if (showMemoryUnlocked)
+            {
+                BuildMemoryUnlocked(page);
+                return;
+            }
+
             BuildRecognitionResult(page);
         }
 
@@ -160,7 +182,15 @@ namespace CorgiAR
             var sheet = Element("landmark-scan-result-sheet", "landmark-scan-result-sheet");
             var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "landmark-scan-result-scroll" };
             scroll.AddToClassList("landmark-scan-result-scroll");
-            scroll.Add(Text("Recognized!", "title"));
+
+            var resultHeader = Element("landmark-scan-result-header", "landmark-scan-result-header");
+            resultHeader.Add(Text("Recognized!", "title"));
+            var close = new Button(CloseInfoCard) { text = "×", name = "landmark-scan-result-close" };
+            close.AddToClassList("icon-button");
+            close.AddToClassList("small-round-control");
+            close.AddToClassList("landmark-scan-close-button");
+            resultHeader.Add(close);
+            scroll.Add(resultHeader);
             scroll.Add(Text(landmark.name.ToUpperInvariant(), "eyebrow"));
 
             scroll.Add(Text(landmark.id == PrototypeIds.Landmark81
@@ -200,6 +230,79 @@ namespace CorgiAR
             page.Add(sheet);
         }
 
+        private void BuildPhotoPetChoice(VisualElement page)
+        {
+            LandmarkUiData landmark = CurrentLandmark();
+            string rewardPetId = landmark.companionRewardId;
+            string rewardPetName = CompanionName(rewardPetId);
+            string currentLeadName = CompanionName(runtime.PrimaryCompanionId());
+
+            var sheet = Element("landmark-photo-pet-choice-sheet", "landmark-memory-unlocked-sheet");
+            sheet.Add(Text("Choose Your Photo Companion", "title"));
+
+            var reward = Element("landmark-photo-reward-card", "landmark-reward-card");
+            var rewardImage = new Image
+            {
+                image = RewardPetTexture(rewardPetId),
+                scaleMode = ScaleMode.ScaleToFit,
+                pickingMode = PickingMode.Ignore
+            };
+            rewardImage.AddToClassList("landmark-reward-image");
+            reward.Add(rewardImage);
+            var rewardCopy = Element(null, "landmark-reward-copy");
+            rewardCopy.Add(Text(rewardPetName, "subtitle"));
+            rewardCopy.Add(Text("New Landmark companion", "body"));
+            reward.Add(rewardCopy);
+            sheet.Add(reward);
+
+            sheet.Add(Text("Would you like to set " + rewardPetName + " as your lead companion and take this memory photo together?", "landmark-memory-photo-question"));
+            sheet.Add(Text("You can use " + rewardPetName + ", or keep " + currentLeadName + " and switch to another owned pet in AR.", "body"));
+
+            var actions = Element("landmark-photo-pet-choice-actions", "landmark-memory-unlocked-actions");
+            var useRewardPet = ActionButton("Use " + rewardPetName, UseRewardPetForPhoto, "primary-action");
+            useRewardPet.name = "use-reward-pet-for-photo";
+            actions.Add(useRewardPet);
+            var keepCurrentLead = ActionButton("Keep " + currentLeadName, KeepCurrentLeadForPhoto, "secondary-action");
+            keepCurrentLead.name = "keep-current-lead-for-photo";
+            actions.Add(keepCurrentLead);
+            sheet.Add(actions);
+            page.Add(sheet);
+        }
+
+        private void BuildMemoryUnlocked(VisualElement page)
+        {
+            LandmarkUiData landmark = CurrentLandmark();
+
+            var sheet = Element("landmark-memory-unlocked-sheet", "landmark-memory-unlocked-sheet");
+            sheet.Add(Text("Memory unlocked!", "title"));
+            sheet.Add(Text("LANDMARK STAMP COLLECTED", "eyebrow"));
+
+            var stamp = Element("landmark-memory-stamp", "landmark-memory-stamp");
+            var landmarkImage = new Image
+            {
+                image = LandmarkTexture(landmark.id),
+                scaleMode = ScaleMode.ScaleAndCrop,
+                pickingMode = PickingMode.Ignore
+            };
+            landmarkImage.AddToClassList("landmark-memory-stamp-image");
+            stamp.Add(landmarkImage);
+            sheet.Add(stamp);
+
+            sheet.Add(Text(landmark.name, "subtitle"));
+            sheet.Add(Text("This Landmark Stamp is now saved in your Journey.", "body"));
+            sheet.Add(Text("Would you like to take a photo with one of your companions and attach it to this memory?", "landmark-memory-photo-question"));
+
+            var actions = Element("landmark-memory-unlocked-actions", "landmark-memory-unlocked-actions");
+            var takePhoto = ActionButton("Take a Photo", TakeMemoryPhoto, "primary-action");
+            takePhoto.name = "take-memory-photo";
+            actions.Add(takePhoto);
+            var maybeLater = ActionButton("Maybe Later", ReturnToJourney, "secondary-action");
+            maybeLater.name = "maybe-later";
+            actions.Add(maybeLater);
+            sheet.Add(actions);
+            page.Add(sheet);
+        }
+
         private Texture2D RewardPetTexture(string rewardPetId)
         {
             if (runtime?.Assets == null || runtime.Data == null)
@@ -210,11 +313,53 @@ namespace CorgiAR
             return null;
         }
 
+        private Texture2D LandmarkTexture(string landmarkId)
+        {
+            if (runtime?.Assets == null || runtime.Data == null)
+                return null;
+            for (var i = 0; i < runtime.Data.Landmarks.Count; i++)
+                if (runtime.Data.Landmarks[i].id == landmarkId)
+                    return runtime.Assets.Landmark(i);
+            return null;
+        }
+
         private void CollectReward()
         {
-            runtime.CompleteLandmarkMemory(CurrentLandmarkId());
+            LandmarkRewardDto reward = runtime.CompleteLandmarkMemory(CurrentLandmarkId());
             stampCollected = true;
+            showMemoryUnlocked = reward.newlyCompleted;
             Render();
+        }
+
+        private void CloseInfoCard()
+        {
+            showInfoCard = false;
+            Render();
+        }
+
+        private void TakeMemoryPhoto()
+        {
+            showPhotoPetChoice = true;
+            Render();
+        }
+
+        private void UseRewardPetForPhoto()
+        {
+            LandmarkUiData landmark = CurrentLandmark();
+            string rewardPetId = landmark.companionRewardId;
+            if (string.IsNullOrEmpty(rewardPetId) || !runtime.SetLeadCompanion(rewardPetId))
+            {
+                KeepCurrentLeadForPhoto();
+                return;
+            }
+
+            runtime.EnterPetAr(rewardPetId, true, PendingPetInteraction.None, landmark.id);
+        }
+
+        private void KeepCurrentLeadForPhoto()
+        {
+            LandmarkUiData landmark = CurrentLandmark();
+            runtime.EnterPetAr(runtime.PrimaryCompanionId(), true, PendingPetInteraction.None, landmark.id);
         }
 
         private string CurrentLandmarkId()
@@ -224,7 +369,9 @@ namespace CorgiAR
                 foreach (LandmarkUiData landmark in runtime.Data.Landmarks)
                     if (landmark.id == targetName)
                         return landmark.id;
-            return DefaultLandmarkId;
+            return string.IsNullOrEmpty(LandmarkScanSceneContext.RequestedLandmarkId)
+                ? DefaultLandmarkId
+                : LandmarkScanSceneContext.RequestedLandmarkId;
         }
 
         private LandmarkUiData CurrentLandmark()

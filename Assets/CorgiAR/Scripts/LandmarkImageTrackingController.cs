@@ -33,6 +33,7 @@ namespace CorgiAR
         private bool recognized;
         private bool currentlyTracking;
         private string recognizedTargetName;
+        private string targetFilter;
         private GameObject activeTrackedContent;
         private Light landmark81Light;
         private string status = "Point the camera at a supported Landmark target.";
@@ -44,6 +45,13 @@ namespace CorgiAR
         /// <summary>Raised when the player taps the 3D landmark model once it is showing on the
         /// tracked image - the UI uses this to reveal the history/info card.</summary>
         public event Action ContentTapped;
+
+        /// <summary>Limits a contextual Scan Again visit to one Landmark target. An empty value keeps
+        /// the generic scanner behavior and accepts every image in the reference library.</summary>
+        public void SetTargetFilter(string targetName)
+        {
+            targetFilter = string.IsNullOrWhiteSpace(targetName) ? null : targetName;
+        }
 
         private void Awake()
         {
@@ -107,13 +115,17 @@ namespace CorgiAR
             if (image == null || !IsExpected(image))
                 return;
 
+            string targetName = image.referenceImage.name;
+            if (!string.IsNullOrEmpty(targetFilter) &&
+                !string.Equals(targetFilter, targetName, StringComparison.Ordinal))
+                return;
+
             if (image.trackingState != TrackingState.Tracking)
             {
-                SetTrackingLost(image.referenceImage.name);
+                SetTrackingLost(targetName);
                 return;
             }
 
-            string targetName = image.referenceImage.name;
             if (recognized && !string.Equals(recognizedTargetName, targetName, StringComparison.Ordinal))
                 return;
 

@@ -16,10 +16,19 @@ namespace ARWalking.UI
         public static bool IsPhotoMode;
         public static PendingPetInteraction Interaction;
 
-        /// <summary>Non-null when entering for a Landmark's AR Memory (History/Architecture/
+        /// <summary>Non-null when entering for a Landmark's AR Memory (History/Cultural Significance/
         /// Did-You-Know + Collect Stamp overlay); null for the plain pet-viewing flows.</summary>
         public static string LandmarkId;
 
         public static UiRootTab ReturnRoot;
+    }
+
+    /// <summary>Identifies the Landmark requested by a contextual scanner entry such as
+    /// Journey/Scan Again. Empty means the generic Journey Scan action accepts any supported target.</summary>
+    public static class LandmarkScanSceneContext
+    {
+        public static string RequestedLandmarkId;
+
+        public static void Clear() => RequestedLandmarkId = null;
     }
 }

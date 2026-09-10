@@ -318,6 +318,8 @@ namespace ARWalking.Tests.EditMode
             Assert.That(rewardResult.unlockedCompanionId, Is.EqualTo(PrototypeIds.Husky));
             Assert.That(save.FindCompanion(PrototypeIds.Husky).unlocked, Is.True);
             Assert.That(save.FindCompanion(PrototypeIds.Husky).owned, Is.True);
+            Assert.That(save.journeys.Single(item => item.landmarkId == PrototypeIds.NotreDameBasilica).title,
+                Is.EqualTo("Notre-Dame Basilica"));
         }
 
         [Test]
