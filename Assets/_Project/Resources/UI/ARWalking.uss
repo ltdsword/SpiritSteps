@@ -18,6 +18,8 @@
     bottom: 0;
     flex-direction: column;
     background-color: rgb(249, 246, 235);
+    transition-property: padding-bottom;
+    transition-duration: 0.2s;
 }
 
 .page {
