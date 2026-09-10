@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using ARWalking.UI;
 using ShibaFeeding;
 
 namespace CorgiAR
@@ -17,6 +18,7 @@ namespace CorgiAR
     {
         [SerializeField] private DogCompanionController companion;
         [SerializeField] private DogAnimatorAdapter animatorAdapter;
+        [SerializeField] private PetBinder binder;
         [SerializeField] private Transform mouthBone;
 
         [Header("Feel")]
@@ -51,6 +53,7 @@ namespace CorgiAR
         {
             if (companion == null) companion = GetComponent<DogCompanionController>();
             if (animatorAdapter == null) animatorAdapter = GetComponent<DogAnimatorAdapter>();
+            if (binder == null) binder = GetComponent<PetBinder>();
             ResolveMouthIfNeeded();
         }
 
@@ -115,6 +118,10 @@ namespace CorgiAR
         private IEnumerator EatSequence(ThrownFood food)
         {
             IsEating = true;
+            // Captured now, not read from food.FoodId at the end: BeginBeingEaten's shrink
+            // coroutine destroys the treat only slightly before this sequence finishes, so a
+            // live read there would race Destroy() and could silently skip the EXP grant.
+            string foodId = food.FoodId;
 
             // A treat at the mouth proceeds immediately. Otherwise the pet runs
             // over, but only after TryEat has confirmed it noticed and can reach it.
@@ -172,6 +179,14 @@ namespace CorgiAR
             if (food != null)
                 food.BeginBeingEaten(mouthBone != null ? mouthBone : transform);
 
+            // The pet has now committed to this treat - nothing from here on can fail it. Grant the
+            // reward now rather than after the closing animation wait below: the food's inventory
+            // unit was already spent at pickup (see FoodDragThrowUI.ConsumeSelectedFood), and backing
+            // out of AR/3D mode destroys this coroutine mid-wait, which used to silently skip the EXP
+            // while still leaving the item spent.
+            GrantFeedExperience(foodId);
+            Fed?.Invoke();
+
             yield return new WaitForSeconds(0.5f);
             SpawnPopup();
             yield return new WaitForSeconds(Mathf.Max(0f, total - 0.5f));
@@ -179,7 +194,23 @@ namespace CorgiAR
             animatorAdapter?.SetPlaybackSpeed(1f);
             IsEating = false;
             eatRoutine = null;
-            Fed?.Invoke();
+        }
+
+        /// <summary>Credits the food's Growth EXP to the companion actually being fed (the one bound
+        /// in this AR/3D scene), not the player's lead/walking companion - those can differ whenever
+        /// the player is viewing a non-lead pet. Falls back to the lead companion only if no binder
+        /// is wired up (e.g. a test double).</summary>
+        private void GrantFeedExperience(string foodId)
+        {
+            if (string.IsNullOrEmpty(foodId))
+                return;
+            UiPrototypeRuntime runtime = UiPrototypeRuntime.Instance;
+            if (runtime == null)
+                return;
+            string companionId = binder != null && !string.IsNullOrEmpty(binder.CurrentId)
+                ? binder.CurrentId
+                : runtime.PrimaryCompanionId();
+            runtime.GrantFeedExperience(foodId, companionId);
         }
 
         private void SpawnPopup()

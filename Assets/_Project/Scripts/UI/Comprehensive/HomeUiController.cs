@@ -1167,9 +1167,13 @@ namespace ARWalking.UI
 
             _overlayScrim.Add(Action("Delete photo", () =>
             {
-                photos.RemoveAt(_viewerPhotoIndex);
-                _runtime.Persist();
-                if (photos.Count == 0) { RemoveTransientOverlay(); Render(); }
+                _runtime.DeletePhoto(path);
+                // Refreshes the Photos grid/stats and Memory timeline underneath the still-open
+                // viewer immediately - previously they only picked up the deletion on the next full
+                // Render() (e.g. a tab switch), and the timeline never picked it up at all since the
+                // old code only ever touched savedPhotoPaths, never the Journey entry referencing it.
+                Render();
+                if (photos.Count == 0) RemoveTransientOverlay();
                 else RenderPhotoViewerContent();
             }, "danger-action", "journey-photo-viewer-delete"));
 
@@ -1421,6 +1425,7 @@ namespace ARWalking.UI
             }
 
             _runtime.SaveData.displayName = normalized;
+            _runtime.SaveData.ApplyAdminPerksIfNamed();
             _runtime.Persist();
             _pendingAccountDisplayName = normalized;
             _accountNameEditing = false;
@@ -1691,7 +1696,10 @@ namespace ARWalking.UI
         static string GrowthCaption(CompanionRoster.Entry entry, int experience, GrowthStage stage) => stage switch
         {
             GrowthStage.Baby => experience + " / " + entry.YoungExp + " EXP",
-            GrowthStage.Young => experience + " / " + entry.AdultExp + " EXP",
+            // Matches GrowthRatio above: EXP within the current stage, not the raw cumulative
+            // total against the final threshold, so the number resets alongside the bar instead
+            // of still reading e.g. "50 / 80" right after leveling up into Young.
+            GrowthStage.Young => (experience - entry.YoungExp) + " / " + (entry.AdultExp - entry.YoungExp) + " EXP",
             _ => "Max"
         };
 

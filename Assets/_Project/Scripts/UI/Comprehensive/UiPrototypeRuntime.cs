@@ -234,6 +234,18 @@ namespace ARWalking.UI
             return consumed;
         }
 
+        /// <summary>Credits Growth EXP for an AR/3D treat that just finished being eaten (the
+        /// inventory unit was already spent at pickup time via <see cref="ConsumeFood"/>, so this
+        /// does not touch inventory again) - completes the "feed pet" tutorial step too, since
+        /// both key off the same <c>everFedCompanion</c> flag <see cref="CompanionProgressionService.FeedCompanion"/> sets.</summary>
+        public FeedResultDto GrantFeedExperience(string foodId, string companionId)
+        {
+            if (_progression == null) return new FeedResultDto { foodId = foodId, companionId = companionId, error = "Not signed in." };
+            var result = _progression.GrantFeedExperience(foodId, companionId);
+            if (result.success) Persist();
+            return result;
+        }
+
         public LandmarkRewardDto CompleteLandmarkMemory(string landmarkId)
         {
             RequireProfile();
@@ -267,6 +279,27 @@ namespace ARWalking.UI
             File.WriteAllBytes(value, pngBytes);
             RecordPhoto(value);
             return value;
+        }
+
+        /// <summary>Deletes a saved AR photo: removes it from the gallery, detaches it from any
+        /// Journey entry that used it as a cover image (otherwise the Memory timeline keeps showing
+        /// a photo the player just removed, with nothing short of taking a new one ever clearing
+        /// it), and deletes the file from disk.</summary>
+        public void DeletePhoto(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            SaveData.savedPhotoPaths.Remove(path);
+            foreach (var journey in SaveData.journeys)
+                if (journey != null && journey.photoPath == path) journey.photoPath = null;
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[UiPrototypeRuntime] Failed to delete photo file: " + e.Message);
+            }
+            Persist();
         }
 
         void RecordPhoto(string path)

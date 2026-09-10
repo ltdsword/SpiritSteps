@@ -235,6 +235,18 @@ namespace CorgiAR
                 PlacedChanged?.Invoke(true);
         }
 
+        /// <summary>Hides the pet and clears its placement, so the reticle reappears and the
+        /// next detected plane places it fresh - lets the player recover a pet that wandered
+        /// off, got stuck, or is otherwise hard to reach. A no-op in desktop preview, where
+        /// there is no plane-detection loop to bring it back.</summary>
+        public void Respawn()
+        {
+            if (raycastManager == null || dogRoot == null)
+                return;
+            dogRoot.SetActive(false);
+            isPlaced = false;
+        }
+
         private bool RaycastDog(Vector2 screenPosition)
         {
             if (arCamera == null || dogRoot == null)

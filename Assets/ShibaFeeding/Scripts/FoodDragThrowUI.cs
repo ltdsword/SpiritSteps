@@ -252,6 +252,7 @@ namespace ShibaFeeding
                     visualFeedback.SetHeld(false);
                 return;
             }
+            heldFood.FoodId = selected.FoodId;
             ConsumeSelectedFood();
             heldFood.SetHeld(true);
             heldFootprintRadius = ThrowLandingIndicator.MeasureFootprint(heldFood.transform, 0.14f);

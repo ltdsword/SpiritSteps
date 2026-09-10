@@ -379,9 +379,11 @@ namespace CorgiAR.UI
             VisualElement cluster = Element(null, "ar-cam-cluster");
             panel.Add(cluster);
 
-            // Camera flip is intentionally decorative: AR passthrough only ever uses the rear
-            // camera for plane tracking, so there is no real front/back switch to perform.
-            var flip = new UiButton(() => { });
+            // Repurposed from a decorative front/back camera flip (AR passthrough only ever
+            // uses the rear camera, so there was nothing real to switch) into a respawn: hides
+            // the pet and clears its placement so the player can walk it to a new spot and have
+            // it reappear on the next plane found there.
+            var flip = new UiButton(() => placement?.Respawn());
             flip.AddToClassList("ar-cam-flip");
             flip.Add(Icon("cameraswitch", "ar-cam-flip-icon", White));
             cluster.Add(flip);
