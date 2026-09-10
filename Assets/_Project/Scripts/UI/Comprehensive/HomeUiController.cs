@@ -1033,7 +1033,10 @@ namespace ARWalking.UI
                 body.Add(Body("There's a mission on this landmark. Please approach this site and explore it."));
                 body.Add(InfoRow("lock", "Mission locked", "Explore this landmark to reveal its story", "blossom-info"));
             }
-            if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
+            if (collected)
+                body.Add(ActionWithIcon("stamp", null, "Go to Stamps",
+                    () => { RemoveTransientOverlay(); SelectRoot(UiRootTab.Journey); }, "primary-action"));
+            else if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
                 body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
             else

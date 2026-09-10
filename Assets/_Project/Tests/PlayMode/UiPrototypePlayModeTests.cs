@@ -446,10 +446,13 @@ namespace ARWalking.Tests.PlayMode
             home.ShowLandmark(PrototypeIds.CentralPostOffice);
             yield return null;
             var root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(root.Q(className: "landmark-sheet"), Is.Not.Null);
-            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(0),
+            var sheet = root.Q(className: "landmark-sheet");
+            Assert.That(sheet, Is.Not.Null);
+            Assert.That(sheet.Query(className: "story-section").ToList().Count, Is.EqualTo(0),
                 "An unexplored landmark's story shouldn't be spoiled before the player completes its AR mission by scanning it.");
-            Assert.That(root.Q<Label>(className: "body")?.text,
+            // Scoped to the sheet itself - the Map screen's Mission Card underneath also has a ".body" label
+            // (e.g. "Walk 20m with your companion."), so an unscoped root.Q<Label> can match that one instead.
+            Assert.That(sheet.Q<Label>(className: "body")?.text,
                 Is.EqualTo("There's a mission on this landmark. Please approach this site and explore it."));
 
             UiPrototypeRuntime.Instance.EnterPetAr(PrototypeIds.Corgi, false, PendingPetInteraction.None, PrototypeIds.CentralPostOffice);
@@ -464,8 +467,16 @@ namespace ARWalking.Tests.PlayMode
             home.ShowLandmark(PrototypeIds.CentralPostOffice);
             yield return null;
             root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(root.Query(className: "story-section").ToList().Count, Is.EqualTo(3),
+            sheet = root.Q(className: "landmark-sheet");
+            Assert.That(sheet.Query(className: "story-section").ToList().Count, Is.EqualTo(3),
                 "Once the landmark is explored (its stamp collected), the full history/architecture/did-you-know story should be visible.");
+            var goToStampsButton = sheet.Q<UnityEngine.UIElements.Button>("go-to-stamps");
+            Assert.That(goToStampsButton, Is.Not.Null,
+                "An explored landmark's sheet should offer a 'Go to Stamps' action instead of the AR/locked prompt.");
+            Assert.That(goToStampsButton.ClassListContains("primary-action"), Is.True,
+                "Go to Stamps should use the green primary-action style, not the disabled/locked one.");
+            Assert.That(sheet.Q<UnityEngine.UIElements.Button>("walk-closer-to-unlock"), Is.Null,
+                "The 'Walk closer to unlock' prompt shouldn't show once the landmark is already explored.");
         }
 
         [UnityTest]

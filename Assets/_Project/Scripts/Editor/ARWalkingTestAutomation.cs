@@ -11,7 +11,6 @@ namespace ARWalking.Editor
     [InitializeOnLoad]
     public static class ARWalkingTestAutomation
     {
-        const string ActiveModeKey = "ARWalking.ActiveTestMode";
         static TestRunnerApi _api;
         static ARWalkingTestCallbacks _callbacks;
 
@@ -35,20 +34,12 @@ namespace ARWalking.Editor
             var root = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
             var existingReport = Path.Combine(root, "TestArtifacts", "Results", mode + ".txt");
             if (File.Exists(existingReport)) File.Delete(existingReport);
-            EditorPrefs.SetString(ActiveModeKey, mode.ToString());
             var settings = new ExecutionSettings
             {
                 filters = new[] { new Filter { testMode = mode, assemblyNames = new[] { assemblyName } } }
             };
             _api.Execute(settings);
             Debug.Log("ARW_TEST_STARTED " + mode + " " + assemblyName);
-        }
-
-        internal static string ConsumeActiveMode()
-        {
-            var value = EditorPrefs.GetString(ActiveModeKey, string.Empty);
-            EditorPrefs.DeleteKey(ActiveModeKey);
-            return value;
         }
     }
 
@@ -60,8 +51,11 @@ namespace ARWalking.Editor
 
         public void RunFinished(ITestResultAdaptor result)
         {
-            var mode = ARWalkingTestAutomation.ConsumeActiveMode();
-            if (string.IsNullOrEmpty(mode)) return;
+            // Derived straight from the result rather than tracked via shared EditorPrefs state -
+            // RunEditMode()/RunPlayMode() are often queued back-to-back (e.g. from a single
+            // automation script), and a single "currently active mode" key gets overwritten by the
+            // second call before the first run's async RunFinished fires, corrupting both reports.
+            var mode = result.Test.TestMode;
             var root = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
             var directory = Path.Combine(root, "TestArtifacts", "Results");
             Directory.CreateDirectory(directory);

@@ -513,8 +513,8 @@
 .near-pill { background-color: rgb(232, 245, 229); }
 .far-pill { background-color: rgb(250, 239, 210); }
 .story-section { padding: 26px; }
-.story-heading { align-items: center; margin-bottom: 8px; }
-.story-heading .subtitle { font-size: 31px; }
+.story-heading { align-items: center; margin-bottom: 16px; }
+.story-heading .subtitle { font-size: 31px; line-height: 37px; }
 .story-icon { width: 38px; height: 38px; margin-right: 14px; }
 .history-card { background-color: rgb(232, 245, 229); }
 .architecture-card { background-color: rgb(220, 239, 247); }
@@ -655,8 +655,8 @@
 .landmark-sheet { width: 100%; max-height: 92%; padding: 0; margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-top-left-radius: 64px; border-top-right-radius: 64px; overflow: hidden; }
 .landmark-sheet-hero { height: 340px; min-height: 340px; position: relative; overflow: hidden; background-color: rgb(232, 245, 229); }
 .landmark-sheet-hero-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.landmark-sheet-close { position: absolute; right: 22px; top: 22px; }
-.landmark-sheet-distance { position: absolute; left: 22px; top: 22px; background-color: rgba(20, 18, 16, 0.5); }
+.landmark-sheet-close { position: absolute; left: 28px; top: 28px; }
+.landmark-sheet-distance { position: absolute; left: 24px; bottom: 24px; background-color: rgba(20, 18, 16, 0.5); }
 .landmark-sheet-distance .pill-label { color: white; }
 .landmark-sheet-body { padding: 38px; }
 .landmark-sheet-local-name { font-size: 22px; color: rgb(105, 120, 109); -unity-font-definition: url("../../Art/UI/Fonts/Nunito-Bold.ttf"); -unity-font-style: normal; margin-bottom: 4px; }
