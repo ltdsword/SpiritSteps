@@ -16,20 +16,20 @@ MonoBehaviour:
   - id: independence-palace
     latitude: 10.7770
     longitude: 106.6953
-    unlockRadiusMeters: 100
+    unlockRadiusMeters: 500
     isMapCalibrationAnchor: 1
   - id: central-post-office
     latitude: 10.7798
     longitude: 106.6997
-    unlockRadiusMeters: 100
+    unlockRadiusMeters: 500
     isMapCalibrationAnchor: 1
   - id: notre-dame-basilica
     latitude: 10.7798
     longitude: 106.6990
-    unlockRadiusMeters: 100
+    unlockRadiusMeters: 500
     isMapCalibrationAnchor: 1
   - id: landmark-81
     latitude: 10.795037
     longitude: 106.721859
-    unlockRadiusMeters: 100
+    unlockRadiusMeters: 500
     isMapCalibrationAnchor: 0

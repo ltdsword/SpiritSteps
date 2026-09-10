@@ -132,6 +132,8 @@ MonoBehaviour:
   - id: independence-palace
     name: Independence Palace
     localName: Independence Palace
+    missionClue:
+    missionHint:
     history: "1868-1871: The palace was built during the French colonial period and
       originally named Norodom Palace. It was later known as the Palace of the Governor
       of Cochinchina and the Governor-General's Palace.\n\n1955: The palace was renamed
@@ -150,6 +152,8 @@ MonoBehaviour:
   - id: central-post-office
     name: Central Post Office
     localName: Buu dien Trung tam Sai Gon
+    missionClue:
+    missionHint:
     history: Built in the late nineteenth century, the post office has connected
       residents and travellers across generations.
     architecture: Its long vaulted hall, patterned tile floor, and arched windows
@@ -161,6 +165,9 @@ MonoBehaviour:
   - id: notre-dame-basilica
     name: Notre-Dame Basilica
     localName: Nha tho Duc Ba Sai Gon
+    missionClue: Find an illustrated image showing the front of the cathedral, surrounded
+      by trees and greenery, with the blue sky above.
+    missionHint: Near the entrance
     history: Construction began on 7 October 1877 and the basilica was completed
       in 1880, designed by French architect Jules Bourard.
     architecture: Through many historical changes, Notre-Dame Cathedral Basilica
@@ -173,6 +180,9 @@ MonoBehaviour:
   - id: landmark-81
     name: Landmark 81
     localName: Landmark 81
+    missionClue: Find a photo of Landmark 81 taken from a distance at sunset. Look
+      for red lights and a heart near the top, with yellow-white lights below.
+    missionHint: Around the building
     history: Construction on the project began in 2014, with Vingroup as the developer.
       The entire complex became fully operational in 2018, becoming the tallest building
       in Vietnam and, at the time, one of the tallest buildings in the world. Standing

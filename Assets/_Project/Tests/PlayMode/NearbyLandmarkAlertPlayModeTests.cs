@@ -15,8 +15,8 @@ namespace ARWalking.Tests.PlayMode
     // this memory" panel it opens (docs/images/map.png, docs/images/memory_floating_panel.png) - an
     // independent signal from the Mission Card's own single-slot Landmark entry, so it must show for
     // any undiscovered landmark in range regardless of what the Mission Card is currently displaying.
-    // Triggers within a fixed 500m radius (distinct from each landmark's own, usually smaller, AR
-    // unlock radius) and prefers the nearest undiscovered landmark when more than one is in range.
+    // Triggers within the same fixed 500m radius used by the contextual Landmark scanner and prefers
+    // the nearest undiscovered landmark when more than one is in range.
     public sealed class NearbyLandmarkAlertPlayModeTests
     {
         sealed class DeterministicFailingWebViewBridge : IWebViewBridge
@@ -41,7 +41,7 @@ namespace ARWalking.Tests.PlayMode
             public LandmarkProximity GetLandmarkProximity(string landmarkId)
             {
                 var distance = DistancesMetres.TryGetValue(landmarkId, out var value) ? value : 5000f;
-                return new LandmarkProximity { landmarkId = landmarkId, distanceMetres = distance, directionDegrees = 0f, isWithinUnlockRadius = distance <= 100f };
+                return new LandmarkProximity { landmarkId = landmarkId, distanceMetres = distance, directionDegrees = 0f, isWithinUnlockRadius = distance <= LandmarkGeoData.DefaultUnlockRadiusMeters };
             }
         }
 
@@ -88,14 +88,14 @@ namespace ARWalking.Tests.PlayMode
         [UnityTest]
         public IEnumerator AlertButtonShowsForALandmarkInRange_AndOpensTheMemoryPanel()
         {
-            _mapProvider.DistancesMetres[PrototypeIds.CentralPostOffice] = 80f;
+            _mapProvider.DistancesMetres[PrototypeIds.NotreDameBasilica] = 80f;
 
             var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
             Assert.That(home.CompleteSetup("Nearby Alert Test"), Is.True);
             home.SelectRoot(UiRootTab.Map);
             yield return null; yield return null;
 
-            Assert.That(home.NearbyLandmarkAlertId, Is.EqualTo(PrototypeIds.CentralPostOffice));
+            Assert.That(home.NearbyLandmarkAlertId, Is.EqualTo(PrototypeIds.NotreDameBasilica));
 
             var root = home.GetComponent<UIDocument>().rootVisualElement;
             // "nearby-landmark-alert-button" is the button's name (IconAction's 5th param), not a class.
@@ -107,7 +107,7 @@ namespace ARWalking.Tests.PlayMode
             yield return null;
 
             Assert.That(root.Q(className: "memory-panel"), Is.Not.Null);
-            Assert.That(root.Q<Label>(className: "memory-panel-landmark-name")?.text, Is.EqualTo("Central Post Office"));
+            Assert.That(root.Q<Label>(className: "memory-panel-landmark-name")?.text, Is.EqualTo("Notre-Dame Basilica"));
             Assert.That(root.Q<Button>("scan"), Is.Not.Null, "the panel's Scan action must exist to lead into LandmarkScan");
         }
 
@@ -129,7 +129,7 @@ namespace ARWalking.Tests.PlayMode
         [UnityTest]
         public IEnumerator AlertPrefersTheNearestUndiscoveredLandmark_WhenMultipleAreInRange()
         {
-            _mapProvider.DistancesMetres[PrototypeIds.CentralPostOffice] = 300f;
+            _mapProvider.DistancesMetres[PrototypeIds.Landmark81] = 300f;
             _mapProvider.DistancesMetres[PrototypeIds.NotreDameBasilica] = 150f; // nearest
             _mapProvider.DistancesMetres[PrototypeIds.IndependencePalace] = 490f;
 
@@ -144,17 +144,27 @@ namespace ARWalking.Tests.PlayMode
         [UnityTest]
         public IEnumerator AlertRadiusIsFiveHundredMetres_ExclusiveBeyondThat()
         {
-            _mapProvider.DistancesMetres[PrototypeIds.CentralPostOffice] = 500f; // inclusive at the boundary
+            _mapProvider.DistancesMetres[PrototypeIds.NotreDameBasilica] = 500f; // inclusive at the boundary
 
             var home = UnityEngine.Object.FindFirstObjectByType<HomeUiController>();
             Assert.That(home.CompleteSetup("Nearby Alert Bound"), Is.True);
             home.SelectRoot(UiRootTab.Map);
             yield return null; yield return null;
-            Assert.That(home.NearbyLandmarkAlertId, Is.EqualTo(PrototypeIds.CentralPostOffice));
+            Assert.That(home.NearbyLandmarkAlertId, Is.EqualTo(PrototypeIds.NotreDameBasilica));
+            Assert.That(UiPrototypeRuntime.Instance.CanEnterLandmarkScan(PrototypeIds.NotreDameBasilica), Is.True);
+            home.ShowNearbyMemory();
+            yield return null;
+            var root = home.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q(className: "memory-panel"), Is.Not.Null);
 
-            _mapProvider.DistancesMetres[PrototypeIds.CentralPostOffice] = 501f;
+            _mapProvider.DistancesMetres[PrototypeIds.NotreDameBasilica] = 501f;
             yield return null; yield return null;
             Assert.That(home.NearbyLandmarkAlertId, Is.Null);
+            Assert.That(UiPrototypeRuntime.Instance.CanEnterLandmarkScan(PrototypeIds.NotreDameBasilica), Is.False);
+            Assert.That(UiPrototypeRuntime.Instance.IsLandmarkScanSupported(PrototypeIds.NotreDameBasilica), Is.True,
+                "The supported Stamp revisit remains available independently of distance.");
+            Assert.That(root.Q(className: "memory-panel"), Is.Null,
+                "Leaving the 500 m radius must dismiss an already-open nearby mission.");
         }
     }
 }

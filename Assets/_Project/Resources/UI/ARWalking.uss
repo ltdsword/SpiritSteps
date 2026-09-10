@@ -672,6 +672,7 @@
 .memory-panel-text-col { flex-grow: 6; flex-shrink: 1; flex-basis: 0; min-width: 0; }
 .memory-panel-landmark-name { font-size: 28px; color: rgb(42, 63, 49); -unity-font-definition: url("../../Art/UI/Fonts/Baloo2-Bold.ttf"); -unity-font-style: normal; }
 .memory-panel-text-col .body { font-size: 24px; line-height: 31px; margin-top: 6px; }
+.memory-panel-hint { color: rgb(84, 160, 99); -unity-font-style: bold; }
 .memory-panel-distance-row { align-items: center; margin-top: 20px; }
 .memory-panel-distance-icon { width: 22px; height: 22px; margin-right: 8px; }
 .memory-panel-distance-row .body { margin-top: 0; color: rgb(105, 120, 109); }

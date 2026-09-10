@@ -133,6 +133,8 @@ namespace ARWalking.UI
         public string id;
         public string name;
         public string localName;
+        [TextArea] public string missionClue;
+        public string missionHint;
         [TextArea] public string history;
         [TextArea] public string architecture;
         [TextArea] public string didYouKnow;

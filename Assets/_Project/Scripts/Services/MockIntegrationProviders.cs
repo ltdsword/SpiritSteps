@@ -41,7 +41,7 @@ namespace ARWalking.UI
         {
             { PrototypeIds.IndependencePalace, Proximity(PrototypeIds.IndependencePalace, 620f, 245f, false) },
             { PrototypeIds.CentralPostOffice, Proximity(PrototypeIds.CentralPostOffice, 80f, 35f, true) },
-            { PrototypeIds.NotreDameBasilica, Proximity(PrototypeIds.NotreDameBasilica, 210f, 20f, false) },
+            { PrototypeIds.NotreDameBasilica, Proximity(PrototypeIds.NotreDameBasilica, 210f, 20f, true) },
             { PrototypeIds.Landmark81, Proximity(PrototypeIds.Landmark81, 1450f, 68f, false) }
         };
 

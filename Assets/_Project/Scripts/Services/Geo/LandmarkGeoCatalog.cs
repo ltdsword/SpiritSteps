@@ -9,10 +9,12 @@ namespace ARWalking.UI
     [System.Serializable]
     public sealed class LandmarkGeoData
     {
+        public const float DefaultUnlockRadiusMeters = 500f;
+
         public string id;
         [Tooltip("Decimal degrees, WGS84.")] public double latitude;
         [Tooltip("Decimal degrees, WGS84.")] public double longitude;
-        [Min(0f)] public float unlockRadiusMeters = 100f;
+        [Min(0f)] public float unlockRadiusMeters = DefaultUnlockRadiusMeters;
         [Tooltip("Used to calibrate the real-world-to-illustrated-map projection. Exactly three entries in this " +
                  "catalog must have this checked, and they must not be collinear on the map.")]
         public bool isMapCalibrationAnchor;

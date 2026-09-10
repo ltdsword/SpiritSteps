@@ -404,6 +404,11 @@ namespace ARWalking.Tests.EditMode
                 Is.EquivalentTo(CompanionRoster.Entries.Select(e => e.Id)));
             Assert.That(catalog.foods.Count, Is.EqualTo(2));
             Assert.That(catalog.landmarks.Count, Is.EqualTo(4));
+            var geoCatalog = Resources.Load<LandmarkGeoCatalog>("UI/LandmarkGeoCatalog");
+            Assert.That(geoCatalog, Is.Not.Null);
+            Assert.That(geoCatalog.landmarks.All(item =>
+                item.unlockRadiusMeters == LandmarkGeoData.DefaultUnlockRadiusMeters), Is.True,
+                "Every production Landmark must use the shared 500 m mission/scan radius.");
             var independencePalace = catalog.landmarks.Single(item => item.id == PrototypeIds.IndependencePalace);
             Assert.That(independencePalace.name, Is.EqualTo("Independence Palace"));
             Assert.That(independencePalace.history, Is.Not.Empty);
@@ -417,9 +422,15 @@ namespace ARWalking.Tests.EditMode
             var notreDame = catalog.landmarks.Single(item => item.id == PrototypeIds.NotreDameBasilica);
             Assert.That(notreDame.imageTargetReady, Is.True);
             Assert.That(notreDame.companionRewardId, Is.EqualTo(PrototypeIds.Bull));
+            Assert.That(notreDame.missionClue, Does.Contain("illustrated image"));
+            Assert.That(notreDame.missionHint, Is.EqualTo("Near the entrance"));
             var landmark81 = catalog.landmarks.Single(item => item.id == PrototypeIds.Landmark81);
             Assert.That(landmark81.imageTargetReady, Is.True);
             Assert.That(landmark81.companionRewardId, Is.EqualTo(PrototypeIds.Stag));
+            Assert.That(landmark81.missionClue, Does.Contain("at sunset"));
+            Assert.That(landmark81.missionHint, Is.EqualTo("Around the building"));
+            Assert.That(Resources.Load<Texture2D>("UI/MissionClues/" + PrototypeIds.NotreDameBasilica), Is.Not.Null);
+            Assert.That(Resources.Load<Texture2D>("UI/MissionClues/" + PrototypeIds.Landmark81), Is.Not.Null);
             Assert.That(catalog.markers.Single(item => item.targetId == PrototypeIds.Landmark81).label, Is.EqualTo("Landmark 81"));
             Assert.That(library, Is.Not.Null);
             Assert.That(library.companions.Length, Is.EqualTo(CompanionRoster.Entries.Length));

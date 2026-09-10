@@ -172,5 +172,21 @@ namespace ARWalking.Tests.PlayMode
             Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.ActiveWalk));
             Assert.That(_bridge.Visible, Is.True, "starting a walk must not hide the map WebView - ActiveWalk still renders the real map");
         }
+
+        [UnityTest]
+        public IEnumerator LeavingHomeScene_HidesNativeWebView()
+        {
+            var home = CreateProfile();
+            yield return null; yield return null; yield return null;
+            Assert.That(_bridge.Visible, Is.True);
+
+            // A real scene change destroys Home's AppUIRoot while UiPrototypeRuntime (and therefore
+            // its native WebView) survives via DontDestroyOnLoad. Reproduce that lifecycle directly.
+            UnityEngine.Object.Destroy(home.gameObject);
+            yield return null;
+
+            Assert.That(_bridge.Visible, Is.False,
+                "the native map surface must be hidden before an AR scene starts rendering");
+        }
     }
 }

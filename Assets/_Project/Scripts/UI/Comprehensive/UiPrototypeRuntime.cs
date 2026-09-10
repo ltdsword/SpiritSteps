@@ -438,16 +438,69 @@ namespace ARWalking.UI
         /// <summary>Opens the dedicated Landmark image scanner without starting the companion AR flow.</summary>
         public void EnterLandmarkScan()
         {
-            EnterLandmarkScan(null);
+            TryEnterNearestLandmarkScan();
         }
 
         /// <summary>Opens the scanner for one known Landmark. The image library still contains every
         /// supported target, while the scanner filters this visit to the requested memory.</summary>
         public void EnterLandmarkScan(string landmarkId)
         {
+            TryEnterLandmarkScan(landmarkId);
+        }
+
+        /// <summary>Attempts to open one Landmark's first-time scanner after validating the player's
+        /// latest distance, so a mission panel opened inside the radius cannot be carried outside
+        /// the area and used later.</summary>
+        public bool TryEnterLandmarkScan(string landmarkId)
+        {
             RequireProfile();
+            if (!CanEnterLandmarkScan(landmarkId)) return false;
             LandmarkScanSceneContext.RequestedLandmarkId = landmarkId;
             SceneManager.LoadScene("LandmarkScan");
+            return true;
+        }
+
+        public bool CanEnterLandmarkScan(string landmarkId)
+        {
+            if (!IsLandmarkScanSupported(landmarkId) || LandmarkMapProvider == null) return false;
+            var proximity = LandmarkMapProvider.GetLandmarkProximity(landmarkId);
+            return proximity != null &&
+                   proximity.distanceMetres <= LandmarkGeoData.DefaultUnlockRadiusMeters;
+        }
+
+        public bool IsLandmarkScanSupported(string landmarkId)
+        {
+            var landmark = FindLandmark(landmarkId);
+            return landmark != null && landmark.imageTargetReady &&
+                   !string.IsNullOrWhiteSpace(landmark.missionClue);
+        }
+
+        /// <summary>Reopens a supported scanner from an already-collected Journey Stamp. Revisit
+        /// scans intentionally do not require the player to return to the Landmark.</summary>
+        public bool TryEnterLandmarkScanAgain(string landmarkId)
+        {
+            RequireProfile();
+            if (!IsLandmarkScanSupported(landmarkId)) return false;
+            LandmarkScanSceneContext.RequestedLandmarkId = landmarkId;
+            SceneManager.LoadScene("LandmarkScan");
+            return true;
+        }
+
+        public bool TryEnterNearestLandmarkScan()
+        {
+            RequireProfile();
+            string nearestId = null;
+            var nearestDistance = float.PositiveInfinity;
+            foreach (var landmark in Data.Landmarks)
+            {
+                if (!IsLandmarkScanSupported(landmark.id)) continue;
+                var proximity = LandmarkMapProvider.GetLandmarkProximity(landmark.id);
+                if (proximity == null || proximity.distanceMetres > LandmarkGeoData.DefaultUnlockRadiusMeters ||
+                    proximity.distanceMetres >= nearestDistance) continue;
+                nearestId = landmark.id;
+                nearestDistance = proximity.distanceMetres;
+            }
+            return nearestId != null && TryEnterLandmarkScan(nearestId);
         }
 
         /// <summary>Returns from the dedicated scanner. The selected root tab is preserved.</summary>

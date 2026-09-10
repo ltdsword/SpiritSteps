@@ -23,8 +23,8 @@ namespace ARWalking.UI
         public static UiRootTab ReturnRoot;
     }
 
-    /// <summary>Identifies the Landmark requested by a contextual scanner entry such as
-    /// Journey/Scan Again. Empty means the generic Journey Scan action accepts any supported target.</summary>
+    /// <summary>Identifies the Landmark requested by a nearby mission, the nearest in-range Journey
+    /// Scan action, or a distance-independent Stamp/Scan Again revisit.</summary>
     public static class LandmarkScanSceneContext
     {
         public static string RequestedLandmarkId;

@@ -85,6 +85,11 @@ namespace ARWalking.UI
         {
             if (_runtime != null && _runtime.Navigator != null) _runtime.Navigator.Changed -= OnNavigationChanged;
             if (_runtime != null && _runtime.MapView != null) _runtime.MapView.OnMarkerTapped -= OnRealMapMarkerTapped;
+            // The map is an Android native WebView owned by the DontDestroyOnLoad runtime, so it
+            // outlives the Home scene and renders above Unity's AR camera unless explicitly hidden.
+            // The next HomeUiController enables it again from Start/SyncMapViewVisibility when the
+            // player returns to a route that actually displays the map.
+            if (_runtime != null && _runtime.MapView != null) _runtime.MapView.SetActive(false);
         }
 
         void Update()
@@ -113,15 +118,16 @@ namespace ARWalking.UI
         {
             var nextId = FindNearbyUndiscoveredLandmarkId();
             if (nextId == _nearbyLandmarkAlertId) return;
+            if (_overlayScrim != null && _overlayScrim.Q(className: "memory-panel") != null)
+                RemoveTransientOverlay();
             _nearbyLandmarkAlertId = nextId;
             if (_nearbyLandmarkAlertButton != null)
                 _nearbyLandmarkAlertButton.style.display = nextId != null ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        // A fixed alert radius, independent of each landmark's own (usually smaller) AR unlock radius
-        // (LandmarkProximity.isWithinUnlockRadius) - this is just "you're close enough that it's worth
-        // knowing something is nearby," not "close enough to open the AR Memory."
-        const float NearbyLandmarkAlertRadiusMetres = 500f;
+        // The nearby mission and Landmark scanner share one radius so the mission never appears
+        // before its contextual Scan action is available.
+        const float NearbyLandmarkAlertRadiusMetres = LandmarkGeoData.DefaultUnlockRadiusMeters;
 
         // Picks the NEAREST not-yet-discovered landmark within range, not just the first one in catalog
         // order, so if two are simultaneously in range the closer one is the one offered.
@@ -132,6 +138,7 @@ namespace ARWalking.UI
             var nearestDistance = float.PositiveInfinity;
             foreach (var landmark in _data.Landmarks)
             {
+                if (!_runtime.IsLandmarkScanSupported(landmark.id)) continue;
                 if (IsStampCollected(landmark.id)) continue;
                 var distance = _runtime.LandmarkMapProvider.GetLandmarkProximity(landmark.id).distanceMetres;
                 if (distance > NearbyLandmarkAlertRadiusMetres || distance >= nearestDistance) continue;
@@ -968,7 +975,7 @@ namespace ARWalking.UI
             scroll.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
             scroll.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
-            if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
+            if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
                 scroll.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id), "primary-action"));
             else
@@ -1004,7 +1011,7 @@ namespace ARWalking.UI
             body.Add(StorySection("Did you know?", landmark.didYouKnow, "fact-card", "sparkles"));
             var collected = IsStampCollected(landmark.id);
             body.Add(InfoRow("stamp", collected ? "Stamp collected" : "Passport stamp", collected ? "Saved in your Journey" : "Complete the AR Memory to collect it", collected ? "primary-info" : "blossom-info"));
-            if (landmark.imageTargetReady || proximity.isWithinUnlockRadius)
+            if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
                 body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
             else
@@ -1036,14 +1043,23 @@ namespace ARWalking.UI
 
             var row = Row("memory-panel-photo-row");
             var photoCol = Column("memory-panel-photo-col");
-            photoCol.Add(Image(_assets != null ? _assets.Landmark(index) : null, "memory-panel-photo-crop", ScaleMode.ScaleAndCrop));
-            photoCol.Add(Label("Cropped from the full photo", "memory-panel-photo-caption"));
+            photoCol.Add(Image(MissionClueImage(landmark, index), "memory-panel-photo-crop", ScaleMode.ScaleAndCrop));
+            photoCol.Add(Label("Photo clue", "memory-panel-photo-caption"));
             row.Add(photoCol);
 
             var textCol = Column("memory-panel-text-col");
             textCol.Add(Label(landmark.name, "memory-panel-landmark-name"));
-            textCol.Add(Body(FirstSentence(landmark.history)));
-            textCol.Add(Body("This close-up is a crop of the real landmark photo — match it up when you scan."));
+            var clue = Body("Clue: " + (string.IsNullOrWhiteSpace(landmark.missionClue)
+                ? "Look closely at the photo clue and find the matching landmark image."
+                : landmark.missionClue));
+            clue.AddToClassList("memory-panel-clue");
+            textCol.Add(clue);
+            if (!string.IsNullOrWhiteSpace(landmark.missionHint))
+            {
+                var hint = Body("Hint: " + landmark.missionHint);
+                hint.AddToClassList("memory-panel-hint");
+                textCol.Add(hint);
+            }
             row.Add(textCol);
             modal.Add(row);
 
@@ -1058,7 +1074,7 @@ namespace ARWalking.UI
             modal.Add(tip);
 
             modal.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan",
-                () => { RemoveTransientOverlay(); _runtime.EnterLandmarkScan(landmark.id); }, "primary-action", "memory-panel-scan-button"));
+                () => OpenLandmarkScanner(landmark.id, true), "primary-action", "memory-panel-scan-button"));
         }
 
         void BuildJourneyList()
@@ -1076,7 +1092,7 @@ namespace ARWalking.UI
             scroll.Add(stats);
 
             scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan",
-                _runtime.EnterLandmarkScan, "primary-action", "journey-scan-action"));
+                OpenNearestLandmarkScanner, "primary-action", "journey-scan-action"));
 
             scroll.Add(SectionTitle("Stamp passport"));
             var passport = Card("passport-card", "elevated-card");
@@ -1262,7 +1278,7 @@ namespace ARWalking.UI
                 scroll.Add(StorySection("Cultural Significance", landmarkMemory.architecture, "architecture-card", "map"));
                 scroll.Add(StorySection("Did you know?", landmarkMemory.didYouKnow, "fact-card", "sparkles"));
                 scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "Scan Again",
-                    () => _runtime.EnterLandmarkScan(journey.landmarkId), "primary-action", "journey-scan-again-action"));
+                    () => OpenLandmarkScannerAgain(journey.landmarkId), "primary-action", "journey-scan-again-action"));
             }
             else if (!string.IsNullOrEmpty(journey.companionId))
                 scroll.Add(ActionWithIcon("camera", _assets != null ? _assets.iconAr : null, "View in AR", () => _runtime.EnterPetAr(journey.companionId, false), "blossom-action"));
@@ -1678,6 +1694,37 @@ namespace ARWalking.UI
             if (!string.IsNullOrEmpty(journey.landmarkId) && _assets != null)
                 return _assets.Landmark(FindLandmarkIndex(journey.landmarkId));
             return _assets != null ? _assets.journeyOne : null;
+        }
+
+        Texture2D MissionClueImage(LandmarkUiData landmark, int fallbackIndex)
+        {
+            var clue = landmark == null || string.IsNullOrEmpty(landmark.id)
+                ? null
+                : Resources.Load<Texture2D>("UI/MissionClues/" + landmark.id);
+            return clue != null ? clue : _assets != null ? _assets.Landmark(fallbackIndex) : null;
+        }
+
+        void OpenLandmarkScanner(string landmarkId, bool closeOverlay)
+        {
+            if (!_runtime.CanEnterLandmarkScan(landmarkId))
+            {
+                ShowToast("Move within 500 m of this Landmark to scan it.");
+                return;
+            }
+            if (closeOverlay) RemoveTransientOverlay();
+            _runtime.EnterLandmarkScan(landmarkId);
+        }
+
+        void OpenNearestLandmarkScanner()
+        {
+            if (!_runtime.TryEnterNearestLandmarkScan())
+                ShowToast("Move within 500 m of a supported Landmark to scan it.");
+        }
+
+        void OpenLandmarkScannerAgain(string landmarkId)
+        {
+            if (!_runtime.TryEnterLandmarkScanAgain(landmarkId))
+                ShowToast("This Landmark scan is not available.");
         }
 
         /// <summary>Loads and caches a photo from an on-disk path (a saved AR photo). Returns null if
