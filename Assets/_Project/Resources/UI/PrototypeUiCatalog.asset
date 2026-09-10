@@ -131,13 +131,19 @@ MonoBehaviour:
   landmarks:
   - id: independence-palace
     name: Independence Palace
-    localName: Dinh Doc Lap
-    history: A major Ho Chi Minh City landmark associated with pivotal events in
-      modern Vietnamese history.
-    architecture: The building is known for its modernist composition, shaded facades,
-      and broad ceremonial spaces.
-    didYouKnow: Its grounds form a large green landmark in the centre of District
-      1.
+    localName: Independence Palace
+    history: "1868-1871: The palace was built during the French colonial period and
+      originally named Norodom Palace. It was later known as the Palace of the Governor
+      of Cochinchina and the Governor-General's Palace.\n\n1955: The palace was renamed
+      Independence Palace under President Ngo Dinh Diem.\n\n1962-1966: After it was
+      damaged in a bombing, the palace was rebuilt to a design by architect Ngo Viet
+      Thu and completed in 1966.\n\n30 April 1975: Liberation Army tanks entered Independence
+      Palace, marking the fall of the Republic of Vietnam government and the end of
+      the war, paving the way for national reunification."
+    architecture: Independence Palace represents the Vietnamese people's aspiration
+      for independence, resilient spirit, and complete victory in the struggle to
+      defend the nation.
+    didYouKnow: The present palace was designed by architect Ngo Viet Thu.
     imageKey: independence-palace
     imageTargetReady: 0
     companionRewardId: 
@@ -164,6 +170,22 @@ MonoBehaviour:
     imageKey: notre-dame
     imageTargetReady: 1
     companionRewardId: uaa_bull
+  - id: landmark-81
+    name: Landmark 81
+    localName: Landmark 81
+    history: Construction on the project began in 2014, with Vingroup as the developer.
+      The entire complex became fully operational in 2018, becoming the tallest building
+      in Vietnam and, at the time, one of the tallest buildings in the world. Standing
+      461.2 metres tall, the tower has 81 above-ground floors and rises along the banks
+      of the Saigon River.
+    architecture: The building's design is inspired by a traditional bundle of bamboo,
+      symbolizing unity, resilience, and the indomitable spirit of the Vietnamese people.
+      It represents Vietnam's economic growth, strong national capabilities, and ambition
+      to reach the global stage in an era of international integration.
+    didYouKnow: Landmark 81 is named for its 81 above-ground floors.
+    imageKey: landmark-81
+    imageTargetReady: 1
+    companionRewardId: uaa_stag
   map:
     textureKey: hcm-illustrated
     regionName: District 1, Ho Chi Minh City
@@ -191,3 +213,8 @@ MonoBehaviour:
     label: Notre-Dame Basilica
     normalizedPosition: {x: 0.55, y: 0.36}
     targetId: notre-dame-basilica
+  - id: landmark-81
+    type: 1
+    label: Landmark 81
+    normalizedPosition: {x: 0.78, y: 0.32}
+    targetId: landmark-81

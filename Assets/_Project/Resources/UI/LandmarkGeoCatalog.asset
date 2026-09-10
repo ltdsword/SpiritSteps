@@ -28,3 +28,8 @@ MonoBehaviour:
     longitude: 106.6990
     unlockRadiusMeters: 100
     isMapCalibrationAnchor: 1
+  - id: landmark-81
+    latitude: 10.795037
+    longitude: 106.721859
+    unlockRadiusMeters: 100
+    isMapCalibrationAnchor: 0

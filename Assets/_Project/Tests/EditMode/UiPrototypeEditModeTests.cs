@@ -383,18 +383,28 @@ namespace ARWalking.Tests.EditMode
             Assert.That(catalog.companions.Select(item => item.id),
                 Is.EquivalentTo(CompanionRoster.Entries.Select(e => e.Id)));
             Assert.That(catalog.foods.Count, Is.EqualTo(2));
-            Assert.That(catalog.landmarks.Count, Is.EqualTo(3));
+            Assert.That(catalog.landmarks.Count, Is.EqualTo(4));
+            var independencePalace = catalog.landmarks.Single(item => item.id == PrototypeIds.IndependencePalace);
+            Assert.That(independencePalace.name, Is.EqualTo("Independence Palace"));
+            Assert.That(independencePalace.history, Is.Not.Empty);
+            Assert.That(independencePalace.architecture, Is.Not.Empty);
+            Assert.That(independencePalace.imageTargetReady, Is.False);
+            var palaceMarker = catalog.markers.Single(item => item.targetId == PrototypeIds.IndependencePalace);
+            Assert.That(palaceMarker.label, Is.EqualTo("Independence Palace"));
+            Assert.That(palaceMarker.normalizedPosition, Is.EqualTo(new Vector2(0.32f, 0.45f)));
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).imageTargetReady, Is.True);
             Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.CentralPostOffice).companionRewardId, Is.EqualTo(PrototypeIds.Deer));
             var notreDame = catalog.landmarks.Single(item => item.id == PrototypeIds.NotreDameBasilica);
             Assert.That(notreDame.imageTargetReady, Is.True);
             Assert.That(notreDame.companionRewardId, Is.EqualTo(PrototypeIds.Bull));
-            Assert.That(catalog.landmarks.Single(item => item.id == PrototypeIds.IndependencePalace).companionRewardId,
-                Is.Null.Or.Empty);
+            var landmark81 = catalog.landmarks.Single(item => item.id == PrototypeIds.Landmark81);
+            Assert.That(landmark81.imageTargetReady, Is.True);
+            Assert.That(landmark81.companionRewardId, Is.EqualTo(PrototypeIds.Stag));
+            Assert.That(catalog.markers.Single(item => item.targetId == PrototypeIds.Landmark81).label, Is.EqualTo("Landmark 81"));
             Assert.That(library, Is.Not.Null);
             Assert.That(library.companions.Length, Is.EqualTo(CompanionRoster.Entries.Length));
             Assert.That(library.archivedPlantPlaceholders.Length, Is.EqualTo(3));
-            Assert.That(library.landmarks.Length, Is.EqualTo(3));
+            Assert.That(library.landmarks.Length, Is.EqualTo(4));
             Assert.That(new[]
             {
                 library.iconAr, library.iconBack, library.iconCalendar, library.iconCamera,

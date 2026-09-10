@@ -4,6 +4,7 @@ using System.Linq;
 using CorgiAR;
 using Unity.XR.CoreUtils;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEditor.XR.ARSubsystems;
@@ -17,16 +18,18 @@ using UnityEngine.XR.ARSubsystems;
 
 namespace CorgiAR.EditorTools
 {
-    /// <summary>Builds the isolated AR Foundation image-tracking proof of concept.</summary>
+    /// <summary>Builds the isolated AR Foundation Landmark image scanner.</summary>
     public static class LandmarkScanSetup
     {
         private const string ScenePath = "Assets/_Project/Scenes/LandmarkScan.unity";
         private const string SourceImagePath = "Assets/_Project/Art/UI/ReferenceTemp/Landmarks/notre-dame.png";
         private const string TargetFolder = "Assets/_Project/Art/AR/Targets";
         private const string TargetImagePath = TargetFolder + "/notre-dame-basilica.png";
+        private const string Landmark81TargetImagePath = TargetFolder + "/landmark_81.jpg";
         private const string LibraryFolder = "Assets/_Project/Resources/AR";
         private const string LibraryPath = LibraryFolder + "/LandmarkReferenceImageLibrary.asset";
-        private const string TargetName = "notre-dame-basilica";
+        private const string NotreDameTargetName = "notre-dame-basilica";
+        private const string Landmark81TargetName = "landmark-81";
         private const float PrintedWidthMetres = 0.20f;
 
         private const string NotreDameModelFolder = "Assets/_Project/Resources/AR/notre-dame-cathedral-basilica-of-saigon";
@@ -37,30 +40,26 @@ namespace CorgiAR.EditorTools
         /// reads as a landmark standing on the card rather than a flat decal.</summary>
         private const float NotreDameDisplayHeight = 0.32f;
 
-        [MenuItem("Tools/AR Walking/Landmark Scan/Build Notre-Dame POC")]
+        private const string Landmark81ModelPath = "Assets/_Project/Resources/AR/landmark-81/source/Landmark 81.glb";
+        private const string Landmark81GeneratedFolder = "Assets/_Project/Resources/AR/landmark-81/Generated";
+        private const string Landmark81PrefabPath = Landmark81GeneratedFolder + "/Landmark81Landmark.prefab";
+        private const float Landmark81DisplayHeight = 0.32f;
+
+        [MenuItem("Tools/AR Walking/Landmark Scan/Build Landmark Scanner")]
         public static void BuildMenu()
         {
             Build();
             EditorUtility.DisplayDialog("Landmark Scan",
-                "Created LandmarkScan.unity and a 20 cm Notre-Dame reference image.\n\n" +
+                "Created LandmarkScan.unity with the Notre-Dame Basilica and Landmark 81 targets.\n\n" +
                 "Open the scene for Editor UI simulation, or use the Android POC build menu for a real scan.", "OK");
         }
 
         public static void Build()
         {
-            EnsureFolder(TargetFolder);
-            EnsureFolder(LibraryFolder);
+            PrepareAssetsForPlayerBuild();
 
-            if (AssetDatabase.LoadAssetAtPath<Texture2D>(TargetImagePath) == null)
-            {
-                if (!AssetDatabase.CopyAsset(SourceImagePath, TargetImagePath))
-                    throw new InvalidOperationException("Could not copy landmark target from " + SourceImagePath);
-                AssetDatabase.ImportAsset(TargetImagePath, ImportAssetOptions.ForceSynchronousImport);
-            }
-
-            Texture2D targetTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(TargetImagePath)
-                                      ?? throw new InvalidOperationException("Target image is missing: " + TargetImagePath);
-            XRReferenceImageLibrary library = BuildReferenceLibrary(targetTexture);
+            XRReferenceImageLibrary library = AssetDatabase.LoadAssetAtPath<XRReferenceImageLibrary>(LibraryPath)
+                                              ?? throw new InvalidOperationException("Reference image library is missing: " + LibraryPath);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             scene.name = "LandmarkScan";
@@ -93,18 +92,26 @@ namespace CorgiAR.EditorTools
 
             var imageManager = originObject.AddComponent<ARTrackedImageManager>();
             imageManager.referenceLibrary = library;
-            imageManager.requestedMaxNumberOfMovingImages = 1;
+            imageManager.requestedMaxNumberOfMovingImages = 2;
 
-            GameObject modelPrefab = EnsureNotreDameModelPrefab();
-            GameObject marker = (GameObject)PrefabUtility.InstantiatePrefab(modelPrefab);
-            marker.name = "Notre-Dame Landmark Model";
-            marker.SetActive(false);
+            GameObject notreDameModel = (GameObject)PrefabUtility.InstantiatePrefab(EnsureNotreDameModelPrefab());
+            notreDameModel.name = "Notre-Dame Landmark Model";
+            notreDameModel.SetActive(false);
+            GameObject landmark81Model = (GameObject)PrefabUtility.InstantiatePrefab(EnsureLandmark81ModelPrefab());
+            landmark81Model.name = "Landmark 81 Model";
+            landmark81Model.SetActive(false);
 
             var controller = originObject.AddComponent<LandmarkImageTrackingController>();
             var serializedController = new SerializedObject(controller);
             serializedController.FindProperty("imageManager").objectReferenceValue = imageManager;
-            serializedController.FindProperty("trackedContent").objectReferenceValue = marker;
-            serializedController.FindProperty("expectedTargetName").stringValue = TargetName;
+            serializedController.FindProperty("trackedContent").objectReferenceValue = notreDameModel;
+            serializedController.FindProperty("expectedTargetName").stringValue = NotreDameTargetName;
+            SerializedProperty bindings = serializedController.FindProperty("trackedContents");
+            bindings.arraySize = 2;
+            bindings.GetArrayElementAtIndex(0).FindPropertyRelative("targetName").stringValue = NotreDameTargetName;
+            bindings.GetArrayElementAtIndex(0).FindPropertyRelative("content").objectReferenceValue = notreDameModel;
+            bindings.GetArrayElementAtIndex(1).FindPropertyRelative("targetName").stringValue = Landmark81TargetName;
+            bindings.GetArrayElementAtIndex(1).FindPropertyRelative("content").objectReferenceValue = landmark81Model;
             serializedController.FindProperty("showTrackedContent").boolValue = true;
             serializedController.ApplyModifiedPropertiesWithoutUndo();
 
@@ -115,7 +122,32 @@ namespace CorgiAR.EditorTools
             AddSceneToBuildSettings();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("LANDMARK_SCAN_POC_BUILT target=" + TargetName + " width=0.20m scene=" + ScenePath);
+            Debug.Log("LANDMARK_SCAN_POC_BUILT targets=" + NotreDameTargetName + "," +
+                      Landmark81TargetName + " width=0.20m scene=" + ScenePath);
+        }
+
+        internal static void PrepareAssetsForPlayerBuild()
+        {
+            EnsureFolder(TargetFolder);
+            EnsureFolder(LibraryFolder);
+
+            if (AssetDatabase.LoadAssetAtPath<Texture2D>(TargetImagePath) == null)
+            {
+                if (!AssetDatabase.CopyAsset(SourceImagePath, TargetImagePath))
+                    throw new InvalidOperationException("Could not copy landmark target from " + SourceImagePath);
+                AssetDatabase.ImportAsset(TargetImagePath, ImportAssetOptions.ForceSynchronousImport);
+            }
+
+            EnsureImageTargetImportSettings(Landmark81TargetImagePath);
+
+            Texture2D targetTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(TargetImagePath)
+                                      ?? throw new InvalidOperationException("Target image is missing: " + TargetImagePath);
+            Texture2D landmark81Target = AssetDatabase.LoadAssetAtPath<Texture2D>(Landmark81TargetImagePath)
+                                         ?? throw new InvalidOperationException("Target image is missing: " + Landmark81TargetImagePath);
+            BuildReferenceLibrary(targetTexture, landmark81Target);
+            EnsureNotreDameModelPrefab();
+            EnsureLandmark81ModelPrefab();
+            AssetDatabase.SaveAssets();
         }
 
         [MenuItem("Tools/AR Walking/Landmark Scan/Build Android POC APK")]
@@ -171,7 +203,7 @@ namespace CorgiAR.EditorTools
                 EditorUtility.RevealInFinder(outputPath);
         }
 
-        private static XRReferenceImageLibrary BuildReferenceLibrary(Texture2D texture)
+        private static XRReferenceImageLibrary BuildReferenceLibrary(Texture2D notreDameTexture, Texture2D landmark81Texture)
         {
             XRReferenceImageLibrary library = AssetDatabase.LoadAssetAtPath<XRReferenceImageLibrary>(LibraryPath);
             if (library == null)
@@ -183,14 +215,33 @@ namespace CorgiAR.EditorTools
             while (library.count > 0)
                 library.RemoveAt(library.count - 1);
 
-            float height = PrintedWidthMetres * texture.height / texture.width;
-            library.Add();
-            library.SetName(0, TargetName);
-            library.SetTexture(0, texture, false);
-            library.SetSpecifySize(0, true);
-            library.SetSize(0, new Vector2(PrintedWidthMetres, height));
+            AddReferenceImage(library, NotreDameTargetName, notreDameTexture);
+            AddReferenceImage(library, Landmark81TargetName, landmark81Texture);
             EditorUtility.SetDirty(library);
             return library;
+        }
+
+        private static void AddReferenceImage(XRReferenceImageLibrary library, string targetName, Texture2D texture)
+        {
+            int index = library.count;
+            float height = PrintedWidthMetres * texture.height / texture.width;
+            library.Add();
+            library.SetName(index, targetName);
+            library.SetTexture(index, texture, false);
+            library.SetSpecifySize(index, true);
+            library.SetSize(index, new Vector2(PrintedWidthMetres, height));
+        }
+
+        private static void EnsureImageTargetImportSettings(string path)
+        {
+            if (AssetImporter.GetAtPath(path) is not TextureImporter importer ||
+                importer.npotScale == TextureImporterNPOTScale.None)
+                return;
+
+            // Reference-image aspect ratio must stay exact. Unity's default NPOT conversion would
+            // resize this 452x678 portrait image and can make the tracked pose/size inaccurate.
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.SaveAndReimport();
         }
 
         /// <summary>
@@ -243,6 +294,48 @@ namespace CorgiAR.EditorTools
             }
         }
 
+        private static GameObject EnsureLandmark81ModelPrefab()
+        {
+            EnsureFolder(Landmark81GeneratedFolder);
+            GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(Landmark81ModelPath)
+                ?? throw new InvalidOperationException("Landmark 81 model is not imported at " + Landmark81ModelPath);
+
+            var root = new GameObject("Landmark81Landmark");
+            try
+            {
+                var visual = (GameObject)PrefabUtility.InstantiatePrefab(source);
+                visual.name = "Landmark 81 Visual";
+                visual.transform.SetParent(root.transform, false);
+
+                Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
+                if (renderers.Length == 0)
+                    throw new InvalidOperationException("Temporary Landmark model has no Renderer.");
+
+                Bounds sourceBounds = MeasureBounds(visual);
+                float scale = Landmark81DisplayHeight / sourceBounds.size.y;
+                visual.transform.localScale = Vector3.one * scale;
+                Physics.SyncTransforms();
+
+                Bounds scaledBounds = MeasureBounds(visual);
+                visual.transform.localPosition = new Vector3(-scaledBounds.center.x, -scaledBounds.min.y, -scaledBounds.center.z);
+                Physics.SyncTransforms();
+
+                Bounds finalBounds = MeasureBounds(visual);
+                BoxCollider collider = root.AddComponent<BoxCollider>();
+                collider.center = finalBounds.center;
+                collider.size = finalBounds.size;
+
+                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, Landmark81PrefabPath);
+                if (saved == null)
+                    throw new InvalidOperationException("Could not save " + Landmark81PrefabPath);
+                return saved;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         private static Bounds MeasureBounds(GameObject root)
         {
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
@@ -270,6 +363,17 @@ namespace CorgiAR.EditorTools
                     AssetDatabase.CreateFolder(current, part);
                 current = next;
             }
+        }
+    }
+
+    internal sealed class LandmarkScanBuildPreprocessor : IPreprocessBuildWithReport
+    {
+        public int callbackOrder => 0;
+
+        public void OnPreprocessBuild(BuildReport report)
+        {
+            if (report.summary.platform == BuildTarget.Android)
+                LandmarkScanSetup.PrepareAssetsForPlayerBuild();
         }
     }
 }

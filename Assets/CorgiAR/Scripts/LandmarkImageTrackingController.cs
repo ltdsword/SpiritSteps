@@ -15,18 +15,31 @@ namespace CorgiAR
     [RequireComponent(typeof(ARTrackedImageManager))]
     public sealed class LandmarkImageTrackingController : MonoBehaviour
     {
+        [Serializable]
+        private sealed class TrackedContentBinding
+        {
+            public string targetName;
+            public GameObject content;
+        }
+
         [SerializeField] private ARTrackedImageManager imageManager;
+        // Kept for backwards compatibility with the original Notre-Dame-only scene.
         [SerializeField] private GameObject trackedContent;
         [SerializeField] private string expectedTargetName = "notre-dame-basilica";
+        [SerializeField] private TrackedContentBinding[] trackedContents = Array.Empty<TrackedContentBinding>();
         [SerializeField] private bool showTrackedContent;
         [SerializeField] private bool showLegacyDebugGui;
 
         private bool recognized;
         private bool currentlyTracking;
-        private string status = "Point the camera at the printed Notre-Dame target.";
+        private string recognizedTargetName;
+        private GameObject activeTrackedContent;
+        private Light landmark81Light;
+        private string status = "Point the camera at a supported Landmark target.";
 
         public bool Recognized => recognized;
         public string ExpectedTargetName => expectedTargetName;
+        public string RecognizedTargetName => recognizedTargetName;
         public event Action TargetRecognized;
         /// <summary>Raised when the player taps the 3D landmark model once it is showing on the
         /// tracked image - the UI uses this to reveal the history/info card.</summary>
@@ -36,8 +49,7 @@ namespace CorgiAR
         {
             if (imageManager == null)
                 imageManager = GetComponent<ARTrackedImageManager>();
-            if (trackedContent != null)
-                trackedContent.SetActive(false);
+            HideAllTrackedContent();
         }
 
         private void OnEnable()
@@ -48,7 +60,7 @@ namespace CorgiAR
 
         private void Update()
         {
-            if (trackedContent == null || !trackedContent.activeInHierarchy)
+            if (activeTrackedContent == null || !activeTrackedContent.activeInHierarchy)
                 return;
             Vector2? tapPosition = TapScreenPosition();
             if (tapPosition == null)
@@ -57,7 +69,7 @@ namespace CorgiAR
             if (cam == null)
                 return;
             Ray ray = cam.ScreenPointToRay(new Vector3(tapPosition.Value.x, tapPosition.Value.y, 0f));
-            if (Physics.Raycast(ray, out RaycastHit hit) && hit.collider.transform.IsChildOf(trackedContent.transform))
+            if (Physics.Raycast(ray, out RaycastHit hit) && hit.collider.transform.IsChildOf(activeTrackedContent.transform))
                 ContentTapped?.Invoke();
         }
 
@@ -86,7 +98,7 @@ namespace CorgiAR
             {
                 ARTrackedImage image = removed.Value;
                 if (image != null && IsExpected(image))
-                    SetTrackingLost();
+                    SetTrackingLost(image.referenceImage.name);
             }
         }
 
@@ -97,57 +109,126 @@ namespace CorgiAR
 
             if (image.trackingState != TrackingState.Tracking)
             {
-                SetTrackingLost();
+                SetTrackingLost(image.referenceImage.name);
                 return;
             }
 
+            string targetName = image.referenceImage.name;
+            if (recognized && !string.Equals(recognizedTargetName, targetName, StringComparison.Ordinal))
+                return;
+
             currentlyTracking = true;
             status = recognized
-                ? "Notre-Dame target is being tracked."
-                : "Notre-Dame target recognized!";
+                ? targetName + " is being tracked."
+                : targetName + " recognized!";
 
-            if (trackedContent != null && showTrackedContent)
+            activeTrackedContent = ContentFor(targetName);
+            if (activeTrackedContent != null && showTrackedContent)
             {
-                trackedContent.transform.SetParent(image.transform, false);
-                trackedContent.transform.localPosition = new Vector3(0f, 0.025f, 0f);
-                trackedContent.transform.localRotation = Quaternion.identity;
-                trackedContent.SetActive(true);
+                HideAllTrackedContent(activeTrackedContent);
+                activeTrackedContent.transform.SetParent(image.transform, false);
+                activeTrackedContent.transform.localPosition = new Vector3(0f, 0.025f, 0f);
+                ApplyContentPresentation(targetName);
+                activeTrackedContent.SetActive(true);
             }
 
             if (recognized)
                 return;
 
             recognized = true;
-            Debug.Log("LANDMARK_IMAGE_RECOGNIZED " + expectedTargetName, this);
+            recognizedTargetName = targetName;
+            Debug.Log("LANDMARK_IMAGE_RECOGNIZED " + recognizedTargetName, this);
             TargetRecognized?.Invoke();
         }
 
-        private bool IsExpected(ARTrackedImage image) =>
-            string.Equals(image.referenceImage.name, expectedTargetName, StringComparison.Ordinal);
+        private bool IsExpected(ARTrackedImage image) => ContentFor(image.referenceImage.name) != null;
 
-        private void SetTrackingLost()
+        private GameObject ContentFor(string targetName)
         {
+            if (trackedContents != null)
+                foreach (TrackedContentBinding binding in trackedContents)
+                    if (binding != null && binding.content != null &&
+                        string.Equals(binding.targetName, targetName, StringComparison.Ordinal))
+                        return binding.content;
+
+            return string.Equals(targetName, expectedTargetName, StringComparison.Ordinal)
+                ? trackedContent
+                : null;
+        }
+
+        private void HideAllTrackedContent(GameObject except = null)
+        {
+            if (trackedContent != null && trackedContent != except)
+                trackedContent.SetActive(false);
+            if (trackedContents == null)
+                return;
+            foreach (TrackedContentBinding binding in trackedContents)
+                if (binding != null && binding.content != null && binding.content != except)
+                    binding.content.SetActive(false);
+        }
+
+        private void ApplyContentPresentation(string targetName)
+        {
+            bool isLandmark81 = string.Equals(targetName, "landmark-81", StringComparison.Ordinal);
+            activeTrackedContent.transform.localRotation = isLandmark81
+                ? Quaternion.Euler(0f, -15f, 0f)
+                : Quaternion.identity;
+
+            if (landmark81Light == null)
+            {
+                var lightObject = new GameObject("Landmark 81 Model Light");
+                lightObject.transform.SetParent(transform, false);
+                lightObject.transform.localRotation = Quaternion.Euler(48f, -32f, 0f);
+                landmark81Light = lightObject.AddComponent<Light>();
+                landmark81Light.type = LightType.Directional;
+                landmark81Light.color = Color.white;
+                landmark81Light.intensity = 1f;
+                landmark81Light.shadows = LightShadows.None;
+            }
+            landmark81Light.enabled = isLandmark81;
+        }
+
+        private void SetTrackingLost(string targetName)
+        {
+            if (recognized && !string.Equals(recognizedTargetName, targetName, StringComparison.Ordinal))
+                return;
             currentlyTracking = false;
             status = recognized
                 ? "Target recognized; point back at it to restore tracking."
-                : "Searching for the Notre-Dame target...";
-            if (trackedContent != null)
-                trackedContent.SetActive(false);
+                : "Searching for a supported Landmark target...";
+            if (activeTrackedContent != null)
+                activeTrackedContent.SetActive(false);
+            if (landmark81Light != null)
+                landmark81Light.enabled = false;
         }
 
         /// <summary>Validates the post-recognition presentation in Editor; it does not test image recognition.</summary>
         public void SimulateRecognitionForEditor()
         {
+            SimulateRecognitionForEditor(expectedTargetName);
+        }
+
+        public void SimulateLandmark81RecognitionForEditor()
+        {
+            SimulateRecognitionForEditor("landmark-81");
+        }
+
+        private void SimulateRecognitionForEditor(string targetName)
+        {
             recognized = true;
             currentlyTracking = true;
+            recognizedTargetName = targetName;
+            activeTrackedContent = ContentFor(targetName);
             status = "SIMULATED: recognition UI works. Test the real scan on Android.";
-            if (trackedContent != null && showTrackedContent)
+            if (activeTrackedContent != null && showTrackedContent)
             {
-                trackedContent.transform.SetParent(transform, false);
-                trackedContent.transform.localPosition = new Vector3(0f, 0f, 0.6f);
-                trackedContent.SetActive(true);
+                HideAllTrackedContent(activeTrackedContent);
+                activeTrackedContent.transform.SetParent(transform, false);
+                activeTrackedContent.transform.localPosition = new Vector3(0f, 0f, 0.6f);
+                ApplyContentPresentation(targetName);
+                activeTrackedContent.SetActive(true);
             }
-            Debug.Log("LANDMARK_IMAGE_RECOGNIZED_SIMULATED " + expectedTargetName, this);
+            Debug.Log("LANDMARK_IMAGE_RECOGNIZED_SIMULATED " + recognizedTargetName, this);
             TargetRecognized?.Invoke();
         }
 

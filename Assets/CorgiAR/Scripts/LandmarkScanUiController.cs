@@ -13,8 +13,7 @@ namespace CorgiAR
     [RequireComponent(typeof(UIDocument))]
     public sealed class LandmarkScanUiController : MonoBehaviour
     {
-        private const string LandmarkId = PrototypeIds.NotreDameBasilica;
-        private const string RewardPetId = PrototypeIds.Bull;
+        private const string DefaultLandmarkId = PrototypeIds.NotreDameBasilica;
 
         private UIDocument document;
         private LandmarkImageTrackingController tracker;
@@ -56,8 +55,7 @@ namespace CorgiAR
                 tracker.ContentTapped += OnContentTapped;
             }
 
-            stampCollected = runtime.SaveData != null &&
-                             runtime.SaveData.completedLandmarkIds.Contains(LandmarkId);
+            RefreshStampState();
             BuildRoot();
             Render();
         }
@@ -88,7 +86,12 @@ namespace CorgiAR
             root.Add(appRoot);
         }
 
-        private void OnTargetRecognized() => Render();
+        private void OnTargetRecognized()
+        {
+            showInfoCard = false;
+            RefreshStampState();
+            Render();
+        }
         private void OnContentTapped()
         {
             if (!tracker.Recognized || showInfoCard)
@@ -112,7 +115,9 @@ namespace CorgiAR
             back.AddToClassList("dark-round-control");
             header.Add(back);
             var titlePill = Element("landmark-scan-title-pill", "landmark-scan-title-pill");
-            titlePill.Add(Text("Scan Notre-Dame Basilica", "subtitle"));
+            titlePill.Add(Text(tracker != null && tracker.Recognized
+                ? "Scan " + CurrentLandmark().name
+                : "Scan a Landmark", "subtitle"));
             header.Add(titlePill);
             page.Add(header);
 
@@ -128,7 +133,7 @@ namespace CorgiAR
             {
                 page.Add(Element("ar-scanning-frame", "ar-scanning-frame"));
                 var controls = Element("ar-scan-controls", "ar-scan-controls");
-                controls.Add(Instruction("Point your camera at the Notre-Dame Basilica image"));
+                controls.Add(Instruction("Point your camera at a supported Landmark image"));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 controls.Add(ActionButton("Simulate recognition", tracker.SimulateRecognitionForEditor, "secondary-action"));
 #endif
@@ -139,7 +144,7 @@ namespace CorgiAR
             if (!showInfoCard)
             {
                 var controls = Element("ar-scan-controls", "ar-scan-controls");
-                controls.Add(Instruction("Notre-Dame Basilica recognized! Tap the model to learn its story."));
+                controls.Add(Instruction(CurrentLandmark().name + " recognized! Tap the model to learn its story."));
                 page.Add(controls);
                 return;
             }
@@ -149,60 +154,100 @@ namespace CorgiAR
 
         private void BuildRecognitionResult(VisualElement page)
         {
+            LandmarkUiData landmark = CurrentLandmark();
+            string rewardPetId = landmark.companionRewardId;
+            string rewardPetName = CompanionName(rewardPetId);
             var sheet = Element("landmark-scan-result-sheet", "landmark-scan-result-sheet");
             var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "landmark-scan-result-scroll" };
             scroll.AddToClassList("landmark-scan-result-scroll");
             scroll.Add(Text("Recognized!", "title"));
-            scroll.Add(Text("NOTRE-DAME BASILICA OF SAIGON", "eyebrow"));
+            scroll.Add(Text(landmark.name.ToUpperInvariant(), "eyebrow"));
 
-            scroll.Add(Text("HISTORY", "landmark-scan-section-title"));
-            scroll.Add(Text(
-                "Construction began on 7 October 1877 and the basilica was completed in 1880, designed by French architect Jules Bourard.",
-                "landmark-scan-result-body"));
+            scroll.Add(Text(landmark.id == PrototypeIds.Landmark81
+                ? "HISTORY AND DEVELOPMENT"
+                : "HISTORY", "landmark-scan-section-title"));
+            var history = Text(landmark.history, "landmark-scan-result-body");
+            history.name = "landmark-history";
+            scroll.Add(history);
 
-            scroll.Add(Text("CULTURAL & SOCIAL SIGNIFICANCE", "landmark-scan-section-title"));
-            scroll.Add(Text(
-                "Through many historical changes, Notre-Dame Cathedral Basilica of Saigon has grown beyond a religious building to become the soul and an inseparable cultural heritage of the southern city.",
-                "landmark-scan-result-body"));
+            scroll.Add(Text(landmark.id == PrototypeIds.Landmark81
+                ? "CULTURAL & SYMBOLIC SIGNIFICANCE"
+                : "CULTURAL & HISTORICAL SIGNIFICANCE", "landmark-scan-section-title"));
+            scroll.Add(Text(landmark.architecture, "landmark-scan-result-body"));
 
             var reward = Element("landmark-reward-card", "landmark-reward-card");
             var rewardImage = new Image
             {
                 name = "landmark-reward-image",
-                image = RewardPetTexture(),
+                image = RewardPetTexture(rewardPetId),
                 scaleMode = ScaleMode.ScaleToFit,
                 pickingMode = PickingMode.Ignore
             };
             rewardImage.AddToClassList("landmark-reward-image");
             reward.Add(rewardImage);
             var rewardCopy = Element("landmark-reward-copy", "landmark-reward-copy");
-            rewardCopy.Add(Text("Bull", "subtitle"));
+            var rewardName = Text(rewardPetName, "subtitle");
+            rewardName.name = "landmark-reward-name";
+            rewardCopy.Add(rewardName);
             rewardCopy.Add(Text(stampCollected ? "Already in your collection" : "Discovery reward", "body"));
             reward.Add(rewardCopy);
             scroll.Add(reward);
 
             scroll.Add(stampCollected
                 ? ActionButton("Back to Journey", ReturnToJourney, "primary-action")
-                : ActionButton("Claim Bull & Stamp", CollectReward, "primary-action"));
+                : ActionButton("Claim " + rewardPetName + " & Stamp", CollectReward, "primary-action"));
             sheet.Add(scroll);
             page.Add(sheet);
         }
 
-        private Texture2D RewardPetTexture()
+        private Texture2D RewardPetTexture(string rewardPetId)
         {
             if (runtime?.Assets == null || runtime.Data == null)
                 return null;
             for (var i = 0; i < runtime.Data.Companions.Count; i++)
-                if (runtime.Data.Companions[i].id == RewardPetId)
+                if (runtime.Data.Companions[i].id == rewardPetId)
                     return runtime.Assets.Companion(i);
             return null;
         }
 
         private void CollectReward()
         {
-            runtime.CompleteLandmarkMemory(LandmarkId);
+            runtime.CompleteLandmarkMemory(CurrentLandmarkId());
             stampCollected = true;
             Render();
+        }
+
+        private string CurrentLandmarkId()
+        {
+            string targetName = tracker != null ? tracker.RecognizedTargetName : null;
+            if (!string.IsNullOrEmpty(targetName))
+                foreach (LandmarkUiData landmark in runtime.Data.Landmarks)
+                    if (landmark.id == targetName)
+                        return landmark.id;
+            return DefaultLandmarkId;
+        }
+
+        private LandmarkUiData CurrentLandmark()
+        {
+            string id = CurrentLandmarkId();
+            foreach (LandmarkUiData landmark in runtime.Data.Landmarks)
+                if (landmark.id == id)
+                    return landmark;
+            return runtime.Data.Landmarks[0];
+        }
+
+        private string CompanionName(string id)
+        {
+            foreach (CompanionUiData companion in runtime.Data.Companions)
+                if (companion.id == id)
+                    return companion.name;
+            return id;
+        }
+
+        private void RefreshStampState()
+        {
+            stampCollected = runtime.SaveData != null &&
+                             runtime.SaveData.completedLandmarkIds.Contains(CurrentLandmarkId());
         }
 
         private void ReturnToJourney() => runtime.ReturnFromLandmarkScan();

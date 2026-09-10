@@ -38,6 +38,7 @@ namespace ARWalking.UI
         };
 
         public const string IndependencePalace = "independence-palace";
+        public const string Landmark81 = "landmark-81";
         public const string CentralPostOffice = "central-post-office";
         public const string NotreDameBasilica = "notre-dame-basilica";
         public const string CentralPostOfficeStamp = "central-post-office-stamp";

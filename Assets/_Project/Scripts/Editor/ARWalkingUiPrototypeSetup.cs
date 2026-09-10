@@ -188,9 +188,10 @@ namespace ARWalking.Editor
             };
             catalog.landmarks = new List<LandmarkUiData>
             {
-                new LandmarkUiData { id=PrototypeIds.IndependencePalace, name="Independence Palace", localName="Dinh Doc Lap", history="A major Ho Chi Minh City landmark associated with pivotal events in modern Vietnamese history.", architecture="The building is known for its modernist composition, shaded facades, and broad ceremonial spaces.", didYouKnow="Its grounds form a large green landmark in the centre of District 1.", imageKey="independence-palace" },
+                new LandmarkUiData { id=PrototypeIds.IndependencePalace, name="Independence Palace", localName="Independence Palace", history="1868-1871: The palace was built during the French colonial period and originally named Norodom Palace. It was later known as the Palace of the Governor of Cochinchina and the Governor-General's Palace.\n\n1955: The palace was renamed Independence Palace under President Ngo Dinh Diem.\n\n1962-1966: After it was damaged in a bombing, the palace was rebuilt to a design by architect Ngo Viet Thu and completed in 1966.\n\n30 April 1975: Liberation Army tanks entered Independence Palace, marking the fall of the Republic of Vietnam government and the end of the war, paving the way for national reunification.", architecture="Independence Palace represents the Vietnamese people's aspiration for independence, resilient spirit, and complete victory in the struggle to defend the nation.", didYouKnow="The present palace was designed by architect Ngo Viet Thu.", imageKey="independence-palace", imageTargetReady=false, companionRewardId=string.Empty },
                 new LandmarkUiData { id=PrototypeIds.CentralPostOffice, name="Central Post Office", localName="Buu dien Trung tam Sai Gon", history="Built in the late nineteenth century, the post office has connected residents and travellers across generations.", architecture="Its long vaulted hall, patterned tile floor, and arched windows create a bright civic interior.", didYouKnow="The building still operates as a post office while welcoming visitors.", imageKey="post-office", imageTargetReady=true, companionRewardId=PrototypeIds.Deer },
-                new LandmarkUiData { id=PrototypeIds.NotreDameBasilica, name="Notre-Dame Basilica", localName="Nha tho Duc Ba Sai Gon", history="Construction began on 7 October 1877 and the basilica was completed in 1880, designed by French architect Jules Bourard.", architecture="Through many historical changes, Notre-Dame Cathedral Basilica of Saigon has grown beyond a religious building to become the soul and an inseparable cultural heritage of the southern city.", didYouKnow="A cultural and social icon of Ho Chi Minh City.", imageKey="notre-dame", imageTargetReady=true, companionRewardId=PrototypeIds.Bull }
+                new LandmarkUiData { id=PrototypeIds.NotreDameBasilica, name="Notre-Dame Basilica", localName="Nha tho Duc Ba Sai Gon", history="Construction began on 7 October 1877 and the basilica was completed in 1880, designed by French architect Jules Bourard.", architecture="Through many historical changes, Notre-Dame Cathedral Basilica of Saigon has grown beyond a religious building to become the soul and an inseparable cultural heritage of the southern city.", didYouKnow="A cultural and social icon of Ho Chi Minh City.", imageKey="notre-dame", imageTargetReady=true, companionRewardId=PrototypeIds.Bull },
+                new LandmarkUiData { id=PrototypeIds.Landmark81, name="Landmark 81", localName="Landmark 81", history="Construction on the project began in 2014, with Vingroup as the developer. The entire complex became fully operational in 2018, becoming the tallest building in Vietnam and, at the time, one of the tallest buildings in the world. Standing 461.2 metres tall, the tower has 81 above-ground floors and rises along the banks of the Saigon River.", architecture="The building's design is inspired by a traditional bundle of bamboo, symbolizing unity, resilience, and the indomitable spirit of the Vietnamese people. It represents Vietnam's economic growth, strong national capabilities, and ambition to reach the global stage in an era of international integration.", didYouKnow="Landmark 81 is named for its 81 above-ground floors.", imageKey="landmark-81", imageTargetReady=true, companionRewardId=PrototypeIds.Stag }
             };
             catalog.map = new IllustratedMapUiData { textureKey="hcm-illustrated", regionName="District 1, Ho Chi Minh City", minimumZoom=1f, maximumZoom=2.8f, initialFocus=new Vector2(0.5f, 0.5f) };
             catalog.markers = new List<MapMarkerUiData>
@@ -198,7 +199,8 @@ namespace ARWalking.Editor
                 Marker("player", MapMarkerType.Player, "Mock player position", .48f, .58f, string.Empty),
                 Marker("palace", MapMarkerType.Landmark, "Independence Palace", .32f, .45f, PrototypeIds.IndependencePalace),
                 Marker("post-office", MapMarkerType.Landmark, "Central Post Office", .62f, .42f, PrototypeIds.CentralPostOffice),
-                Marker("basilica", MapMarkerType.Landmark, "Notre-Dame Basilica", .55f, .36f, PrototypeIds.NotreDameBasilica)
+                Marker("basilica", MapMarkerType.Landmark, "Notre-Dame Basilica", .55f, .36f, PrototypeIds.NotreDameBasilica),
+                Marker("landmark-81", MapMarkerType.Landmark, "Landmark 81", .78f, .32f, PrototypeIds.Landmark81)
             };
             EditorUtility.SetDirty(catalog);
         }
@@ -227,7 +229,13 @@ namespace ARWalking.Editor
                 Texture("Assets/CorgiAR/onigiri/onigiri.png"),
                 Texture("Assets/CorgiAR/ExternalAssets/chicken-drumstick.png")
             };
-            library.landmarks = Textures("Landmarks/independence-palace.png", "Landmarks/post-office.png", "Landmarks/notre-dame.png");
+            library.landmarks = new[]
+            {
+                Texture("Assets/_Project/Art/UI/ReferenceTemp/Landmarks/independence-palace.png"),
+                Texture("Assets/_Project/Art/UI/ReferenceTemp/Landmarks/post-office.png"),
+                Texture("Assets/_Project/Art/UI/ReferenceTemp/Landmarks/notre-dame.png"),
+                Texture("Assets/_Project/Art/AR/Targets/landmark_81.jpg")
+            };
             library.icons = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/_Project/Art/UI/ReferenceTemp/Icons" })
                 .Select(AssetDatabase.GUIDToAssetPath).OrderBy(value => value).Select(Texture).ToArray();
             library.iconAr = Icon("icon_AR.png");

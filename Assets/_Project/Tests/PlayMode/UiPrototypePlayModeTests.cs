@@ -128,6 +128,34 @@ namespace ARWalking.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Landmark81ScanShowsItsStoryAndStagReward()
+        {
+            var home = CreateProfile();
+            home.SelectRoot(UiRootTab.Journey);
+            yield return null;
+
+            UiPrototypeRuntime.Instance.EnterLandmarkScan();
+            yield return WaitForScene("LandmarkScan");
+            yield return null;
+
+            GameObject xrOrigin = GameObject.Find("XR Origin");
+            Assert.That(xrOrigin, Is.Not.Null);
+            xrOrigin.SendMessage("SimulateLandmark81RecognitionForEditor", SendMessageOptions.RequireReceiver);
+            yield return null;
+            xrOrigin.SendMessage("SimulateContentTapForEditor", SendMessageOptions.RequireReceiver);
+            yield return null;
+
+            var scanUi = GameObject.Find("Landmark Scan UI");
+            Assert.That(scanUi, Is.Not.Null);
+            var root = scanUi.GetComponent<UIDocument>().rootVisualElement;
+            Assert.That(root.Q("landmark-scan-result-sheet"), Is.Not.Null);
+            Assert.That(root.Q<Label>("landmark-history").text, Does.Contain("461.2 metres"));
+            Assert.That(root.Q<Label>("landmark-reward-name").text, Is.EqualTo("Stag"));
+            Assert.That(root.Q<UnityEngine.UIElements.Image>("landmark-reward-image").image, Is.Not.Null,
+                "The Stag reward must be visible after recognizing Landmark 81.");
+        }
+
+        [UnityTest]
         public IEnumerator WalkResultWithManyNewlyUnlockedCompanionsKeepsRewardsScrollable()
         {
             var home = CreateProfile();

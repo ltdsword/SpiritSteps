@@ -455,7 +455,11 @@ namespace ARWalking.UI
             {
                 id = result.journeyId,
                 landmarkId = landmarkId,
-                title = landmarkId == PrototypeIds.CentralPostOffice ? "Central Post Office AR Memory" : "Landmark Memory",
+                title = landmarkId == PrototypeIds.CentralPostOffice
+                    ? "Central Post Office AR Memory"
+                    : landmarkId == PrototypeIds.Landmark81
+                        ? "Landmark 81 AR Memory"
+                        : "Landmark Memory",
                 summary = "Collected a Landmark Stamp after completing the AR Memory.",
                 createdUtc = utcNow.ToUniversalTime().ToString("O")
             });
