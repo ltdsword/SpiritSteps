@@ -704,7 +704,7 @@ namespace ARWalking.UI
             nameRow.Add(Pill(stage.ToString(), "stage-pill"));
             copy.Add(nameRow);
             copy.Add(Pill(entry.Rarity.ToString().ToUpperInvariant(), "rarity-pill", "rarity-" + entry.Rarity.ToString().ToLowerInvariant()));
-            copy.Add(Body(definition.description));
+            copy.Add(BuildAutoScrollingDescription(definition.description));
             var dotsRow = Row("featured-dots-row");
             dotsRow.Add(StageDots(stage));
             dotsRow.Add(Label(NextStageLabel(stage), "next-stage-label"));
@@ -1859,6 +1859,44 @@ namespace ARWalking.UI
         static Label Subtitle(string text) => Label(text, "subtitle");
         static Label Body(string text) => Label(text, "body");
         static Label Eyebrow(string text) => Label(text, "eyebrow");
+
+        const int AutoScrollHoldMs = 1400;
+        const int AutoScrollMoveMs = 900;
+
+        /// <summary>The featured companion card's description box (.featured-description-clip in
+        /// ARWalking.uss) has a fixed height so the hero card's size stays consistent across
+        /// companions, but trivia sentences vary in length. When one overflows the box, this scrolls
+        /// it up and down on a loop instead of clipping it outright.</summary>
+        static VisualElement BuildAutoScrollingDescription(string text)
+        {
+            var clip = Element(null, "featured-description-clip");
+            var label = Body(text); // keeps .body's colour/font; .featured-description-text only repositions/resizes it
+            label.AddToClassList("featured-description-text");
+            clip.Add(label);
+            var started = false;
+            clip.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                if (started) return;
+                started = true;
+                BeginAutoScrollIfNeeded(clip, label);
+            });
+            return clip;
+        }
+
+        static void BeginAutoScrollIfNeeded(VisualElement clip, Label label)
+        {
+            var overflow = label.resolvedStyle.height - clip.resolvedStyle.height;
+            if (overflow <= 1f) return; // short trivia already fits - nothing to scroll
+            label.schedule.Execute(() => AutoScrollTo(label, overflow, true)).StartingIn(AutoScrollHoldMs);
+        }
+
+        static void AutoScrollTo(Label label, float overflow, bool scrollDown)
+        {
+            var target = scrollDown ? -overflow : 0f;
+            label.experimental.animation
+                .Start(label.resolvedStyle.top, target, AutoScrollMoveMs, (element, value) => element.style.top = value)
+                .OnCompleted(() => label.schedule.Execute(() => AutoScrollTo(label, overflow, !scrollDown)).StartingIn(AutoScrollHoldMs));
+        }
 
         static VisualElement Element(string name, params string[] classes)
         {
