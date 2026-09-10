@@ -236,8 +236,7 @@ namespace ARWalking.UI
 
         /// <summary>Credits Growth EXP for an AR/3D treat that just finished being eaten (the
         /// inventory unit was already spent at pickup time via <see cref="ConsumeFood"/>, so this
-        /// does not touch inventory again) - completes the "feed pet" tutorial step too, since
-        /// both key off the same <c>everFedCompanion</c> flag <see cref="CompanionProgressionService.FeedCompanion"/> sets.</summary>
+        /// does not touch inventory again).</summary>
         public FeedResultDto GrantFeedExperience(string foodId, string companionId)
         {
             if (_progression == null) return new FeedResultDto { foodId = foodId, companionId = companionId, error = "Not signed in." };

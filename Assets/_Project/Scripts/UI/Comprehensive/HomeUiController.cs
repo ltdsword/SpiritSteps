@@ -204,6 +204,12 @@ namespace ARWalking.UI
             _panel = new AppPanel { name = "ar-walking-app-panel", theme = "light", scale = "medium" };
             _panel.AddToClassList("app-root");
             root.Add(_panel);
+            // App UI's Panel centers its notification container both vertically and horizontally by
+            // default, which stacks toasts on top of each other and overflows the screen when several
+            // fire in quick succession (e.g. spamming the Feed button) - anchor it to the top instead;
+            // ShowToast itself keeps only one toast on screen at a time.
+            _panel.notificationContainer.style.justifyContent = Justify.FlexStart;
+            _panel.notificationContainer.style.paddingTop = 140f;
             _safeRoot = Element("safe-area", "safe-area");
             _panel.Add(_safeRoot);
         }
@@ -1792,6 +1798,7 @@ namespace ARWalking.UI
 
         void ShowToast(string message)
         {
+            _panel.notificationContainer.Clear();
             var toast = Label(message, "toast");
             _panel.notificationContainer.Add(toast);
             toast.schedule.Execute(toast.RemoveFromHierarchy).StartingIn(2200);

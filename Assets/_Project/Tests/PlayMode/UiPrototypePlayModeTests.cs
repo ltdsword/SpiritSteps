@@ -310,7 +310,7 @@ namespace ARWalking.Tests.PlayMode
         public IEnumerator MissionClaimShowsRewardToastAndAdvancesToTheNextMission()
         {
             var home = CreateProfile();
-            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 0.1f;
+            UiPrototypeRuntime.Instance.SaveData.totalDistanceKilometres = 0.02f;
             home.SelectRoot(UiRootTab.Companions);
             home.SelectRoot(UiRootTab.Map);
             yield return null;
@@ -319,9 +319,11 @@ namespace ARWalking.Tests.PlayMode
             yield return null;
 
             var root = home.GetComponent<UIDocument>().rootVisualElement;
-            Assert.That(UiPrototypeRuntime.Instance.SaveData.coins, Is.EqualTo(5));
-            Assert.That(root.Q<Label>(className: "toast")?.text, Is.EqualTo("Reward claimed · 5 coins"));
-            Assert.That(root.Q<Label>(className: "mission-title")?.text, Is.EqualTo("A Snack for Your Friend"));
+            // Fresh saves already start with a few rice balls (see PlayerSaveData.RepairCollections) -
+            // the mission adds 3 more on top of that starting stock.
+            Assert.That(UiPrototypeRuntime.Instance.SaveData.FoodQuantity("rice-ball"), Is.EqualTo(8));
+            Assert.That(root.Q<Label>(className: "toast")?.text, Is.EqualTo("Reward claimed · 3x rice-ball"));
+            Assert.That(root.Q<Label>(className: "mission-title")?.text, Is.EqualTo("Level up your companion"));
         }
 
         [UnityTest]
