@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using CorgiAR.UI;
@@ -57,6 +58,8 @@ namespace CorgiAR.EditorTools
             GameObject companionGo = Find(scene, "Corgi Companion")
                 ?? throw new InvalidOperationException("Corgi Companion not found in PetAr.unity.");
 
+            ConfigureNaturalShadows(scene);
+
             Camera arCamera = xrOrigin.GetComponentInChildren<Camera>(true);
             Camera desktopCamera = desktopCameraGo != null ? desktopCameraGo.GetComponent<Camera>() : null;
             Camera hudCamera = desktopCamera != null ? desktopCamera : arCamera;
@@ -110,6 +113,33 @@ namespace CorgiAR.EditorTools
             AssetDatabase.SaveAssets();
 
             Debug.Log("CORGI AR GLASS HUD CONFIGURED.");
+        }
+
+        private static void ConfigureNaturalShadows(Scene scene)
+        {
+            // PetAr only needs to cover a compact play area. A soft, moderately
+            // sized directional source gives the pet and thrown props a grounded
+            // penumbra instead of the stair-stepped, hard shadow-map silhouette.
+            Light keyLight = scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Light>(true))
+                .FirstOrDefault(light => light.type == LightType.Directional);
+            if (keyLight == null)
+                return;
+
+            keyLight.shadows = LightShadows.Soft;
+            keyLight.shadowStrength = 0.62f;
+            keyLight.shadowBias = 0.02f;
+            keyLight.shadowNormalBias = 0.25f;
+            keyLight.shadowNearPlane = 0.05f;
+            keyLight.shadowAngle = 6f;
+
+            UniversalAdditionalLightData lightData = keyLight.GetComponent<UniversalAdditionalLightData>();
+            if (lightData != null)
+                lightData.softShadowQuality = SoftShadowQuality.Medium;
+
+            EditorUtility.SetDirty(keyLight);
+            if (lightData != null)
+                EditorUtility.SetDirty(lightData);
         }
 
         private static GameObject EnsurePlayBallPrefab()
