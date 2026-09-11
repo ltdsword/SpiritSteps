@@ -203,7 +203,7 @@ MonoBehaviour:
   chewDuration: 2.6
   endDuration: 1.1
   popupColor: {r: 1, g: 0.45, b: 0.12, a: 1}
-  popupText: "NGON QU\xC1!  \u2665"
+  popupText: "YUM!  \u2665"
 --- !u!114 &3286372343924038367
 MonoBehaviour:
   m_ObjectHideFlags: 0

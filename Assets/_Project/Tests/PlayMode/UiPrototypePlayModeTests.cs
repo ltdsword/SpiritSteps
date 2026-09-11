@@ -470,13 +470,23 @@ namespace ARWalking.Tests.PlayMode
             sheet = root.Q(className: "landmark-sheet");
             Assert.That(sheet.Query(className: "story-section").ToList().Count, Is.EqualTo(3),
                 "Once the landmark is explored (its stamp collected), the full history/architecture/did-you-know story should be visible.");
-            var goToStampsButton = sheet.Q<UnityEngine.UIElements.Button>("go-to-stamps");
-            Assert.That(goToStampsButton, Is.Not.Null,
-                "An explored landmark's sheet should offer a 'Go to Stamps' action instead of the AR/locked prompt.");
-            Assert.That(goToStampsButton.ClassListContains("primary-action"), Is.True,
-                "Go to Stamps should use the green primary-action style, not the disabled/locked one.");
+            Assert.That(sheet.Q<ScrollView>("landmark-sheet-scroll"), Is.Not.Null,
+                "The revealed story must scroll instead of shrinking its cards until their text overlaps.");
+            var viewStampButton = sheet.Q<UnityEngine.UIElements.Button>("view-stamp");
+            Assert.That(viewStampButton, Is.Not.Null,
+                "An explored landmark's sheet should offer a direct 'View Stamp' action instead of the AR/locked prompt.");
+            Assert.That(viewStampButton.ClassListContains("primary-action"), Is.True,
+                "View Stamp should use the green primary-action style, not the disabled/locked one.");
             Assert.That(sheet.Q<UnityEngine.UIElements.Button>("walk-closer-to-unlock"), Is.Null,
                 "The 'Walk closer to unlock' prompt shouldn't show once the landmark is already explored.");
+
+            home.OpenLandmarkStamp(PrototypeIds.CentralPostOffice);
+            yield return null;
+            Assert.That(home.CurrentRoot, Is.EqualTo(UiRootTab.Journey));
+            Assert.That(home.CurrentRoute, Is.EqualTo(UiRoute.JourneyDetail),
+                "View Stamp should open this Landmark's Stamp, not stop at the Journey list.");
+            var selectedJourney = UiPrototypeRuntime.Instance.SaveData.journeys[UiPrototypeRuntime.Instance.SelectedJourneyIndex];
+            Assert.That(selectedJourney.landmarkId, Is.EqualTo(PrototypeIds.CentralPostOffice));
         }
 
         [UnityTest]

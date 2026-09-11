@@ -181,6 +181,21 @@ namespace ARWalking.UI
         public void ConfirmResetLocalProgress() => _runtime.ResetLocalProgress();
         /// <summary>Opens the floating Landmark sheet for the given landmark id (test/entry-point hook).</summary>
         public void ShowLandmark(string landmarkId) => ShowLandmarkSheet(landmarkId);
+        /// <summary>Opens the newest Journey Stamp belonging to one explored Landmark.</summary>
+        public void OpenLandmarkStamp(string landmarkId)
+        {
+            var journeyIndex = FindLatestJourneyIndexForLandmark(landmarkId);
+            RemoveTransientOverlay();
+            if (journeyIndex < 0)
+            {
+                SelectRoot(UiRootTab.Journey);
+                return;
+            }
+
+            _runtime.SelectedJourneyIndex = journeyIndex;
+            SelectRoot(UiRootTab.Journey);
+            Navigate(UiRoute.JourneyDetail);
+        }
         /// <summary>Opens the Account panel (test/entry-point hook) - mirrors tapping the top-bar profile button.</summary>
         public void ShowAccount() => ShowAccountPanel();
         /// <summary>Closes whichever floating sheet/modal is open, if any (test/entry-point hook).</summary>
@@ -1015,6 +1030,8 @@ namespace ARWalking.UI
             hero.Add(Pill(proximity.distanceMetres.ToString("0") + " m away", "landmark-sheet-distance"));
             sheet.Add(hero);
 
+            var bodyScroll = new ScrollView(ScrollViewMode.Vertical) { name = "landmark-sheet-scroll" };
+            bodyScroll.AddToClassList("landmark-sheet-scroll");
             var body = Element(null, "landmark-sheet-body");
             var collected = IsStampCollected(landmark.id);
             if (collected)
@@ -1034,14 +1051,15 @@ namespace ARWalking.UI
                 body.Add(InfoRow("lock", "Mission locked", "Explore this landmark to reveal its story", "blossom-info"));
             }
             if (collected)
-                body.Add(ActionWithIcon("stamp", null, "Go to Stamps",
-                    () => { RemoveTransientOverlay(); SelectRoot(UiRootTab.Journey); }, "primary-action"));
+                body.Add(ActionWithIcon("stamp", null, "View Stamp",
+                    () => OpenLandmarkStamp(landmark.id), "primary-action"));
             else if (landmark.imageTargetReady && proximity.isWithinUnlockRadius)
                 body.Add(ActionWithIcon("sparkles", _assets != null ? _assets.iconAr : null, "Open AR Memory",
                     () => { RemoveTransientOverlay(); _runtime.EnterPetAr(_runtime.PrimaryCompanionId(), false, PendingPetInteraction.None, landmark.id); }, "primary-action"));
             else
                 body.Add(ActionWithIcon("lock", null, "Walk closer to unlock", () => ShowToast("This Landmark is outside the AR unlock radius."), "disabled-action"));
-            sheet.Add(body);
+            bodyScroll.Add(body);
+            sheet.Add(bodyScroll);
 
             _overlayScrim.Add(sheet);
             // Added directly to _panel (a sibling of _safeRoot, which owns the bottom nav bar)
